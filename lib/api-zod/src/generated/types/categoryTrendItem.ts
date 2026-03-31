@@ -5,12 +5,9 @@
  * SurplusEngine Finance API
  * OpenAPI spec version: 0.1.0
  */
+import type { CategoryTrendItemDataItem } from "./categoryTrendItemDataItem";
 
-export interface CreateTransaction {
-  date: string;
-  amount: string;
-  description: string;
+export interface CategoryTrendItem {
   category: string;
-  type: string;
-  accountId: number;
+  data: CategoryTrendItemDataItem[];
 }

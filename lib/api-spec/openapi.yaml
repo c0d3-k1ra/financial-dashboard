@@ -32,6 +32,8 @@ tags:
     description: Transfer operations
   - name: trends
     description: Trend analytics
+  - name: analytics
+    description: Category analytics and CC dues
 
 paths:
   /healthz:
@@ -705,6 +707,63 @@ paths:
                 items:
                   $ref: "#/components/schemas/BillingCycle"
 
+  /analytics/spend-by-category:
+    get:
+      operationId: getSpendByCategory
+      tags: [analytics]
+      summary: Get category-wise expense breakdown for a billing cycle
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Category spend breakdown
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategorySpendItem"
+
+  /analytics/category-trend:
+    get:
+      operationId: getCategoryTrend
+      tags: [analytics]
+      summary: Get per-category expense trend over last 6 billing cycles
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Category trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryTrendItem"
+
+  /analytics/cc-dues:
+    get:
+      operationId: getCcDues
+      tags: [analytics]
+      summary: Get credit card payment due information
+      responses:
+        "200":
+          description: CC dues info
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CcDueItem"
+
 components:
   schemas:
     HealthStatus:
@@ -924,6 +983,9 @@ components:
         creditLimit:
           type: string
           nullable: true
+        billingDueDay:
+          type: integer
+          nullable: true
       required:
         - id
         - name
@@ -941,6 +1003,9 @@ components:
           type: string
         creditLimit:
           type: string
+          nullable: true
+        billingDueDay:
+          type: integer
           nullable: true
       required:
         - name
@@ -1238,3 +1303,58 @@ components:
         - previousBalance
         - newBalance
         - adjustment
+
+    CategorySpendItem:
+      type: object
+      properties:
+        category:
+          type: string
+        total:
+          type: string
+      required:
+        - category
+        - total
+
+    CategoryTrendItem:
+      type: object
+      properties:
+        category:
+          type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              cycle:
+                type: string
+              total:
+                type: string
+            required:
+              - cycle
+              - total
+      required:
+        - category
+        - data
+
+    CcDueItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        outstanding:
+          type: string
+        billingDueDay:
+          type: integer
+          nullable: true
+        daysUntilDue:
+          type: integer
+          nullable: true
+        creditLimit:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - outstanding

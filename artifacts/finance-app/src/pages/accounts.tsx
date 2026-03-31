@@ -29,6 +29,7 @@ const formSchema = z.object({
   type: z.enum(["bank", "credit_card"]),
   currentBalance: z.string().optional(),
   creditLimit: z.string().optional(),
+  billingDueDay: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -76,7 +77,7 @@ export default function Accounts() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "" },
+    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "" },
   });
 
   const watchType = form.watch("type");
@@ -95,6 +96,7 @@ export default function Accounts() {
           type: data.type,
           currentBalance: data.currentBalance || "0",
           creditLimit: data.type === "credit_card" ? data.creditLimit || null : null,
+          billingDueDay: data.type === "credit_card" && data.billingDueDay ? Number(data.billingDueDay) : null,
         },
       },
       {
@@ -200,22 +202,37 @@ export default function Accounts() {
                     )}
                   />
                   {watchType === "credit_card" && (
-                    <FormField
-                      control={form.control}
-                      name="creditLimit"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Credit Limit</FormLabel>
-                          <FormControl>
-                            <div className="relative">
-                              <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                              <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="creditLimit"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Credit Limit</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                                <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="billingDueDay"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Billing Due Day (1-31)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 15" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
                   )}
                   <DialogFooter className="pt-4">
                     <Button type="submit" disabled={createAccount.isPending} className="w-full">
@@ -270,6 +287,7 @@ export default function Accounts() {
                   <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Type</TableHead>
                   <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Balance</TableHead>
                   <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Credit Limit</TableHead>
+                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Due Day</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -296,6 +314,9 @@ export default function Accounts() {
                     </TableCell>
                     <TableCell className="text-right font-mono text-muted-foreground">
                       {account.creditLimit ? formatCurrency(account.creditLimit) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-muted-foreground">
+                      {account.billingDueDay ? `${account.billingDueDay}th` : "—"}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -383,6 +404,11 @@ export default function Accounts() {
                             {account.creditLimit && (
                               <p className="text-xs font-mono text-muted-foreground mt-0.5">
                                 Limit: {formatCurrency(account.creditLimit)}
+                              </p>
+                            )}
+                            {account.billingDueDay && (
+                              <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                                Due: {account.billingDueDay}th of each month
                               </p>
                             )}
                           </div>

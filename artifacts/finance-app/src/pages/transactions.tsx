@@ -5,6 +5,8 @@ import {
   useCreateTransaction,
   useDeleteTransaction,
   useListCategories,
+  getListCategoriesQueryKey,
+  useCreateCategory,
   useListAccounts,
   getListAccountsQueryKey,
   useListBillingCycles,
@@ -49,6 +51,8 @@ export default function Transactions() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedCycle, setSelectedCycle] = useState<string>("all");
+  const [newCatName, setNewCatName] = useState("");
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
 
   const { data: billingCycles } = useListBillingCycles({
     query: { queryKey: getListBillingCyclesQueryKey() },
@@ -83,6 +87,27 @@ export default function Transactions() {
   const { data: accounts } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
   });
+
+  const createCategory = useCreateCategory();
+  const handleAddCategory = () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) return;
+    createCategory.mutate(
+      { data: { name: trimmed, type: form.getValues("type") === "Income" ? "Income" : "Expense" } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+          form.setValue("category", trimmed);
+          setNewCatName("");
+          setIsAddingCategory(false);
+          toast({ title: "Category created" });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to create category", description: String(err), variant: "destructive" });
+        },
+      }
+    );
+  };
 
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
@@ -358,20 +383,43 @@ export default function Transactions() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {filteredCategories.map((c) => (
-                            <SelectItem key={c.id} value={c.name}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {isAddingCategory ? (
+                        <div className="flex gap-2">
+                          <Input
+                            value={newCatName}
+                            onChange={(e) => setNewCatName(e.target.value)}
+                            placeholder="New category name"
+                            className="font-mono"
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
+                          />
+                          <Button type="button" size="sm" onClick={handleAddCategory} disabled={createCategory.isPending}>
+                            {createCategory.isPending ? "..." : "Add"}
+                          </Button>
+                          <Button type="button" size="sm" variant="ghost" onClick={() => { setIsAddingCategory(false); setNewCatName(""); }}>
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {filteredCategories.map((c) => (
+                                <SelectItem key={c.id} value={c.name}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setIsAddingCategory(true)}>
+                            + Add Category
+                          </Button>
+                        </>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

@@ -11,6 +11,7 @@ import categoriesRouter from "./categories";
 import transfersRouter from "./transfers";
 import trendsRouter from "./trends";
 import goalsRouter from "./goals";
+import analyticsRouter from "./analytics";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(categoriesRouter);
 router.use(transfersRouter);
 router.use(trendsRouter);
 router.use(goalsRouter);
+router.use(analyticsRouter);
 
 export default router;

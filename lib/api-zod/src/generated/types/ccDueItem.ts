@@ -6,11 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AccountItem {
+export interface CcDueItem {
   id: number;
   name: string;
-  type: string;
-  currentBalance: string;
-  creditLimit?: string | null;
+  outstanding: string;
   billingDueDay?: number | null;
+  daysUntilDue?: number | null;
+  creditLimit?: string | null;
 }

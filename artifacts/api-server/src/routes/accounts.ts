@@ -18,6 +18,10 @@ router.get("/accounts", async (req, res) => {
 router.post("/accounts", async (req, res) => {
   try {
     const data = CreateAccountBody.parse(req.body);
+    if (data.billingDueDay != null && (data.billingDueDay < 1 || data.billingDueDay > 31)) {
+      res.status(400).json({ error: "billingDueDay must be between 1 and 31" });
+      return;
+    }
     const [created] = await db
       .insert(accountsTable)
       .values({
@@ -25,6 +29,7 @@ router.post("/accounts", async (req, res) => {
         type: data.type,
         currentBalance: data.currentBalance || "0",
         creditLimit: data.creditLimit || null,
+        billingDueDay: data.billingDueDay ?? null,
       })
       .returning();
     res.status(201).json(created);
@@ -38,6 +43,10 @@ router.put("/accounts/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const data = CreateAccountBody.parse(req.body);
+    if (data.billingDueDay != null && (data.billingDueDay < 1 || data.billingDueDay > 31)) {
+      res.status(400).json({ error: "billingDueDay must be between 1 and 31" });
+      return;
+    }
     const [updated] = await db
       .update(accountsTable)
       .set({
@@ -45,6 +54,7 @@ router.put("/accounts/:id", async (req, res) => {
         type: data.type,
         currentBalance: data.currentBalance || "0",
         creditLimit: data.creditLimit || null,
+        billingDueDay: data.billingDueDay ?? null,
       })
       .where(eq(accountsTable.id, id))
       .returning();

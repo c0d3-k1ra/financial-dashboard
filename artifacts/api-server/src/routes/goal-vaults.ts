@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, goalVaultsTable, transactionsTable } from "@workspace/db";
-import { UpsertGoalVaultBody, GetGoalProjectionQueryParams } from "@workspace/api-zod";
+import { insertGoalVaultSchema } from "@workspace/db/schema";
 
 const router: IRouter = Router();
 
@@ -17,7 +17,7 @@ router.get("/goal-vaults", async (req, res) => {
 
 router.post("/goal-vaults", async (req, res) => {
   try {
-    const data = UpsertGoalVaultBody.parse(req.body);
+    const data = insertGoalVaultSchema.parse(req.body);
     const existing = await db
       .select()
       .from(goalVaultsTable)
@@ -45,7 +45,7 @@ router.post("/goal-vaults", async (req, res) => {
 
 router.get("/goal-vaults/projection", async (req, res) => {
   try {
-    const { month } = GetGoalProjectionQueryParams.parse(req.query);
+    const month = String(req.query.month || "");
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       res.status(400).json({ error: "Invalid month format. Expected YYYY-MM." });
       return;

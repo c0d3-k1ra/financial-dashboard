@@ -6,8 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyConfig {
-  id: number;
+export type GetSpendByCategoryParams = {
   month: string;
-  startingBalance: string;
-}
+};

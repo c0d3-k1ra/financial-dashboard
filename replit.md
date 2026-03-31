@@ -82,6 +82,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `categories.ts` — CRUD for expense/income categories
   - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
   - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`
+  - `analytics.ts` — `GET /api/analytics/spend-by-category` + `GET /api/analytics/category-trend` + `GET /api/analytics/cc-dues`
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - Billing cycle: 25th of previous month through 24th of current month (helper in `src/lib/billing-cycle.ts`)
 
@@ -89,7 +90,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 
 Database layer using Drizzle ORM with PostgreSQL. Tables:
 
-- `accounts` — id, name, type (bank/credit_card), current_balance, credit_limit
+- `accounts` — id, name, type (bank/credit_card), current_balance, credit_limit, billing_due_day (nullable integer 1-31 for CC payment due date)
 - `categories` — id, name, type (Income/Expense)
 - `transactions` — date, amount, description, category, type (Income/Expense/Transfer), account_id, to_account_id
 - `monthly_config` — month (YYYY-MM), starting_balance

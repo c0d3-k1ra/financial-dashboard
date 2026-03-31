@@ -12,6 +12,7 @@ import {
   useGetGoalProjectionById,
   getGetGoalProjectionByIdQueryKey,
   useGetMonthlySurplus,
+  getGetMonthlySurplusQueryKey,
   useListSurplusAllocations,
   getListSurplusAllocationsQueryKey,
 } from "@workspace/api-client-react";
@@ -103,7 +104,7 @@ export default function Goals() {
   const { data: accounts } = useListAccounts();
   const { refetch: refetchSurplus } = useGetMonthlySurplus(
     { month: currentMonth },
-    { query: { enabled: false } }
+    { query: { enabled: false, queryKey: getGetMonthlySurplusQueryKey({ month: currentMonth }) } }
   );
   const { data: allAllocations } = useListSurplusAllocations();
 
@@ -596,7 +597,7 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
   const hasVelocity = projection?.some(
     (p, i) => i > 0 && Number(p.projectedBalance) !== Number(projection[0].projectedBalance)
   );
-  const hasNeeded = projection?.some((p: Record<string, unknown>) => p.neededBalance != null);
+  const hasNeeded = projection?.some((p) => p.neededBalance != null);
 
   return (
     <Card className="bg-card/50 backdrop-blur border-border/60">

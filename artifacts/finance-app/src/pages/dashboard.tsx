@@ -10,19 +10,36 @@ import {
   getGetCcSpendTrendQueryKey,
   useGetLivingExpensesTrend,
   getGetLivingExpensesTrendQueryKey,
+  useGetSpendByCategory,
+  getGetSpendByCategoryQueryKey,
+  useGetCcDues,
+  getGetCcDuesQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock } from "lucide-react";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import {
-  BarChart, Bar,
+  BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import { Link } from "wouter";
+
+const CHART_COLORS = [
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))",
+  "hsl(var(--chart-5))",
+  "hsl(210, 70%, 50%)",
+  "hsl(280, 60%, 55%)",
+  "hsl(35, 80%, 50%)",
+  "hsl(170, 60%, 45%)",
+  "hsl(330, 65%, 50%)",
+];
 
 export default function Dashboard() {
   const [currentMonth] = useState(() => {
@@ -53,6 +70,21 @@ export default function Dashboard() {
     { month: currentMonth },
     { query: { enabled: true, queryKey: getGetLivingExpensesTrendQueryKey({ month: currentMonth }) } }
   );
+
+  const { data: spendByCategory, isLoading: isLoadingCatSpend } = useGetSpendByCategory(
+    { month: currentMonth },
+    { query: { enabled: true, queryKey: getGetSpendByCategoryQueryKey({ month: currentMonth }) } }
+  );
+
+  const { data: ccDues, isLoading: isLoadingCcDues } = useGetCcDues({
+    query: { enabled: true, queryKey: getGetCcDuesQueryKey() },
+  });
+
+  const pieData = (spendByCategory ?? []).map((item, i) => ({
+    name: item.category,
+    value: Number(item.total),
+    fill: CHART_COLORS[i % CHART_COLORS.length],
+  }));
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -173,6 +205,107 @@ export default function Dashboard() {
                   </div>
                   <span className="font-mono font-bold text-primary">{formatCurrency(summary?.monthlySurplus || 0)}</span>
                 </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-border/60">
+          <CardHeader>
+            <CardTitle className="text-lg">Spend by Category</CardTitle>
+            <CardDescription>Expense breakdown for this billing cycle</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[320px] w-full pt-4">
+            {isLoadingCatSpend ? (
+              <Skeleton className="w-full h-full" />
+            ) : pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={110}
+                    paddingAngle={2}
+                    dataKey="value"
+                    nameKey="name"
+                    label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={{ stroke: "hsl(var(--muted-foreground))" }}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip
+                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
+                    formatter={(value: number) => formatCurrency(value)}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+                No expense data for this cycle
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur border-border/60">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-4 h-4 text-destructive" /> CC Payment Dues
+            </CardTitle>
+            <CardDescription>Upcoming credit card payments</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoadingCcDues ? (
+              <div className="space-y-3">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+            ) : ccDues && ccDues.length > 0 ? (
+              <div className="space-y-3">
+                {ccDues.map((cc) => {
+                  const urgency = cc.daysUntilDue !== null && cc.daysUntilDue !== undefined
+                    ? cc.daysUntilDue <= 5 ? "urgent" : cc.daysUntilDue <= 10 ? "warning" : "ok"
+                    : "unknown";
+                  return (
+                    <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-medium">{cc.name}</p>
+                          <p className="text-lg font-bold font-mono mt-0.5">
+                            {formatCurrency(cc.outstanding)}
+                          </p>
+                        </div>
+                        {cc.daysUntilDue !== null && cc.daysUntilDue !== undefined ? (
+                          <div className={`flex items-center gap-1 text-xs font-mono px-2 py-1 rounded ${
+                            urgency === "urgent"
+                              ? "bg-destructive/15 text-destructive"
+                              : urgency === "warning"
+                              ? "bg-yellow-500/15 text-yellow-500"
+                              : "bg-emerald-500/15 text-emerald-500"
+                          }`}>
+                            {urgency === "urgent" ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
+                            {cc.daysUntilDue}d
+                          </div>
+                        ) : (
+                          <span className="text-xs font-mono text-muted-foreground">No due date</span>
+                        )}
+                      </div>
+                      {cc.billingDueDay && (
+                        <p className="text-xs text-muted-foreground font-mono mt-1">Due: {cc.billingDueDay}th of each month</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
+                No credit cards
               </div>
             )}
           </CardContent>

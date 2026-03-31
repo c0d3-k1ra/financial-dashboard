@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyConfig {
-  id: number;
-  month: string;
-  startingBalance: string;
+export interface CategorySpendItem {
+  category: string;
+  total: string;
 }
