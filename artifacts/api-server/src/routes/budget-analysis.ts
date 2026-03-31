@@ -1,12 +1,17 @@
 import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { db, transactionsTable, budgetGoalsTable } from "@workspace/db";
+import { GetBudgetAnalysisQueryParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 router.get("/budget-analysis", async (req, res) => {
   try {
-    const month = String(req.query.month);
+    const { month } = GetBudgetAnalysisQueryParams.parse(req.query);
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      res.status(400).json({ error: "Invalid month format. Expected YYYY-MM." });
+      return;
+    }
 
     const goals = await db.select().from(budgetGoalsTable);
 
