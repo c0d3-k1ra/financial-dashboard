@@ -3,20 +3,34 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: SurplusEngine Finance API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: transactions
+    description: Transaction operations
+  - name: monthly-config
+    description: Monthly configuration
+  - name: budget-goals
+    description: Budget goal operations
+  - name: goal-vaults
+    description: Goal vault operations
+  - name: dashboard
+    description: Dashboard summary
+  - name: budget-analysis
+    description: Budget analysis
+  - name: surplus
+    description: Surplus engine
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +38,305 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /transactions:
+    get:
+      operationId: listTransactions
+      tags: [transactions]
+      summary: List transactions
+      parameters:
+        - name: month
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+    post:
+      operationId: createTransaction
+      tags: [transactions]
+      summary: Create a transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransaction"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}:
+    put:
+      operationId: updateTransaction
+      tags: [transactions]
+      summary: Update a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransaction"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+    delete:
+      operationId: deleteTransaction
+      tags: [transactions]
+      summary: Delete a transaction
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /monthly-config:
+    get:
+      operationId: listMonthlyConfigs
+      tags: [monthly-config]
+      summary: List monthly configs
+      responses:
+        "200":
+          description: List of monthly configs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyConfig"
+    post:
+      operationId: upsertMonthlyConfig
+      tags: [monthly-config]
+      summary: Create or update monthly config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMonthlyConfig"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyConfig"
+
+  /budget-goals:
+    get:
+      operationId: listBudgetGoals
+      tags: [budget-goals]
+      summary: List budget goals
+      responses:
+        "200":
+          description: List of budget goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetGoal"
+    post:
+      operationId: upsertBudgetGoal
+      tags: [budget-goals]
+      summary: Create or update a budget goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBudgetGoal"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BudgetGoal"
+
+  /goal-vaults:
+    get:
+      operationId: listGoalVaults
+      tags: [goal-vaults]
+      summary: List goal vaults
+      responses:
+        "200":
+          description: List of goal vaults
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalVault"
+    post:
+      operationId: upsertGoalVault
+      tags: [goal-vaults]
+      summary: Create or update a goal vault
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoalVault"
+      responses:
+        "200":
+          description: Upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalVault"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard summary
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /budget-analysis:
+    get:
+      operationId: getBudgetAnalysis
+      tags: [budget-analysis]
+      summary: Get planned vs actual budget analysis
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Budget analysis
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BudgetAnalysisRow"
+
+  /surplus/consolidate:
+    post:
+      operationId: consolidateSurplus
+      tags: [surplus]
+      summary: Consolidate monthly surplus into Emergency Fund
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConsolidateRequest"
+      responses:
+        "200":
+          description: Consolidation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsolidateResult"
+
+  /goal-vaults/projection:
+    get:
+      operationId: getGoalProjection
+      tags: [goal-vaults]
+      summary: Get 12-month projection for emergency fund
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Projection data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectionPoint"
+
+  /transactions/recent:
+    get:
+      operationId: getRecentTransactions
+      tags: [transactions]
+      summary: Get recent transactions across all months
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Recent transactions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Transaction"
+
+  /dashboard/monthly-trend:
+    get:
+      operationId: getMonthlyTrend
+      tags: [dashboard]
+      summary: Get income vs expense trend for last 6 months
+      responses:
+        "200":
+          description: Monthly trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MonthlyTrendPoint"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +347,241 @@ components:
       required:
         - status
 
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        date:
+          type: string
+        amount:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        type:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - date
+        - amount
+        - description
+        - category
+        - type
+        - createdAt
+
+    CreateTransaction:
+      type: object
+      properties:
+        date:
+          type: string
+        amount:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        type:
+          type: string
+      required:
+        - date
+        - amount
+        - description
+        - category
+        - type
+
+    MonthlyConfig:
+      type: object
+      properties:
+        id:
+          type: integer
+        month:
+          type: string
+        startingBalance:
+          type: string
+      required:
+        - id
+        - month
+        - startingBalance
+
+    CreateMonthlyConfig:
+      type: object
+      properties:
+        month:
+          type: string
+        startingBalance:
+          type: string
+      required:
+        - month
+        - startingBalance
+
+    BudgetGoal:
+      type: object
+      properties:
+        id:
+          type: integer
+        category:
+          type: string
+        plannedAmount:
+          type: string
+      required:
+        - id
+        - category
+        - plannedAmount
+
+    CreateBudgetGoal:
+      type: object
+      properties:
+        category:
+          type: string
+        plannedAmount:
+          type: string
+      required:
+        - category
+        - plannedAmount
+
+    GoalVault:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        currentBalance:
+          type: string
+        targetAmount:
+          type: string
+      required:
+        - id
+        - name
+        - currentBalance
+        - targetAmount
+
+    CreateGoalVault:
+      type: object
+      properties:
+        name:
+          type: string
+        currentBalance:
+          type: string
+        targetAmount:
+          type: string
+      required:
+        - name
+        - currentBalance
+        - targetAmount
+
+    DashboardSummary:
+      type: object
+      properties:
+        bankBalance:
+          type: string
+        unpaidCcDues:
+          type: string
+        netLiquidity:
+          type: string
+        totalIncome:
+          type: string
+        totalExpenses:
+          type: string
+        monthlySurplus:
+          type: string
+        burnRate:
+          type: number
+        plannedLivingExpenses:
+          type: string
+        actualLivingExpenses:
+          type: string
+        startingBalance:
+          type: string
+        endBalance:
+          type: string
+      required:
+        - bankBalance
+        - unpaidCcDues
+        - netLiquidity
+        - totalIncome
+        - totalExpenses
+        - monthlySurplus
+        - burnRate
+        - plannedLivingExpenses
+        - actualLivingExpenses
+        - startingBalance
+        - endBalance
+
+    BudgetAnalysisRow:
+      type: object
+      properties:
+        category:
+          type: string
+        planned:
+          type: string
+        actual:
+          type: string
+        difference:
+          type: string
+        overBudget:
+          type: boolean
+      required:
+        - category
+        - planned
+        - actual
+        - difference
+        - overBudget
+
+    ConsolidateRequest:
+      type: object
+      properties:
+        month:
+          type: string
+        amount:
+          type: string
+      required:
+        - month
+        - amount
+
+    ConsolidateResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        newBalance:
+          type: string
+        amountAdded:
+          type: string
+      required:
+        - success
+        - newBalance
+        - amountAdded
+
+    ProjectionPoint:
+      type: object
+      properties:
+        month:
+          type: string
+        projectedBalance:
+          type: string
+        targetAmount:
+          type: string
+      required:
+        - month
+        - projectedBalance
+        - targetAmount
+
+    MonthlyTrendPoint:
+      type: object
+      properties:
+        month:
+          type: string
+        income:
+          type: string
+        expenses:
+          type: string
+      required:
+        - month
+        - income
+        - expenses
