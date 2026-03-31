@@ -1,7 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, goalVaultsTable, transactionsTable, surplusLedgerTable, monthlyConfigTable } from "@workspace/db";
+import { db, pool, goalVaultsTable, transactionsTable, surplusLedgerTable, monthlyConfigTable } from "@workspace/db";
 import { ConsolidateSurplusBody } from "@workspace/api-zod";
+import { drizzle } from "drizzle-orm/node-postgres";
+import * as schema from "@workspace/db/schema";
 
 const router: IRouter = Router();
 
@@ -11,6 +13,14 @@ function getNextMonth(month: string): string {
   let nm = m + 1;
   if (nm > 12) { nm = 1; ny++; }
   return `${ny}-${String(nm).padStart(2, "0")}`;
+}
+
+async function getVaultBalance(): Promise<string> {
+  const vault = await db
+    .select()
+    .from(goalVaultsTable)
+    .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"));
+  return vault.length > 0 ? Number(vault[0].currentBalance).toFixed(2) : "0.00";
 }
 
 router.post("/surplus/consolidate", async (req, res) => {
@@ -24,16 +34,11 @@ router.post("/surplus/consolidate", async (req, res) => {
       .where(eq(surplusLedgerTable.month, month));
 
     if (existingLedger.length > 0) {
-      const entry = existingLedger[0];
-      const vault = await db
-        .select()
-        .from(goalVaultsTable)
-        .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"));
-
+      const currentBalance = await getVaultBalance();
       res.json({
         success: true,
-        newBalance: vault.length > 0 ? Number(vault[0].currentBalance).toFixed(2) : "0.00",
-        amountAdded: Number(entry.amount).toFixed(2),
+        newBalance: currentBalance,
+        amountAdded: Number(existingLedger[0].amount).toFixed(2),
       });
       return;
     }
@@ -53,71 +58,85 @@ router.post("/surplus/consolidate", async (req, res) => {
     const surplus = totalIncome - totalExpenses;
 
     if (surplus <= 0) {
-      res.json({ success: false, newBalance: "0.00", amountAdded: "0.00" });
+      const currentBalance = await getVaultBalance();
+      res.json({ success: false, newBalance: currentBalance, amountAdded: "0.00" });
       return;
     }
 
-    const existing = await db
-      .select()
-      .from(goalVaultsTable)
-      .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"));
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const txDb = drizzle(client, { schema });
 
-    let result;
-    if (existing.length > 0) {
-      [result] = await db
-        .update(goalVaultsTable)
-        .set({
-          currentBalance: sql`(${goalVaultsTable.currentBalance}::numeric + ${surplus})::text`,
-        })
-        .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"))
-        .returning();
-    } else {
-      [result] = await db
-        .insert(goalVaultsTable)
-        .values({
-          name: "Emergency Fund (IDFC)",
-          currentBalance: surplus.toFixed(2),
-          targetAmount: "300000.00",
-        })
-        .returning();
-    }
+      const existing = await txDb
+        .select()
+        .from(goalVaultsTable)
+        .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"));
 
-    await db.insert(surplusLedgerTable).values({
-      month,
-      amount: surplus.toFixed(2),
-      vaultName: "Emergency Fund (IDFC)",
-    });
+      let result;
+      if (existing.length > 0) {
+        [result] = await txDb
+          .update(goalVaultsTable)
+          .set({
+            currentBalance: sql`(${goalVaultsTable.currentBalance}::numeric + ${surplus})::text`,
+          })
+          .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"))
+          .returning();
+      } else {
+        [result] = await txDb
+          .insert(goalVaultsTable)
+          .values({
+            name: "Emergency Fund (IDFC)",
+            currentBalance: surplus.toFixed(2),
+            targetAmount: "300000.00",
+          })
+          .returning();
+      }
 
-    const config = await db
-      .select()
-      .from(monthlyConfigTable)
-      .where(eq(monthlyConfigTable.month, month));
+      await txDb.insert(surplusLedgerTable).values({
+        month,
+        amount: surplus.toFixed(2),
+        vaultName: "Emergency Fund (IDFC)",
+      });
 
-    const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
-    const endBalance = startingBalance + totalIncome - totalExpenses;
-    const nextMonth = getNextMonth(month);
+      const config = await txDb
+        .select()
+        .from(monthlyConfigTable)
+        .where(eq(monthlyConfigTable.month, month));
 
-    const existingNext = await db
-      .select()
-      .from(monthlyConfigTable)
-      .where(eq(monthlyConfigTable.month, nextMonth));
+      const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
+      const endBalance = startingBalance + totalIncome - totalExpenses;
+      const nextMonth = getNextMonth(month);
 
-    if (existingNext.length > 0) {
-      await db
-        .update(monthlyConfigTable)
-        .set({ startingBalance: endBalance.toFixed(2) })
+      const existingNext = await txDb
+        .select()
+        .from(monthlyConfigTable)
         .where(eq(monthlyConfigTable.month, nextMonth));
-    } else {
-      await db
-        .insert(monthlyConfigTable)
-        .values({ month: nextMonth, startingBalance: endBalance.toFixed(2) });
-    }
 
-    res.json({
-      success: true,
-      newBalance: Number(result.currentBalance).toFixed(2),
-      amountAdded: surplus.toFixed(2),
-    });
+      if (existingNext.length > 0) {
+        await txDb
+          .update(monthlyConfigTable)
+          .set({ startingBalance: endBalance.toFixed(2) })
+          .where(eq(monthlyConfigTable.month, nextMonth));
+      } else {
+        await txDb
+          .insert(monthlyConfigTable)
+          .values({ month: nextMonth, startingBalance: endBalance.toFixed(2) });
+      }
+
+      await client.query("COMMIT");
+
+      res.json({
+        success: true,
+        newBalance: Number(result.currentBalance).toFixed(2),
+        amountAdded: surplus.toFixed(2),
+      });
+    } catch (txErr) {
+      await client.query("ROLLBACK");
+      throw txErr;
+    } finally {
+      client.release();
+    }
   } catch (e) {
     req.log.error({ err: e }, "Failed to consolidate surplus");
     res.status(400).json({ error: "Invalid request" });

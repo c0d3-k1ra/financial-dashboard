@@ -154,7 +154,7 @@ export default function Goals() {
                   />
                   <RechartsTooltip 
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
-                    formatter={(value: any) => formatCurrency(value)}
+                    formatter={(value: number) => formatCurrency(value)}
                   />
                   <ReferenceLine y={Number(projection[0]?.targetAmount || 0)} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" label={{ position: 'top', value: 'Target', fill: 'hsl(var(--muted-foreground))', fontSize: 10, fontFamily: "var(--font-mono)" }} />
                   <Line 

@@ -6,6 +6,7 @@ import {
   getListBudgetGoalsQueryKey,
   useUpsertBudgetGoal
 } from "@workspace/api-client-react";
+import type { BudgetAnalysisRow } from "@workspace/api-client-react";
 import { formatCurrency, EXPENSE_CATEGORIES } from "@/lib/constants";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,8 +71,7 @@ export default function Budget() {
     {
       header: "Planned",
       accessorKey: "planned" as const,
-      cell: (row: any) => {
-        // If we are editing, show the input, else show the input with default value
+      cell: (row: BudgetAnalysisRow) => {
         const val = editingGoals[row.category] !== undefined 
           ? editingGoals[row.category] 
           : row.planned;
@@ -107,13 +107,13 @@ export default function Budget() {
       header: "Actual",
       accessorKey: "actual" as const,
       className: "text-right font-mono",
-      cell: (row: any) => formatCurrency(row.actual)
+      cell: (row: BudgetAnalysisRow) => formatCurrency(row.actual)
     },
     {
       header: "Difference",
       accessorKey: "difference" as const,
       className: "text-right font-mono",
-      cell: (row: any) => (
+      cell: (row: BudgetAnalysisRow) => (
         <span className={row.overBudget ? "text-destructive font-bold flex items-center justify-end gap-1" : "text-emerald-500 flex items-center justify-end gap-1"}>
           {row.overBudget && <AlertCircle className="w-3 h-3" />}
           {formatCurrency(row.difference)}

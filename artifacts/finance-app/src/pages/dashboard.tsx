@@ -204,7 +204,7 @@ export default function Dashboard() {
                   <RechartsTooltip 
                     cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
-                    formatter={(value: any) => formatCurrency(value)}
+                    formatter={(value: number) => formatCurrency(value)}
                   />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
                   <Bar dataKey="income" name="Income" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={40} />

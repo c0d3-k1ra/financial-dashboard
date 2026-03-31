@@ -5,6 +5,8 @@ import {
   useCreateTransaction,
   useDeleteTransaction
 } from "@workspace/api-client-react";
+import type { Transaction } from "@workspace/api-client-react";
+
 import { formatCurrency, formatDate, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { Button } from "@/components/ui/button";
@@ -145,7 +147,7 @@ export default function Transactions() {
       ),
       cardLabel: "Date",
       accessorKey: "date" as const,
-      cell: (tx: any) => <span className="font-mono">{formatDate(tx.date)}</span>,
+      cell: (tx: Transaction) => <span className="font-mono">{formatDate(tx.date)}</span>,
     },
     {
       header: (
@@ -165,7 +167,7 @@ export default function Transactions() {
       ),
       cardLabel: "Category",
       accessorKey: "category" as const,
-      cell: (tx: any) => (
+      cell: (tx: Transaction) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground border border-border/50">
           {tx.category}
         </span>
@@ -180,7 +182,7 @@ export default function Transactions() {
       cardLabel: "Amount",
       accessorKey: "amount" as const,
       className: "text-right",
-      cell: (tx: any) => (
+      cell: (tx: Transaction) => (
         <div className="flex items-center justify-end gap-1 font-mono font-bold">
           {tx.type === "Income" ? (
             <span className="text-emerald-500 flex items-center gap-1">
@@ -198,7 +200,7 @@ export default function Transactions() {
       header: "",
       className: "w-10 text-center",
       cardLabel: "Action",
-      cell: (tx: any) => (
+      cell: (tx: Transaction) => (
         <Button 
           variant="ghost" 
           size="icon" 
@@ -241,7 +243,7 @@ export default function Transactions() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Type</FormLabel>
-                        <Select onValueChange={(val: any) => onTypeChange(val)} defaultValue={field.value}>
+                        <Select onValueChange={(val: string) => onTypeChange(val as "Income" | "Expense")} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select type" />
