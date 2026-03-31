@@ -389,7 +389,8 @@ export default function Transactions() {
                             value={newCatName}
                             onChange={(e) => setNewCatName(e.target.value)}
                             placeholder="New category name"
-                            className="font-mono"
+                            className="font-mono text-sm"
+                            autoFocus
                             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
                           />
                           <Button type="button" size="sm" onClick={handleAddCategory} disabled={createCategory.isPending}>
@@ -400,25 +401,23 @@ export default function Transactions() {
                           </Button>
                         </div>
                       ) : (
-                        <>
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {filteredCategories.map((c) => (
-                                <SelectItem key={c.id} value={c.name}>
-                                  {c.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs text-primary" onClick={() => setIsAddingCategory(true)}>
-                            + Add Category
-                          </Button>
-                        </>
+                        <Select onValueChange={(val) => { if (val === "__add_new__") { setIsAddingCategory(true); } else { field.onChange(val); } }} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {filteredCategories.map((c) => (
+                              <SelectItem key={c.id} value={c.name}>
+                                {c.name}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="__add_new__" className="text-primary font-medium border-t border-border/50 mt-1">
+                              + Add Category
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
                       )}
                       <FormMessage />
                     </FormItem>

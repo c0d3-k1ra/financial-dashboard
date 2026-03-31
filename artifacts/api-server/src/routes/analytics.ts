@@ -131,13 +131,22 @@ router.get("/analytics/cc-dues", async (req, res) => {
 
       if (account.billingDueDay) {
         const dueDay = account.billingDueDay;
-        if (currentDay <= dueDay) {
-          daysUntilDue = dueDay - currentDay;
-        } else {
-          const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
-          const diffMs = nextMonth.getTime() - today.getTime();
-          daysUntilDue = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        }
+        const getNextDueDate = (fromDate: Date, day: number): Date => {
+          let year = fromDate.getFullYear();
+          let month = fromDate.getMonth();
+          const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+          const clampedDay = Math.min(day, daysInCurrentMonth);
+          if (fromDate.getDate() <= clampedDay) {
+            return new Date(year, month, clampedDay);
+          }
+          month++;
+          if (month > 11) { month = 0; year++; }
+          const daysInNextMonth = new Date(year, month + 1, 0).getDate();
+          return new Date(year, month, Math.min(day, daysInNextMonth));
+        };
+        const nextDue = getNextDueDate(today, dueDay);
+        const diffMs = nextDue.getTime() - today.getTime();
+        daysUntilDue = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
       }
 
       return {
