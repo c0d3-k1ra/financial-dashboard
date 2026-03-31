@@ -6,9 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface ProjectionPoint {
-  month: string;
-  projectedBalance: string;
-  neededBalance?: string | null;
+export interface UpdateGoal {
+  name: string;
   targetAmount: string;
+  currentAmount?: string;
+  accountId: number;
+  targetDate?: string;
+  categoryType: string;
+  icon?: string;
 }

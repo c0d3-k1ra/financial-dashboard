@@ -6,8 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyTrendPoint {
-  month: string;
-  income: string;
-  expenses: string;
-}
+export type WaterfallDataGoalAllocationsItem = {
+  goalId: number;
+  goalName: string;
+  allocated: string;
+};

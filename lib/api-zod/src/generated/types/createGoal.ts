@@ -6,8 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CategoryItem {
-  id: number;
+export interface CreateGoal {
   name: string;
-  type: string;
+  targetAmount: string;
+  accountId: number;
+  targetDate?: string;
+  categoryType: string;
+  icon?: string;
 }

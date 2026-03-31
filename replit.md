@@ -55,7 +55,7 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ### `artifacts/finance-app` (`@workspace/finance-app`)
 
-React + Vite frontend for SurplusEngine. Dark mode personal finance dashboard with 6 tabs: Dashboard, Transactions, Budget, Goal Vault, Accounts, Settings.
+React + Vite frontend for SurplusEngine. Dark mode personal finance dashboard with 6 tabs: Dashboard, Transactions, Budget, Goals, Accounts, Settings.
 
 - Uses wouter for routing, Recharts for charts, shadcn/ui components
 - Responsive design: tables transform to card views on mobile (< 768px)
@@ -73,11 +73,12 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `transactions.ts` — CRUD for transactions + `GET /api/transactions/recent`
   - `monthly-config.ts` — upsert monthly starting balance
   - `budget-goals.ts` — upsert budget planned amounts per category
-  - `goal-vaults.ts` — upsert goal vaults + `GET /api/goal-vaults/projection` (12-month projection)
+  - `goal-vaults.ts` — upsert goal vaults + `GET /api/goal-vaults/projection` (12-month projection) [legacy]
+  - `goals.ts` — Dynamic goal CRUD, `GET /api/goals/waterfall` (Net Worth Waterfall), `GET /api/goals/:id/projection` (per-goal 12-month projection)
   - `dashboard.ts` — `GET /api/dashboard/summary` + `GET /api/dashboard/monthly-trend` + `GET /api/billing-cycles`
   - `budget-analysis.ts` — `GET /api/budget-analysis` (planned vs actual per category)
-  - `surplus.ts` — `POST /api/surplus/consolidate` (waterfall surplus into Emergency Fund)
-  - `accounts.ts` — CRUD for bank accounts and credit cards
+  - `surplus.ts` — `POST /api/surplus/consolidate` (legacy) + `POST /api/surplus/distribute` (distribute surplus across goals) + `GET /api/surplus/allocations`
+  - `accounts.ts` — CRUD for bank accounts and credit cards + `POST /api/accounts/:id/reconcile` (balance reconciliation)
   - `categories.ts` — CRUD for expense/income categories
   - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
   - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`
@@ -93,8 +94,10 @@ Database layer using Drizzle ORM with PostgreSQL. Tables:
 - `transactions` — date, amount, description, category, type (Income/Expense/Transfer), account_id, to_account_id
 - `monthly_config` — month (YYYY-MM), starting_balance
 - `budget_goals` — category (unique), planned_amount
-- `goal_vaults` — name (unique), current_balance, target_amount
-- `surplus_ledger` — surplus tracking
+- `goals` — id, name, target_amount, current_amount, account_id (FK → accounts), status (Active/Paused/Achieved), target_date, category_type, icon
+- `surplus_allocations` — id, month, goal_id (FK → goals), amount, source_account_id (FK → accounts), allocated_at
+- `goal_vaults` — name (unique), current_balance, target_amount [legacy]
+- `surplus_ledger` — surplus tracking [legacy]
 
 Seed script: `lib/db/src/seed.ts` — creates default Primary Bank account, seeds categories from hardcoded lists, maps unmapped transactions.
 

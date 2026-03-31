@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyTrendPoint {
+export type GetMonthlySurplus200 = {
   month: string;
   income: string;
   expenses: string;
-}
+  surplus: string;
+};

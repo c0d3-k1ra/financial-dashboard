@@ -6,8 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyConfig {
+export interface SurplusAllocation {
   id: number;
   month: string;
-  startingBalance: string;
+  goalId: number;
+  goalName: string;
+  amount: string;
+  sourceAccountId?: number | null;
+  allocatedAt: Date;
 }

@@ -16,8 +16,8 @@ tags:
     description: Monthly configuration
   - name: budget-goals
     description: Budget goal operations
-  - name: goal-vaults
-    description: Goal vault operations
+  - name: goals
+    description: Dynamic savings goals
   - name: dashboard
     description: Dashboard summary
   - name: budget-analysis
@@ -236,53 +236,6 @@ paths:
         "204":
           description: Deleted
 
-  /goal-vaults:
-    get:
-      operationId: listGoalVaults
-      tags: [goal-vaults]
-      summary: List goal vaults
-      responses:
-        "200":
-          description: List of goal vaults
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/GoalVault"
-    post:
-      operationId: upsertGoalVault
-      tags: [goal-vaults]
-      summary: Create or update a goal vault
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreateGoalVault"
-      responses:
-        "200":
-          description: Upserted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/GoalVault"
-
-  /goal-vaults/{id}:
-    delete:
-      operationId: deleteGoalVault
-      tags: [goal-vaults]
-      summary: Delete a goal vault
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-      responses:
-        "204":
-          description: Deleted
-
   /dashboard/summary:
     get:
       operationId: getDashboardSummary
@@ -323,36 +276,167 @@ paths:
                 items:
                   $ref: "#/components/schemas/BudgetAnalysisRow"
 
-  /surplus/consolidate:
+  /surplus/distribute:
     post:
-      operationId: consolidateSurplus
+      operationId: distributeSurplus
       tags: [surplus]
-      summary: Consolidate monthly surplus into Emergency Fund
+      summary: Distribute monthly surplus across goals
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ConsolidateRequest"
+              $ref: "#/components/schemas/DistributeRequest"
       responses:
         "200":
-          description: Consolidation result
+          description: Distribution result
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ConsolidateResult"
+                $ref: "#/components/schemas/DistributeResult"
 
-  /goal-vaults/projection:
+  /surplus/monthly:
     get:
-      operationId: getGoalProjection
-      tags: [goal-vaults]
-      summary: Get 12-month projection for emergency fund
+      operationId: getMonthlySurplus
+      tags: [surplus]
+      summary: Get computed monthly surplus for a given month
       parameters:
         - name: month
           in: query
           required: true
           schema:
             type: string
+      responses:
+        "200":
+          description: Monthly surplus info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month:
+                    type: string
+                  income:
+                    type: string
+                  expenses:
+                    type: string
+                  surplus:
+                    type: string
+                required:
+                  - month
+                  - income
+                  - expenses
+                  - surplus
+
+  /surplus/allocations:
+    get:
+      operationId: listSurplusAllocations
+      tags: [surplus]
+      summary: List surplus allocation history
+      responses:
+        "200":
+          description: List of allocations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SurplusAllocation"
+
+  /goals:
+    get:
+      operationId: listGoals
+      tags: [goals]
+      summary: List all goals with intelligence data
+      responses:
+        "200":
+          description: List of goals
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GoalItem"
+    post:
+      operationId: createGoal
+      tags: [goals]
+      summary: Create a new goal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoal"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalItem"
+
+  /goals/{id}:
+    put:
+      operationId: updateGoal
+      tags: [goals]
+      summary: Update a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGoal"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalItem"
+    delete:
+      operationId: deleteGoal
+      tags: [goals]
+      summary: Delete a goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /goals/waterfall:
+    get:
+      operationId: getGoalsWaterfall
+      tags: [goals]
+      summary: Get waterfall data for goals vs liquid cash
+      responses:
+        "200":
+          description: Waterfall data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WaterfallData"
+
+  /goals/{id}/projection:
+    get:
+      operationId: getGoalProjectionById
+      tags: [goals]
+      summary: Get 12-month projection for a specific goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
       responses:
         "200":
           description: Projection data
@@ -362,6 +446,31 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/ProjectionPoint"
+
+  /accounts/{id}/reconcile:
+    post:
+      operationId: reconcileAccount
+      tags: [accounts]
+      summary: Reconcile account balance with actual bank statement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReconcileRequest"
+      responses:
+        "200":
+          description: Reconciliation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReconcileResult"
 
   /transactions/recent:
     get:
@@ -712,37 +821,6 @@ components:
         - category
         - plannedAmount
 
-    GoalVault:
-      type: object
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
-        currentBalance:
-          type: string
-        targetAmount:
-          type: string
-      required:
-        - id
-        - name
-        - currentBalance
-        - targetAmount
-
-    CreateGoalVault:
-      type: object
-      properties:
-        name:
-          type: string
-        currentBalance:
-          type: string
-        targetAmount:
-          type: string
-      required:
-        - name
-        - currentBalance
-        - targetAmount
-
     DashboardSummary:
       type: object
       properties:
@@ -801,28 +879,6 @@ components:
         - difference
         - overBudget
 
-    ConsolidateRequest:
-      type: object
-      properties:
-        month:
-          type: string
-      required:
-        - month
-
-    ConsolidateResult:
-      type: object
-      properties:
-        success:
-          type: boolean
-        newBalance:
-          type: string
-        amountAdded:
-          type: string
-      required:
-        - success
-        - newBalance
-        - amountAdded
-
     ProjectionPoint:
       type: object
       properties:
@@ -830,6 +886,9 @@ components:
           type: string
         projectedBalance:
           type: string
+        neededBalance:
+          type: string
+          nullable: true
         targetAmount:
           type: string
       required:
@@ -966,3 +1025,216 @@ components:
         - label
         - startDate
         - endDate
+
+    GoalItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        targetAmount:
+          type: string
+        currentAmount:
+          type: string
+        accountId:
+          type: integer
+        accountName:
+          type: string
+          nullable: true
+        status:
+          type: string
+        targetDate:
+          type: string
+          nullable: true
+        categoryType:
+          type: string
+        icon:
+          type: string
+          nullable: true
+        velocity:
+          type: number
+        statusIndicator:
+          type: string
+        projectedFinishDate:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - targetAmount
+        - currentAmount
+        - accountId
+        - status
+        - categoryType
+        - velocity
+        - statusIndicator
+
+    CreateGoal:
+      type: object
+      properties:
+        name:
+          type: string
+        targetAmount:
+          type: string
+        accountId:
+          type: integer
+        targetDate:
+          type: string
+        categoryType:
+          type: string
+        icon:
+          type: string
+      required:
+        - name
+        - targetAmount
+        - accountId
+        - categoryType
+
+    UpdateGoal:
+      type: object
+      properties:
+        name:
+          type: string
+        targetAmount:
+          type: string
+        currentAmount:
+          type: string
+        accountId:
+          type: integer
+        targetDate:
+          type: string
+        categoryType:
+          type: string
+        icon:
+          type: string
+      required:
+        - name
+        - targetAmount
+        - accountId
+        - categoryType
+
+    WaterfallData:
+      type: object
+      properties:
+        totalBankBalance:
+          type: string
+        goalAllocations:
+          type: array
+          items:
+            type: object
+            properties:
+              goalId:
+                type: integer
+              goalName:
+                type: string
+              allocated:
+                type: string
+            required:
+              - goalId
+              - goalName
+              - allocated
+        remainingLiquidCash:
+          type: string
+        avgMonthlyLivingExpenses:
+          type: string
+        stressTest:
+          type: boolean
+      required:
+        - totalBankBalance
+        - goalAllocations
+        - remainingLiquidCash
+        - avgMonthlyLivingExpenses
+        - stressTest
+
+    DistributeRequest:
+      type: object
+      properties:
+        month:
+          type: string
+        sourceAccountId:
+          type: integer
+        allocations:
+          type: array
+          items:
+            type: object
+            properties:
+              goalId:
+                type: integer
+              amount:
+                type: string
+            required:
+              - goalId
+              - amount
+      required:
+        - month
+        - sourceAccountId
+        - allocations
+
+    DistributeResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        allocatedTotal:
+          type: string
+        transfers:
+          type: integer
+        surplus:
+          type: string
+      required:
+        - success
+        - allocatedTotal
+        - transfers
+
+    SurplusAllocation:
+      type: object
+      properties:
+        id:
+          type: integer
+        month:
+          type: string
+        goalId:
+          type: integer
+        goalName:
+          type: string
+        amount:
+          type: string
+        sourceAccountId:
+          type: integer
+          nullable: true
+        allocatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - month
+        - goalId
+        - goalName
+        - amount
+        - allocatedAt
+
+    ReconcileRequest:
+      type: object
+      properties:
+        actualBalance:
+          type: string
+      required:
+        - actualBalance
+
+    ReconcileResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        previousBalance:
+          type: string
+        newBalance:
+          type: string
+        adjustment:
+          type: string
+      required:
+        - success
+        - previousBalance
+        - newBalance
+        - adjustment

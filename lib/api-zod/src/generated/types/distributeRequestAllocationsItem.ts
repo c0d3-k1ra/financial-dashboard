@@ -6,8 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyTrendPoint {
-  month: string;
-  income: string;
-  expenses: string;
-}
+export type DistributeRequestAllocationsItem = {
+  goalId: number;
+  amount: string;
+};

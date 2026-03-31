@@ -6,8 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface MonthlyTrendPoint {
-  month: string;
-  income: string;
-  expenses: string;
+export interface DistributeResult {
+  success: boolean;
+  allocatedTotal: string;
+  transfers: number;
+  surplus?: string;
 }

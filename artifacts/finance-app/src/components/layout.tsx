@@ -13,7 +13,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
     { href: "/transactions", label: "Transactions", icon: List },
     { href: "/budget", label: "Budget", icon: PieChart },
-    { href: "/goals", label: "Goal Vault", icon: ShieldCheck },
+    { href: "/goals", label: "Goals", icon: ShieldCheck },
     { href: "/accounts", label: "Accounts", icon: Landmark },
     { href: "/settings", label: "Settings", icon: Settings },
   ];

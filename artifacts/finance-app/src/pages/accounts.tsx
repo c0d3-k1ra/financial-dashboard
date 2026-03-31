@@ -4,13 +4,15 @@ import {
   getListAccountsQueryKey,
   useCreateAccount,
   useDeleteAccount,
+  useReconcileAccount,
 } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,7 +20,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight } from "lucide-react";
+import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -36,6 +38,8 @@ export default function Accounts() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [reconcileId, setReconcileId] = useState<number | null>(null);
+  const [reconcileBalance, setReconcileBalance] = useState("");
 
   const { data: accounts, isLoading } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
@@ -43,6 +47,32 @@ export default function Accounts() {
 
   const createAccount = useCreateAccount();
   const deleteAccount = useDeleteAccount();
+  const reconcileAccount = useReconcileAccount();
+
+  const reconcileTarget = accounts?.find((a) => a.id === reconcileId);
+  const reconcileCurrentBalance = reconcileTarget ? Number(reconcileTarget.currentBalance) : 0;
+  const reconcileAdjustment = reconcileBalance ? Number(reconcileBalance) - reconcileCurrentBalance : 0;
+
+  const handleReconcile = () => {
+    if (!reconcileId || !reconcileBalance) return;
+    reconcileAccount.mutate(
+      { id: reconcileId, data: { actualBalance: reconcileBalance } },
+      {
+        onSuccess: (res) => {
+          toast({
+            title: "Account Reconciled",
+            description: `Adjusted by ${formatCurrency(res.adjustment)}. New balance: ${formatCurrency(res.newBalance)}`,
+          });
+          setReconcileId(null);
+          setReconcileBalance("");
+          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Reconciliation Failed", description: String(err), variant: "destructive" });
+        },
+      }
+    );
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -268,14 +298,25 @@ export default function Accounts() {
                       {account.creditLimit ? formatCurrency(account.creditLimit) : "—"}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDelete(account.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
+                          title="Reconcile"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleDelete(account.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -300,14 +341,24 @@ export default function Accounts() {
                               {formatCurrency(account.currentBalance)}
                             </p>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDelete(account.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDelete(account.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -335,14 +386,24 @@ export default function Accounts() {
                               </p>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDelete(account.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => handleDelete(account.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -355,6 +416,45 @@ export default function Accounts() {
       )}
 
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
+
+      <Dialog open={reconcileId !== null} onOpenChange={(open) => { if (!open) { setReconcileId(null); setReconcileBalance(""); } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Reconcile: {reconcileTarget?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="text-sm font-mono text-muted-foreground">
+              Current balance: {formatCurrency(reconcileCurrentBalance)}
+            </div>
+            <div>
+              <Label>Actual Balance (from bank statement)</Label>
+              <div className="relative mt-1">
+                <span className="absolute left-3 top-2.5 text-muted-foreground">₹</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  className="pl-7 font-mono"
+                  value={reconcileBalance}
+                  onChange={(e) => setReconcileBalance(e.target.value)}
+                />
+              </div>
+            </div>
+            {reconcileBalance && Math.abs(reconcileAdjustment) > 0.01 && (
+              <div className={`text-sm font-mono p-2 rounded-md ${reconcileAdjustment >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                Adjustment: {reconcileAdjustment >= 0 ? "+" : ""}{formatCurrency(reconcileAdjustment)}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleReconcile} disabled={reconcileAccount.isPending || !reconcileBalance}>
+              {reconcileAccount.isPending ? "Reconciling..." : "Reconcile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

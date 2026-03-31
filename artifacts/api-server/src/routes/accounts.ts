@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, accountsTable, transactionsTable } from "@workspace/db";
-import { CreateAccountBody } from "@workspace/api-zod";
+import { CreateAccountBody, ReconcileAccountBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -80,6 +80,52 @@ router.delete("/accounts/:id", async (req, res) => {
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete account");
     res.status(500).json({ error: "Internal error" });
+  }
+});
+
+router.post("/accounts/:id/reconcile", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const data = ReconcileAccountBody.parse(req.body);
+    const actualBalance = Number(data.actualBalance);
+
+    const account = await db.select().from(accountsTable).where(eq(accountsTable.id, id));
+    if (!account.length) {
+      res.status(404).json({ error: "Account not found" });
+      return;
+    }
+
+    const previousBalance = Number(account[0].currentBalance ?? 0);
+    const adjustment = actualBalance - previousBalance;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(accountsTable)
+        .set({ currentBalance: actualBalance.toFixed(2) })
+        .where(eq(accountsTable.id, id));
+
+      if (Math.abs(adjustment) > 0.001) {
+        const today = new Date().toISOString().split("T")[0];
+        await tx.insert(transactionsTable).values({
+          date: today,
+          amount: Math.abs(adjustment).toFixed(2),
+          description: `Balance Adjustment (${adjustment >= 0 ? "+" : "-"}${Math.abs(adjustment).toFixed(2)})`,
+          category: "Adjustment",
+          type: adjustment >= 0 ? "Income" : "Expense",
+          accountId: id,
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      previousBalance: previousBalance.toFixed(2),
+      newBalance: actualBalance.toFixed(2),
+      adjustment: adjustment.toFixed(2),
+    });
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to reconcile account");
+    res.status(400).json({ error: "Invalid request" });
   }
 });
 
