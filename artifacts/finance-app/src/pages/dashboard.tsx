@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
@@ -14,15 +14,17 @@ import {
   getGetSpendByCategoryQueryKey,
   useGetCcDues,
   getGetCcDuesQueryKey,
+  useGetCategoryTrend,
+  getGetCategoryTrendQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock } from "lucide-react";
-import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
+  LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -41,11 +43,21 @@ const CHART_COLORS = [
   "hsl(330, 65%, 50%)",
 ];
 
+const TOOLTIP_STYLE = {
+  backgroundColor: "hsl(var(--popover))",
+  borderColor: "hsl(var(--border))",
+  borderRadius: "8px",
+  fontFamily: "var(--font-mono)",
+  fontSize: "12px",
+  color: "hsl(var(--popover-foreground))",
+};
+
 export default function Dashboard() {
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
     { month: currentMonth },
@@ -80,11 +92,38 @@ export default function Dashboard() {
     query: { enabled: true, queryKey: getGetCcDuesQueryKey() },
   });
 
+  const { data: categoryTrend, isLoading: isLoadingCatTrend } = useGetCategoryTrend(
+    { month: currentMonth },
+    { query: { enabled: true, queryKey: getGetCategoryTrendQueryKey({ month: currentMonth }) } }
+  );
+
   const pieData = (spendByCategory ?? []).map((item, i) => ({
     name: item.category,
     value: Number(item.total),
     fill: CHART_COLORS[i % CHART_COLORS.length],
   }));
+
+  const categoryNames = useMemo(() => (categoryTrend ?? []).map((c) => c.category), [categoryTrend]);
+
+  const categoryTrendLineData = useMemo(() => {
+    if (!categoryTrend || categoryTrend.length === 0) return [];
+    const filtered = selectedCategory === "all"
+      ? categoryTrend
+      : categoryTrend.filter((c) => c.category === selectedCategory);
+
+    const cycleMap = new Map<string, Record<string, number>>();
+    for (const cat of filtered) {
+      for (const pt of cat.data) {
+        if (!cycleMap.has(pt.cycle)) cycleMap.set(pt.cycle, { cycle: 0 } as unknown as Record<string, number>);
+        const row = cycleMap.get(pt.cycle)!;
+        row.cycle = pt.cycle as unknown as number;
+        row[cat.category] = Number(pt.total || 0);
+      }
+    }
+    return Array.from(cycleMap.values());
+  }, [categoryTrend, selectedCategory]);
+
+  const visibleCategories = selectedCategory === "all" ? categoryNames : [selectedCategory];
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -240,7 +279,7 @@ export default function Dashboard() {
                     ))}
                   </Pie>
                   <RechartsTooltip
-                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
+                    contentStyle={TOOLTIP_STYLE}
                     formatter={(value: number) => formatCurrency(value)}
                   />
                 </PieChart>
@@ -312,6 +351,59 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      <Card className="bg-card/50 backdrop-blur border-border/60">
+        <CardHeader>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-lg">Category Trend</CardTitle>
+              <CardDescription>Expense trends over last 6 billing cycles</CardDescription>
+            </div>
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-[180px] h-8 text-xs font-mono">
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {categoryNames.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="h-[320px] w-full pt-4">
+          {isLoadingCatTrend ? (
+            <Skeleton className="w-full h-full" />
+          ) : categoryTrendLineData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={categoryTrendLineData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", paddingTop: "10px" }} />
+                {visibleCategories.map((cat, i) => (
+                  <Line
+                    key={cat}
+                    type="monotone"
+                    dataKey={cat}
+                    name={cat}
+                    stroke={CHART_COLORS[categoryNames.indexOf(cat) % CHART_COLORS.length]}
+                    strokeWidth={2}
+                    dot={{ r: 3 }}
+                    activeDot={{ r: 5 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+              No category trend data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-border/60">
           <CardHeader>
@@ -323,15 +415,15 @@ export default function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : monthlyTrend && monthlyTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={monthlyTrend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <LineChart data={monthlyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
-                  <RechartsTooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
-                  <Bar dataKey="income" name="Income" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                  <Bar dataKey="expenses" name="Expenses" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                </BarChart>
+                  <Line type="monotone" dataKey="income" name="Income" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="expenses" name="Expenses" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
@@ -394,13 +486,13 @@ export default function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={ccSpendTrend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <LineChart data={ccSpendTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-30} textAnchor="end" height={60} />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }} formatter={(value: number) => formatCurrency(value)} />
-                  <Bar dataKey="total" name="CC Spend" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                </BarChart>
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <Line type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
@@ -420,13 +512,13 @@ export default function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : livingExpensesTrend && livingExpensesTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={livingExpensesTrend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                <LineChart data={livingExpensesTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-30} textAnchor="end" height={60} />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }} formatter={(value: number) => formatCurrency(value)} />
-                  <Bar dataKey="total" name="Living Expenses" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                </BarChart>
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <Line type="monotone" dataKey="total" name="Living Expenses" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                </LineChart>
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">

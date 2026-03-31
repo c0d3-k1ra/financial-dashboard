@@ -55,6 +55,10 @@ export async function runStartupMigrations() {
   `);
 
   await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "billing_due_day" integer
+  `);
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS "goals" (
       "id" serial PRIMARY KEY NOT NULL,
       "name" text NOT NULL,
