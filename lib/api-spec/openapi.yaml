@@ -24,6 +24,14 @@ tags:
     description: Budget analysis
   - name: surplus
     description: Surplus engine
+  - name: accounts
+    description: Account operations
+  - name: categories
+    description: Category operations
+  - name: transfers
+    description: Transfer operations
+  - name: trends
+    description: Trend analytics
 
 paths:
   /healthz:
@@ -58,6 +66,14 @@ paths:
           schema:
             type: string
         - name: category
+          in: query
+          schema:
+            type: string
+        - name: cycleStart
+          in: query
+          schema:
+            type: string
+        - name: cycleEnd
           in: query
           schema:
             type: string
@@ -382,6 +398,204 @@ paths:
                 items:
                   $ref: "#/components/schemas/MonthlyTrendPoint"
 
+  /accounts:
+    get:
+      operationId: listAccounts
+      tags: [accounts]
+      summary: List all accounts
+      responses:
+        "200":
+          description: List of accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AccountItem"
+    post:
+      operationId: createAccount
+      tags: [accounts]
+      summary: Create an account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccount"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountItem"
+
+  /accounts/{id}:
+    put:
+      operationId: updateAccount
+      tags: [accounts]
+      summary: Update an account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAccount"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccountItem"
+    delete:
+      operationId: deleteAccount
+      tags: [accounts]
+      summary: Delete an account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List all categories
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoryItem"
+    post:
+      operationId: createCategory
+      tags: [categories]
+      summary: Create a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCategory"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryItem"
+
+  /categories/{id}:
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /transfers:
+    post:
+      operationId: createTransfer
+      tags: [transfers]
+      summary: Transfer money between accounts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransfer"
+      responses:
+        "201":
+          description: Transfer created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /trends/cc-spend:
+    get:
+      operationId: getCcSpendTrend
+      tags: [trends]
+      summary: Get CC spending totals per billing cycle (last 6 cycles)
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: CC spend trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CcSpendPoint"
+
+  /trends/living-expenses:
+    get:
+      operationId: getLivingExpensesTrend
+      tags: [trends]
+      summary: Get living expenses for last 6 billing cycles
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Living expenses trend data
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LivingExpensesPoint"
+
+  /billing-cycles:
+    get:
+      operationId: listBillingCycles
+      tags: [dashboard]
+      summary: List available billing cycles
+      responses:
+        "200":
+          description: Available billing cycles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BillingCycle"
+
 components:
   schemas:
     HealthStatus:
@@ -407,6 +621,12 @@ components:
           type: string
         type:
           type: string
+        accountId:
+          type: integer
+          nullable: true
+        toAccountId:
+          type: integer
+          nullable: true
         createdAt:
           type: string
           format: date-time
@@ -432,12 +652,15 @@ components:
           type: string
         type:
           type: string
+        accountId:
+          type: integer
       required:
         - date
         - amount
         - description
         - category
         - type
+        - accountId
 
     MonthlyConfig:
       type: object
@@ -627,3 +850,119 @@ components:
         - month
         - income
         - expenses
+
+    AccountItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+        currentBalance:
+          type: string
+        creditLimit:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - type
+        - currentBalance
+
+    CreateAccount:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        currentBalance:
+          type: string
+        creditLimit:
+          type: string
+          nullable: true
+      required:
+        - name
+        - type
+
+    CategoryItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          type: string
+      required:
+        - id
+        - name
+        - type
+
+    CreateCategory:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+      required:
+        - name
+        - type
+
+    CreateTransfer:
+      type: object
+      properties:
+        fromAccountId:
+          type: integer
+        toAccountId:
+          type: integer
+        amount:
+          type: string
+        date:
+          type: string
+        description:
+          type: string
+      required:
+        - fromAccountId
+        - toAccountId
+        - amount
+        - date
+
+    CcSpendPoint:
+      type: object
+      properties:
+        cycle:
+          type: string
+        total:
+          type: string
+      required:
+        - cycle
+        - total
+
+    LivingExpensesPoint:
+      type: object
+      properties:
+        cycle:
+          type: string
+        total:
+          type: string
+      required:
+        - cycle
+        - total
+
+    BillingCycle:
+      type: object
+      properties:
+        label:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+      required:
+        - label
+        - startDate
+        - endDate

@@ -1,11 +1,15 @@
 import { useState } from "react";
-import { 
-  useGetDashboardSummary, 
+import {
+  useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
   useGetRecentTransactions,
   getGetRecentTransactionsQueryKey,
   useGetMonthlyTrend,
-  getGetMonthlyTrendQueryKey
+  getGetMonthlyTrendQueryKey,
+  useGetCcSpendTrend,
+  getGetCcSpendTrendQueryKey,
+  useGetLivingExpensesTrend,
+  getGetLivingExpensesTrendQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,7 +17,11 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight } from "lucide-react";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
+import {
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { Link } from "wouter";
 
 export default function Dashboard() {
@@ -32,13 +40,22 @@ export default function Dashboard() {
     { query: { enabled: true, queryKey: getGetRecentTransactionsQueryKey({ limit: 5 }) } }
   );
 
-  const { data: monthlyTrend, isLoading: isLoadingTrend } = useGetMonthlyTrend(
-    { query: { enabled: true, queryKey: getGetMonthlyTrendQueryKey() } }
+  const { data: monthlyTrend, isLoading: isLoadingTrend } = useGetMonthlyTrend({
+    query: { enabled: true, queryKey: getGetMonthlyTrendQueryKey() },
+  });
+
+  const { data: ccSpendTrend, isLoading: isLoadingCcSpend } = useGetCcSpendTrend(
+    { month: currentMonth },
+    { query: { enabled: true, queryKey: getGetCcSpendTrendQueryKey({ month: currentMonth }) } }
+  );
+
+  const { data: livingExpensesTrend, isLoading: isLoadingLiving } = useGetLivingExpensesTrend(
+    { month: currentMonth },
+    { query: { enabled: true, queryKey: getGetLivingExpensesTrendQueryKey({ month: currentMonth }) } }
   );
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financial Cockpit</h1>
         <div className="text-sm font-mono text-muted-foreground bg-secondary/50 px-3 py-1 rounded-md border border-border/50">
@@ -46,7 +63,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Top row cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-card/50 backdrop-blur border-border/60 shadow-sm hover:border-border transition-colors">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
@@ -61,9 +77,7 @@ export default function Dashboard() {
                 {formatCurrency(summary?.netLiquidity || 0)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1 font-mono">
-              Bank Balance - CC Dues
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-mono">Bank Balance - CC Dues</p>
           </CardContent>
         </Card>
 
@@ -80,9 +94,7 @@ export default function Dashboard() {
                 {formatCurrency(summary?.bankBalance || 0)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1 font-mono">
-              Available Cash
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-mono">Available Cash</p>
           </CardContent>
         </Card>
 
@@ -99,14 +111,11 @@ export default function Dashboard() {
                 {formatCurrency(summary?.unpaidCcDues || 0)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1 font-mono">
-              Pending Liabilities
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 font-mono">Pending Liabilities</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Middle row: Burn Rate & Summary */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="bg-card/50 backdrop-blur border-border/60">
           <CardHeader>
@@ -122,19 +131,15 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="flex justify-between items-end mb-2">
-                  <div className="font-mono text-2xl font-bold">
-                    {summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%
-                  </div>
+                  <div className="font-mono text-2xl font-bold">{summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%</div>
                   <div className="text-sm font-mono text-muted-foreground">
                     {formatCurrency(summary?.actualLivingExpenses || 0)} / {formatCurrency(summary?.plannedLivingExpenses || 1)}
                   </div>
                 </div>
-                <Progress 
-                  value={Math.min(summary?.burnRate || 0, 100)} 
-                  className="h-3 bg-secondary" 
-                  indicatorClassName={
-                    (summary?.burnRate || 0) > 100 ? "bg-destructive" : "bg-primary"
-                  }
+                <Progress
+                  value={Math.min(summary?.burnRate || 0, 100)}
+                  className="h-3 bg-secondary"
+                  indicatorClassName={(summary?.burnRate || 0) > 100 ? "bg-destructive" : "bg-primary"}
                 />
               </>
             )}
@@ -147,7 +152,7 @@ export default function Dashboard() {
             <CardDescription>Income & Surplus</CardDescription>
           </CardHeader>
           <CardContent>
-             {isLoadingSummary ? (
+            {isLoadingSummary ? (
               <div className="space-y-4">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
@@ -174,13 +179,11 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Bottom row: Chart & Recent Txs */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* Chart */}
         <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-border/60">
           <CardHeader>
             <CardTitle className="text-lg">Income vs Expenses Trend</CardTitle>
+            <CardDescription>Last 6 billing cycles (25th-24th)</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px] w-full pt-4">
             {isLoadingTrend ? (
@@ -189,23 +192,9 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthlyTrend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
-                    tickFormatter={(value) => `\u20B9${value/1000}k`}
-                  />
-                  <RechartsTooltip 
-                    cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }}
-                    contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                  <RechartsTooltip cursor={{ fill: "hsl(var(--muted))", opacity: 0.4 }} contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }} formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
                   <Bar dataKey="income" name="Income" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} maxBarSize={40} />
                   <Bar dataKey="expenses" name="Expenses" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} maxBarSize={40} />
@@ -219,7 +208,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Txs */}
         <Card className="bg-card/50 backdrop-blur border-border/60 flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg">Recent Ledger</CardTitle>
@@ -230,22 +218,25 @@ export default function Dashboard() {
           <CardContent className="flex-1">
             {isLoadingTxs ? (
               <div className="space-y-4 pt-2">
-                {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 w-full" />)}
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
               </div>
             ) : recentTxs && recentTxs.length > 0 ? (
               <div className="space-y-3 pt-2">
-                {recentTxs.map(tx => (
+                {recentTxs.map((tx) => (
                   <div key={tx.id} className="flex justify-between items-center pb-3 border-b border-border/40 last:border-0 last:pb-0">
                     <div className="flex flex-col">
                       <span className="text-sm font-medium line-clamp-1">{tx.description}</span>
                       <div className="flex gap-2 text-xs text-muted-foreground font-mono">
                         <span>{formatDate(tx.date)}</span>
-                        <span>•</span>
+                        <span>&bull;</span>
                         <span className="truncate max-w-[100px]">{tx.category}</span>
                       </div>
                     </div>
-                    <span className={`font-mono text-sm font-bold ${tx.type === 'Income' ? 'text-emerald-500' : 'text-foreground'}`}>
-                      {tx.type === 'Income' ? '+' : '-'}{formatCurrency(tx.amount)}
+                    <span className={`font-mono text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
+                      {tx.type === "Income" ? "+" : "-"}
+                      {formatCurrency(tx.amount)}
                     </span>
                   </div>
                 ))}
@@ -257,7 +248,60 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
+      </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="bg-card/50 backdrop-blur border-border/60">
+          <CardHeader>
+            <CardTitle className="text-lg">CC Spend Trend</CardTitle>
+            <CardDescription>Credit card spending per billing cycle</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px] w-full pt-4">
+            {isLoadingCcSpend ? (
+              <Skeleton className="w-full h-full" />
+            ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={ccSpendTrend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-30} textAnchor="end" height={60} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }} formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="total" name="CC Spend" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+                No CC spending data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur border-border/60">
+          <CardHeader>
+            <CardTitle className="text-lg">Living Expenses Trend</CardTitle>
+            <CardDescription>Last 6 billing cycles</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px] w-full pt-4">
+            {isLoadingLiving ? (
+              <Skeleton className="w-full h-full" />
+            ) : livingExpensesTrend && livingExpensesTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={livingExpensesTrend} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-30} textAnchor="end" height={60} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: "8px", fontFamily: "var(--font-mono)", fontSize: "12px" }} formatter={(value: number) => formatCurrency(value)} />
+                  <Bar dataKey="total" name="Living Expenses" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+                No living expense data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

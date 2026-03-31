@@ -6,11 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface CreateTransaction {
-  date: string;
+export interface CreateTransfer {
+  fromAccountId: number;
+  toAccountId: number;
   amount: string;
-  description: string;
-  category: string;
-  type: string;
-  accountId: number;
+  date: string;
+  description?: string;
 }

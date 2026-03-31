@@ -1,13 +1,18 @@
 import { useState, useMemo } from "react";
-import { 
-  useListTransactions, 
+import {
+  useListTransactions,
   getListTransactionsQueryKey,
   useCreateTransaction,
-  useDeleteTransaction
+  useDeleteTransaction,
+  useListCategories,
+  useListAccounts,
+  getListAccountsQueryKey,
+  useListBillingCycles,
+  getListBillingCyclesQueryKey,
 } from "@workspace/api-client-react";
 import type { Transaction } from "@workspace/api-client-react";
 
-import { formatCurrency, formatDate, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "@/lib/constants";
+import { formatCurrency, formatDate } from "@/lib/constants";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +23,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Search, Trash2, ArrowDownRight, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Search, Trash2, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -28,6 +33,7 @@ const formSchema = z.object({
   description: z.string().min(1, "Description is required"),
   type: z.enum(["Income", "Expense"]),
   category: z.string().min(1, "Category is required"),
+  accountId: z.string().min(1, "Account is required"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -42,15 +48,41 @@ export default function Transactions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [currentMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const [selectedCycle, setSelectedCycle] = useState<string>("all");
+
+  const { data: billingCycles } = useListBillingCycles({
+    query: { queryKey: getListBillingCyclesQueryKey() },
   });
 
-  const { data: transactions, isLoading } = useListTransactions(
-    { search: search || undefined, month: currentMonth },
-    { query: { enabled: true, queryKey: getListTransactionsQueryKey({ search: search || undefined, month: currentMonth }) } }
+  const selectedCycleData = useMemo(() => {
+    if (selectedCycle === "all" || !billingCycles) return null;
+    const idx = parseInt(selectedCycle);
+    return billingCycles[idx] || null;
+  }, [selectedCycle, billingCycles]);
+
+  const queryParams = useMemo(() => {
+    const params: Record<string, string | undefined> = {
+      search: search || undefined,
+    };
+    if (selectedCycleData) {
+      params.cycleStart = selectedCycleData.startDate;
+      params.cycleEnd = selectedCycleData.endDate;
+    }
+    return params;
+  }, [search, selectedCycleData]);
+
+  const { data: transactions, isLoading } = useListTransactions(queryParams, {
+    query: { enabled: true, queryKey: getListTransactionsQueryKey(queryParams) },
+  });
+
+  const { data: categories } = useListCategories(
+    {},
+    { query: { queryKey: ["/api/categories"] } }
   );
+
+  const { data: accounts } = useListAccounts({
+    query: { queryKey: getListAccountsQueryKey() },
+  });
 
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
@@ -77,7 +109,7 @@ export default function Transactions() {
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDir("desc");
@@ -86,9 +118,11 @@ export default function Transactions() {
 
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />;
-    return sortDir === "asc" 
-      ? <ArrowUp className="w-3 h-3 ml-1 text-primary" /> 
-      : <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
+    return sortDir === "asc" ? (
+      <ArrowUp className="w-3 h-3 ml-1 text-primary" />
+    ) : (
+      <ArrowDown className="w-3 h-3 ml-1 text-primary" />
+    );
   };
 
   const createTx = useCreateTransaction();
@@ -97,16 +131,17 @@ export default function Transactions() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       amount: "",
       description: "",
       type: "Expense",
       category: "",
+      accountId: "",
     },
   });
 
   const watchType = form.watch("type");
-  const categories = watchType === "Expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  const filteredCategories = categories?.filter((c) => c.type === watchType) ?? [];
 
   const onTypeChange = (val: "Income" | "Expense") => {
     form.setValue("type", val);
@@ -114,28 +149,41 @@ export default function Transactions() {
   };
 
   const onSubmit = (data: FormValues) => {
-    createTx.mutate({ data }, {
-      onSuccess: () => {
-        toast({ title: "Transaction added successfully" });
-        setIsDialogOpen(false);
-        form.reset();
-        queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey({ search: search || undefined, month: currentMonth }) });
-        queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+    createTx.mutate(
+      {
+        data: {
+          ...data,
+          accountId: Number(data.accountId),
+        },
       },
-      onError: (err) => {
-        toast({ title: "Failed to add transaction", description: String(err), variant: "destructive" });
+      {
+        onSuccess: () => {
+          toast({ title: "Transaction added successfully" });
+          setIsDialogOpen(false);
+          form.reset();
+          queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(queryParams) });
+          queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to add transaction", description: String(err), variant: "destructive" });
+        },
       }
-    });
+    );
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("Delete this transaction?")) return;
-    deleteTx.mutate({ id }, {
-      onSuccess: () => {
-        toast({ title: "Transaction deleted" });
-        queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey({ search: search || undefined, month: currentMonth }) });
+    deleteTx.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          toast({ title: "Transaction deleted" });
+          queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(queryParams) });
+          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        },
       }
-    });
+    );
   };
 
   const columns = [
@@ -188,10 +236,12 @@ export default function Transactions() {
             <span className="text-emerald-500 flex items-center gap-1">
               <ArrowDownRight className="w-3 h-3" /> {formatCurrency(tx.amount)}
             </span>
-          ) : (
-            <span className="text-foreground flex items-center gap-1">
-               {formatCurrency(tx.amount)}
+          ) : tx.type === "Transfer" ? (
+            <span className="text-blue-400 flex items-center gap-1">
+              <ArrowLeftRight className="w-3 h-3" /> {formatCurrency(tx.amount)}
             </span>
+          ) : (
+            <span className="text-foreground flex items-center gap-1">{formatCurrency(tx.amount)}</span>
           )}
         </div>
       ),
@@ -201,9 +251,9 @@ export default function Transactions() {
       className: "w-10 text-center",
       cardLabel: "Action",
       cell: (tx: Transaction) => (
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive"
           onClick={() => handleDelete(tx.id)}
           data-testid={`btn-delete-tx-${tx.id}`}
@@ -211,18 +261,17 @@ export default function Transactions() {
           <Trash2 className="w-4 h-4" />
         </Button>
       ),
-    }
+    },
   ];
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Ledger</h1>
           <p className="text-muted-foreground text-sm mt-1">Track and manage your daily cash flow.</p>
         </div>
-        
+
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="btn-new-tx" className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider">
@@ -235,7 +284,6 @@ export default function Transactions() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -317,8 +365,35 @@ export default function Transactions() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {categories.map(c => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          {filteredCategories.map((c) => (
+                            <SelectItem key={c.id} value={c.name}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="accountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select account" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {(accounts ?? []).map((a) => (
+                            <SelectItem key={a.id} value={String(a.id)}>
+                              {a.name}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -342,15 +417,28 @@ export default function Transactions() {
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Search transactions..." 
+            <Input
+              placeholder="Search transactions..."
               className="pl-9 bg-background/50"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <Select value={selectedCycle} onValueChange={setSelectedCycle}>
+            <SelectTrigger className="w-full sm:w-[220px] h-9 text-xs">
+              <SelectValue placeholder="Billing Cycle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Transactions</SelectItem>
+              {billingCycles?.map((cycle, idx) => (
+                <SelectItem key={idx} value={String(idx)}>
+                  {cycle.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="flex gap-2 md:hidden">
-            <Select value={sortField} onValueChange={(v) => { setSortField(v as SortField); }}>
+            <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
               <SelectTrigger className="w-[130px] h-9 text-xs">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -361,12 +449,7 @@ export default function Transactions() {
                 <SelectItem value="description">Description</SelectItem>
               </SelectContent>
             </Select>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-9 px-3"
-              onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
-            >
+            <Button variant="outline" size="sm" className="h-9 px-3" onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}>
               {sortDir === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
             </Button>
           </div>
@@ -380,9 +463,9 @@ export default function Transactions() {
             <Skeleton className="h-16 w-full" />
           </div>
         ) : (
-          <ResponsiveTable 
-            data={sortedTransactions} 
-            columns={columns} 
+          <ResponsiveTable
+            data={sortedTransactions}
+            columns={columns}
             keyExtractor={(tx) => tx.id}
             emptyState={
               <div className="text-center py-12 px-4 border border-dashed border-border/50 rounded-lg bg-background/30">
@@ -393,7 +476,6 @@ export default function Transactions() {
           />
         )}
       </div>
-
     </div>
   );
 }

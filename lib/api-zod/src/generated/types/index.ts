@@ -6,22 +6,33 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./accountItem";
+export * from "./billingCycle";
 export * from "./budgetAnalysisRow";
 export * from "./budgetGoal";
+export * from "./categoryItem";
+export * from "./ccSpendPoint";
 export * from "./consolidateRequest";
 export * from "./consolidateResult";
+export * from "./createAccount";
 export * from "./createBudgetGoal";
+export * from "./createCategory";
 export * from "./createGoalVault";
 export * from "./createMonthlyConfig";
 export * from "./createTransaction";
+export * from "./createTransfer";
 export * from "./dashboardSummary";
 export * from "./getBudgetAnalysisParams";
+export * from "./getCcSpendTrendParams";
 export * from "./getDashboardSummaryParams";
 export * from "./getGoalProjectionParams";
+export * from "./getLivingExpensesTrendParams";
 export * from "./getRecentTransactionsParams";
 export * from "./goalVault";
 export * from "./healthStatus";
+export * from "./listCategoriesParams";
 export * from "./listTransactionsParams";
+export * from "./livingExpensesPoint";
 export * from "./monthlyConfig";
 export * from "./monthlyTrendPoint";
 export * from "./projectionPoint";

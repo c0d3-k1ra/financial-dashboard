@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable } from "@workspace/db";
 import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
+import { getCycleDates, generateCycleOptions } from "../lib/billing-cycle";
 
 const router: IRouter = Router();
 
@@ -13,6 +14,8 @@ router.get("/dashboard/summary", async (req, res) => {
       return;
     }
 
+    const { startDate, endDate } = getCycleDates(month);
+
     const config = await db
       .select()
       .from(monthlyConfigTable)
@@ -23,12 +26,12 @@ router.get("/dashboard/summary", async (req, res) => {
     const incomeResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Income' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
     const expenseResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
     const totalIncome = Number(incomeResult[0]?.total ?? 0);
     const totalExpenses = Number(expenseResult[0]?.total ?? 0);
@@ -38,7 +41,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const ccResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.category} = 'Credit Card (CC)' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+      .where(sql`${transactionsTable.category} = 'Credit Card (CC)' AND ${transactionsTable.type} != 'Transfer' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
     const unpaidCcDues = Number(ccResult[0]?.total ?? 0);
     const netLiquidity = endBalance - unpaidCcDues;
@@ -46,7 +49,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const livingResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.category} = 'Living Expenses' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+      .where(sql`${transactionsTable.category} = 'Living Expenses' AND ${transactionsTable.type} != 'Transfer' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
     const actualLivingExpenses = Number(livingResult[0]?.total ?? 0);
 
@@ -79,45 +82,43 @@ router.get("/dashboard/summary", async (req, res) => {
 
 router.get("/dashboard/monthly-trend", async (req, res) => {
   try {
-    const incomeByMonth = await db
-      .select({
-        month: sql<string>`to_char(${transactionsTable.date}::date, 'YYYY-MM')`,
-        total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
-      })
-      .from(transactionsTable)
-      .where(eq(transactionsTable.type, "Income"))
-      .groupBy(sql`to_char(${transactionsTable.date}::date, 'YYYY-MM')`)
-      .orderBy(sql`to_char(${transactionsTable.date}::date, 'YYYY-MM')`);
+    const now = new Date();
+    const trendData = [];
 
-    const expenseByMonth = await db
-      .select({
-        month: sql<string>`to_char(${transactionsTable.date}::date, 'YYYY-MM')`,
-        total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
-      })
-      .from(transactionsTable)
-      .where(eq(transactionsTable.type, "Expense"))
-      .groupBy(sql`to_char(${transactionsTable.date}::date, 'YYYY-MM')`)
-      .orderBy(sql`to_char(${transactionsTable.date}::date, 'YYYY-MM')`);
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const { startDate, endDate } = getCycleDates(month);
 
-    const months = new Set<string>();
-    incomeByMonth.forEach((r) => months.add(r.month));
-    expenseByMonth.forEach((r) => months.add(r.month));
+      const incomeResult = await db
+        .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
+        .from(transactionsTable)
+        .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
-    const incomeMap = new Map(incomeByMonth.map((r) => [r.month, r.total]));
-    const expenseMap = new Map(expenseByMonth.map((r) => [r.month, r.total]));
+      const expenseResult = await db
+        .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
+        .from(transactionsTable)
+        .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
-    const trend = Array.from(months)
-      .sort()
-      .slice(-6)
-      .map((month) => ({
+      trendData.push({
         month,
-        income: Number(incomeMap.get(month) ?? 0).toFixed(2),
-        expenses: Number(expenseMap.get(month) ?? 0).toFixed(2),
-      }));
+        income: Number(incomeResult[0]?.total ?? 0).toFixed(2),
+        expenses: Number(expenseResult[0]?.total ?? 0).toFixed(2),
+      });
+    }
 
-    res.json(trend);
+    res.json(trendData);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get monthly trend");
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+router.get("/billing-cycles", async (_req, res) => {
+  try {
+    const cycles = generateCycleOptions(12);
+    res.json(cycles.map((c) => ({ label: c.label, startDate: c.startDate, endDate: c.endDate })));
+  } catch (e) {
     res.status(500).json({ error: "Internal error" });
   }
 });

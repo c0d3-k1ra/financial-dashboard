@@ -16,6 +16,8 @@ export interface Transaction {
   description: string;
   category: string;
   type: string;
+  accountId?: number | null;
+  toAccountId?: number | null;
   createdAt: string;
 }
 
@@ -25,6 +27,7 @@ export interface CreateTransaction {
   description: string;
   category: string;
   type: string;
+  accountId: number;
 }
 
 export interface MonthlyConfig {
@@ -106,11 +109,63 @@ export interface MonthlyTrendPoint {
   expenses: string;
 }
 
+export interface AccountItem {
+  id: number;
+  name: string;
+  type: string;
+  currentBalance: string;
+  creditLimit?: string | null;
+}
+
+export interface CreateAccount {
+  name: string;
+  type: string;
+  currentBalance?: string;
+  creditLimit?: string | null;
+}
+
+export interface CategoryItem {
+  id: number;
+  name: string;
+  type: string;
+}
+
+export interface CreateCategory {
+  name: string;
+  type: string;
+}
+
+export interface CreateTransfer {
+  fromAccountId: number;
+  toAccountId: number;
+  amount: string;
+  date: string;
+  description?: string;
+}
+
+export interface CcSpendPoint {
+  cycle: string;
+  total: string;
+}
+
+export interface LivingExpensesPoint {
+  cycle: string;
+  total: string;
+}
+
+export interface BillingCycle {
+  label: string;
+  startDate: string;
+  endDate: string;
+}
+
 export type ListTransactionsParams = {
   month?: string;
   search?: string;
   type?: string;
   category?: string;
+  cycleStart?: string;
+  cycleEnd?: string;
 };
 
 export type GetDashboardSummaryParams = {
@@ -127,4 +182,16 @@ export type GetGoalProjectionParams = {
 
 export type GetRecentTransactionsParams = {
   limit?: number;
+};
+
+export type ListCategoriesParams = {
+  type?: string;
+};
+
+export type GetCcSpendTrendParams = {
+  month: string;
+};
+
+export type GetLivingExpensesTrendParams = {
+  month: string;
 };

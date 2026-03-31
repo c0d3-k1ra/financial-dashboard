@@ -13,5 +13,7 @@ export interface Transaction {
   description: string;
   category: string;
   type: string;
+  accountId?: number | null;
+  toAccountId?: number | null;
   createdAt: Date;
 }

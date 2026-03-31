@@ -22,6 +22,8 @@ export const ListTransactionsQueryParams = zod.object({
   search: zod.coerce.string().optional(),
   type: zod.coerce.string().optional(),
   category: zod.coerce.string().optional(),
+  cycleStart: zod.coerce.string().optional(),
+  cycleEnd: zod.coerce.string().optional(),
 });
 
 export const ListTransactionsResponseItem = zod.object({
@@ -31,6 +33,8 @@ export const ListTransactionsResponseItem = zod.object({
   description: zod.string(),
   category: zod.string(),
   type: zod.string(),
+  accountId: zod.number().nullish(),
+  toAccountId: zod.number().nullish(),
   createdAt: zod.coerce.date(),
 });
 export const ListTransactionsResponse = zod.array(ListTransactionsResponseItem);
@@ -44,6 +48,7 @@ export const CreateTransactionBody = zod.object({
   description: zod.string(),
   category: zod.string(),
   type: zod.string(),
+  accountId: zod.number(),
 });
 
 /**
@@ -59,6 +64,7 @@ export const UpdateTransactionBody = zod.object({
   description: zod.string(),
   category: zod.string(),
   type: zod.string(),
+  accountId: zod.number(),
 });
 
 export const UpdateTransactionResponse = zod.object({
@@ -68,6 +74,8 @@ export const UpdateTransactionResponse = zod.object({
   description: zod.string(),
   category: zod.string(),
   type: zod.string(),
+  accountId: zod.number().nullish(),
+  toAccountId: zod.number().nullish(),
   createdAt: zod.coerce.date(),
 });
 
@@ -258,6 +266,8 @@ export const GetRecentTransactionsResponseItem = zod.object({
   description: zod.string(),
   category: zod.string(),
   type: zod.string(),
+  accountId: zod.number().nullish(),
+  toAccountId: zod.number().nullish(),
   createdAt: zod.coerce.date(),
 });
 export const GetRecentTransactionsResponse = zod.array(
@@ -273,3 +283,134 @@ export const GetMonthlyTrendResponseItem = zod.object({
   expenses: zod.string(),
 });
 export const GetMonthlyTrendResponse = zod.array(GetMonthlyTrendResponseItem);
+
+/**
+ * @summary List all accounts
+ */
+export const ListAccountsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  type: zod.string(),
+  currentBalance: zod.string(),
+  creditLimit: zod.string().nullish(),
+});
+export const ListAccountsResponse = zod.array(ListAccountsResponseItem);
+
+/**
+ * @summary Create an account
+ */
+export const CreateAccountBody = zod.object({
+  name: zod.string(),
+  type: zod.string(),
+  currentBalance: zod.string().optional(),
+  creditLimit: zod.string().nullish(),
+});
+
+/**
+ * @summary Update an account
+ */
+export const UpdateAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateAccountBody = zod.object({
+  name: zod.string(),
+  type: zod.string(),
+  currentBalance: zod.string().optional(),
+  creditLimit: zod.string().nullish(),
+});
+
+export const UpdateAccountResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  type: zod.string(),
+  currentBalance: zod.string(),
+  creditLimit: zod.string().nullish(),
+});
+
+/**
+ * @summary Delete an account
+ */
+export const DeleteAccountParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary List all categories
+ */
+export const ListCategoriesQueryParams = zod.object({
+  type: zod.coerce.string().optional(),
+});
+
+export const ListCategoriesResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  type: zod.string(),
+});
+export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem);
+
+/**
+ * @summary Create a category
+ */
+export const CreateCategoryBody = zod.object({
+  name: zod.string(),
+  type: zod.string(),
+});
+
+/**
+ * @summary Delete a category
+ */
+export const DeleteCategoryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Transfer money between accounts
+ */
+export const CreateTransferBody = zod.object({
+  fromAccountId: zod.number(),
+  toAccountId: zod.number(),
+  amount: zod.string(),
+  date: zod.string(),
+  description: zod.string().optional(),
+});
+
+/**
+ * @summary Get cumulative CC spending in current cycle
+ */
+export const GetCcSpendTrendQueryParams = zod.object({
+  month: zod.coerce.string(),
+});
+
+export const GetCcSpendTrendResponseItem = zod.object({
+  cycle: zod.string(),
+  total: zod.string(),
+});
+export const GetCcSpendTrendResponse = zod.array(GetCcSpendTrendResponseItem);
+
+/**
+ * @summary Get living expenses for last 6 billing cycles
+ */
+export const GetLivingExpensesTrendQueryParams = zod.object({
+  month: zod.coerce.string(),
+});
+
+export const GetLivingExpensesTrendResponseItem = zod.object({
+  cycle: zod.string(),
+  total: zod.string(),
+});
+export const GetLivingExpensesTrendResponse = zod.array(
+  GetLivingExpensesTrendResponseItem,
+);
+
+/**
+ * @summary List available billing cycles
+ */
+export const ListBillingCyclesResponseItem = zod.object({
+  label: zod.string(),
+  startDate: zod.string(),
+  endDate: zod.string(),
+});
+export const ListBillingCyclesResponse = zod.array(
+  ListBillingCyclesResponseItem,
+);

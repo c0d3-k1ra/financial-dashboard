@@ -7,6 +7,10 @@ import goalVaultsRouter from "./goal-vaults";
 import dashboardRouter from "./dashboard";
 import budgetAnalysisRouter from "./budget-analysis";
 import surplusRouter from "./surplus";
+import accountsRouter from "./accounts";
+import categoriesRouter from "./categories";
+import transfersRouter from "./transfers";
+import trendsRouter from "./trends";
 
 const router: IRouter = Router();
 
@@ -18,5 +22,9 @@ router.use(goalVaultsRouter);
 router.use(dashboardRouter);
 router.use(budgetAnalysisRouter);
 router.use(surplusRouter);
+router.use(accountsRouter);
+router.use(categoriesRouter);
+router.use(transfersRouter);
+router.use(trendsRouter);
 
 export default router;

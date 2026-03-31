@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { seedBudgetCategories } from "./lib/seed";
+import { seedBudgetCategories, seedAccountsAndCategories } from "./lib/seed";
+import { runStartupMigrations } from "@workspace/db/migrate";
 
 const rawPort = process.env["PORT"];
 
@@ -16,7 +17,13 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-seedBudgetCategories().then(() => {
+async function start() {
+  logger.info("Running startup migrations...");
+  await runStartupMigrations();
+  logger.info("Startup migrations complete");
+
+  await Promise.all([seedBudgetCategories(), seedAccountsAndCategories()]);
+
   app.listen(port, (err) => {
     if (err) {
       logger.error({ err }, "Error listening on port");
@@ -25,4 +32,9 @@ seedBudgetCategories().then(() => {
 
     logger.info({ port }, "Server listening");
   });
+}
+
+start().catch((err) => {
+  logger.error({ err }, "Failed to start server");
+  process.exit(1);
 });

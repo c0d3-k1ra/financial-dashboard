@@ -7,6 +7,8 @@ import Dashboard from "@/pages/dashboard";
 import Transactions from "@/pages/transactions";
 import Budget from "@/pages/budget";
 import Goals from "@/pages/goals";
+import Accounts from "@/pages/accounts";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -26,6 +28,8 @@ function Router() {
         <Route path="/transactions" component={Transactions} />
         <Route path="/budget" component={Budget} />
         <Route path="/goals" component={Goals} />
+        <Route path="/accounts" component={Accounts} />
+        <Route path="/settings" component={Settings} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

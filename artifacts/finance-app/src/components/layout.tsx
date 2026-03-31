@@ -1,12 +1,11 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { DollarSign, LayoutDashboard, List, PieChart, ShieldCheck } from "lucide-react";
+import { DollarSign, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
 
   useEffect(() => {
-    // Force dark mode on mount as requested
     document.documentElement.classList.add("dark");
   }, []);
 
@@ -15,6 +14,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     { href: "/transactions", label: "Transactions", icon: List },
     { href: "/budget", label: "Budget", icon: PieChart },
     { href: "/goals", label: "Goal Vault", icon: ShieldCheck },
+    { href: "/accounts", label: "Accounts", icon: Landmark },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
   return (
@@ -51,7 +52,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         
-        {/* Mobile Navigation (Scrollable Tabs) */}
         <div className="md:hidden border-t border-border/40 overflow-x-auto scrollbar-hide">
           <nav className="flex px-4 py-2 gap-2 min-w-max">
             {navItems.map((item) => {

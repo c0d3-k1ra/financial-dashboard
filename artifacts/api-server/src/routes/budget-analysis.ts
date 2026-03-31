@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { sql } from "drizzle-orm";
 import { db, transactionsTable, budgetGoalsTable } from "@workspace/db";
 import { GetBudgetAnalysisQueryParams } from "@workspace/api-zod";
+import { getCycleDates } from "../lib/billing-cycle";
 
 const router: IRouter = Router();
 
@@ -13,6 +14,8 @@ router.get("/budget-analysis", async (req, res) => {
       return;
     }
 
+    const { startDate, endDate } = getCycleDates(month);
+
     const goals = await db.select().from(budgetGoalsTable);
 
     const actuals = await db
@@ -21,7 +24,7 @@ router.get("/budget-analysis", async (req, res) => {
         total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
       })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`)
+      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`)
       .groupBy(transactionsTable.category);
 
     const actualMap = new Map(actuals.map((a) => [a.category, Number(a.total)]));

@@ -6,11 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ListTransactionsParams = {
-  month?: string;
-  search?: string;
+export type ListCategoriesParams = {
   type?: string;
-  category?: string;
-  cycleStart?: string;
-  cycleEnd?: string;
 };

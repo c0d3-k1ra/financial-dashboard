@@ -55,7 +55,7 @@ Every package extends `tsconfig.base.json` which sets `composite: true`. The roo
 
 ### `artifacts/finance-app` (`@workspace/finance-app`)
 
-React + Vite frontend for SurplusEngine. Dark mode personal finance dashboard with 4 tabs: Dashboard, Transactions, Budget, Goal Vault.
+React + Vite frontend for SurplusEngine. Dark mode personal finance dashboard with 6 tabs: Dashboard, Transactions, Budget, Goal Vault, Accounts, Settings.
 
 - Uses wouter for routing, Recharts for charts, shadcn/ui components
 - Responsive design: tables transform to card views on mobile (< 768px)
@@ -74,19 +74,29 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `monthly-config.ts` — upsert monthly starting balance
   - `budget-goals.ts` — upsert budget planned amounts per category
   - `goal-vaults.ts` — upsert goal vaults + `GET /api/goal-vaults/projection` (12-month projection)
-  - `dashboard.ts` — `GET /api/dashboard/summary` + `GET /api/dashboard/monthly-trend`
+  - `dashboard.ts` — `GET /api/dashboard/summary` + `GET /api/dashboard/monthly-trend` + `GET /api/billing-cycles`
   - `budget-analysis.ts` — `GET /api/budget-analysis` (planned vs actual per category)
   - `surplus.ts` — `POST /api/surplus/consolidate` (waterfall surplus into Emergency Fund)
+  - `accounts.ts` — CRUD for bank accounts and credit cards
+  - `categories.ts` — CRUD for expense/income categories
+  - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
+  - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`
 - Depends on: `@workspace/db`, `@workspace/api-zod`
+- Billing cycle: 25th of previous month through 24th of current month (helper in `src/lib/billing-cycle.ts`)
 
 ### `lib/db` (`@workspace/db`)
 
 Database layer using Drizzle ORM with PostgreSQL. Tables:
 
-- `transactions` — date, amount, description, category, type (Income/Expense)
+- `accounts` — id, name, type (bank/credit_card), current_balance, credit_limit
+- `categories` — id, name, type (Income/Expense)
+- `transactions` — date, amount, description, category, type (Income/Expense/Transfer), account_id, to_account_id
 - `monthly_config` — month (YYYY-MM), starting_balance
 - `budget_goals` — category (unique), planned_amount
 - `goal_vaults` — name (unique), current_balance, target_amount
+- `surplus_ledger` — surplus tracking
+
+Seed script: `lib/db/src/seed.ts` — creates default Primary Bank account, seeds categories from hardcoded lists, maps unmapped transactions.
 
 Production migrations are handled by Replit when publishing. In development, we use `pnpm --filter @workspace/db run push`.
 
@@ -113,10 +123,17 @@ Utility scripts package. Run scripts via `pnpm --filter @workspace/scripts run <
 3. Surplus Allocation: "Consolidate" button moves the Monthly Surplus into the Emergency Fund (IDFC) vault
 4. Rolling Balance: End Balance of Month A becomes Starting Balance of Month B. End Balance = Starting Balance + Income - Expenses
 
-## Expense Categories
+## Billing Cycle
 
-EMI (PL), Father, Credit Card (CC), Living Expenses, SIP (Investment), Travel Fund, Term Insurance, Health Insurance, Food, Gifts, Home, Transportation, Personal, Utilities, Medical, Other (Tax)
+The app uses a custom billing cycle: 25th of the previous month through 24th of the current month. Dashboard summary, budget analysis, and trend charts all use this cycle instead of calendar months. Transaction history supports a "Cycle Filter" dropdown.
 
-## Income Categories
+## Accounts & Transfers
 
-Paycheck (Salary), Bonus, Interest, Other
+- Multiple bank accounts and credit cards with tracked balances
+- Transfers between accounts update both balances atomically (DB transaction)
+- Transfer-type transactions are excluded from Income/Expense aggregations
+- Creating/updating/deleting Income/Expense transactions adjusts the linked account balance atomically
+
+## Categories
+
+Categories are stored in the database (not hardcoded) and manageable via Settings > Category Manager. Seeded with: EMI (PL), Father, Credit Card (CC), Living Expenses, SIP (Investment), Travel Fund, Term Insurance, Health Insurance, Food, Gifts, Home, Transportation, Personal, Utilities, Medical, Other (Tax), Paycheck (Salary), Bonus, Interest, Other.
