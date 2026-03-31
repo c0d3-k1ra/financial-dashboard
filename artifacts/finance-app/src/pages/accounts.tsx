@@ -5,6 +5,7 @@ import {
   useCreateAccount,
   useDeleteAccount,
   useReconcileAccount,
+  useUpdateAccount,
 } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +21,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw, Pencil } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -41,6 +42,10 @@ export default function Accounts() {
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [reconcileId, setReconcileId] = useState<number | null>(null);
   const [reconcileBalance, setReconcileBalance] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCreditLimit, setEditCreditLimit] = useState("");
+  const [editBillingDueDay, setEditBillingDueDay] = useState("");
 
   const { data: accounts, isLoading } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
@@ -49,10 +54,48 @@ export default function Accounts() {
   const createAccount = useCreateAccount();
   const deleteAccount = useDeleteAccount();
   const reconcileAccount = useReconcileAccount();
+  const updateAccount = useUpdateAccount();
 
   const reconcileTarget = accounts?.find((a) => a.id === reconcileId);
   const reconcileCurrentBalance = reconcileTarget ? Number(reconcileTarget.currentBalance) : 0;
   const reconcileAdjustment = reconcileBalance ? Number(reconcileBalance) - reconcileCurrentBalance : 0;
+
+  const editTarget = accounts?.find((a) => a.id === editId);
+
+  const openEdit = (id: number) => {
+    const acct = accounts?.find((a) => a.id === id);
+    if (!acct) return;
+    setEditId(id);
+    setEditName(acct.name);
+    setEditCreditLimit(acct.creditLimit ? String(acct.creditLimit) : "");
+    setEditBillingDueDay(acct.billingDueDay ? String(acct.billingDueDay) : "");
+  };
+
+  const handleEdit = () => {
+    if (!editId || !editTarget) return;
+    updateAccount.mutate(
+      {
+        id: editId,
+        data: {
+          name: editName,
+          type: editTarget.type,
+          currentBalance: String(editTarget.currentBalance),
+          creditLimit: editTarget.type === "credit_card" ? editCreditLimit || null : null,
+          billingDueDay: editTarget.type === "credit_card" && editBillingDueDay ? Number(editBillingDueDay) : null,
+        },
+      },
+      {
+        onSuccess: () => {
+          toast({ title: "Account updated" });
+          setEditId(null);
+          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to update account", description: String(err), variant: "destructive" });
+        },
+      }
+    );
+  };
 
   const handleReconcile = () => {
     if (!reconcileId || !reconcileBalance) return;
@@ -332,6 +375,15 @@ export default function Accounts() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          onClick={() => openEdit(account.id)}
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
                           onClick={() => handleDelete(account.id)}
                         >
@@ -370,6 +422,15 @@ export default function Accounts() {
                               onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
                             >
                               <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => openEdit(account.id)}
+                              title="Edit"
+                            >
+                              <Pencil className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -420,6 +481,14 @@ export default function Accounts() {
                               onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
                             >
                               <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => openEdit(account.id)}
+                            >
+                              <Pencil className="w-4 h-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -477,6 +546,43 @@ export default function Accounts() {
             </DialogClose>
             <Button onClick={handleReconcile} disabled={reconcileAccount.isPending || !reconcileBalance}>
               {reconcileAccount.isPending ? "Reconciling..." : "Reconcile"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editId !== null} onOpenChange={(open) => { if (!open) setEditId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit: {editTarget?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Name</Label>
+              <Input className="mt-1 font-mono" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            {editTarget?.type === "credit_card" && (
+              <>
+                <div>
+                  <Label>Credit Limit</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                    <Input type="number" step="0.01" className="pl-7 font-mono" value={editCreditLimit} onChange={(e) => setEditCreditLimit(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <Label>Billing Due Day (1-31)</Label>
+                  <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 15" value={editBillingDueDay} onChange={(e) => setEditBillingDueDay(e.target.value)} />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button onClick={handleEdit} disabled={updateAccount.isPending || !editName.trim()}>
+              {updateAccount.isPending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
         </DialogContent>

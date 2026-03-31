@@ -105,18 +105,19 @@ export default function Dashboard() {
 
   const categoryNames = useMemo(() => (categoryTrend ?? []).map((c) => c.category), [categoryTrend]);
 
-  const categoryTrendLineData = useMemo(() => {
+  const categoryTrendLineData = useMemo((): Record<string, string | number>[] => {
     if (!categoryTrend || categoryTrend.length === 0) return [];
     const filtered = selectedCategory === "all"
       ? categoryTrend
       : categoryTrend.filter((c) => c.category === selectedCategory);
 
-    const cycleMap = new Map<string, Record<string, number>>();
+    const cycleMap = new Map<string, Record<string, string | number>>();
     for (const cat of filtered) {
       for (const pt of cat.data) {
-        if (!cycleMap.has(pt.cycle)) cycleMap.set(pt.cycle, { cycle: 0 } as unknown as Record<string, number>);
+        if (!cycleMap.has(pt.cycle)) {
+          cycleMap.set(pt.cycle, { cycle: pt.cycle });
+        }
         const row = cycleMap.get(pt.cycle)!;
-        row.cycle = pt.cycle as unknown as number;
         row[cat.category] = Number(pt.total || 0);
       }
     }
