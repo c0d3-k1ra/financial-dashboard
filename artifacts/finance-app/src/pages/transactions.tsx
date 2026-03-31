@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -56,6 +56,7 @@ export default function Transactions() {
   const [selectedCycle, setSelectedCycle] = useState<string>("all");
   const [newCatName, setNewCatName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const { data: billingCycles } = useListBillingCycles({
     query: { queryKey: getListBillingCyclesQueryKey() },
@@ -200,13 +201,14 @@ export default function Transactions() {
     );
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("Delete this transaction?")) return;
+  const confirmDelete = () => {
+    if (deleteId === null) return;
     deleteTx.mutate(
-      { id },
+      { id: deleteId },
       {
         onSuccess: () => {
           toast({ title: "Transaction deleted" });
+          setDeleteId(null);
           queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(queryParams) });
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
@@ -281,7 +283,7 @@ export default function Transactions() {
           variant="ghost"
           size="icon"
           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-          onClick={() => handleDelete(tx.id)}
+          onClick={() => setDeleteId(tx.id)}
           data-testid={`btn-delete-tx-${tx.id}`}
         >
           <Trash2 className="w-4 h-4" />
@@ -379,6 +381,25 @@ export default function Transactions() {
           />
         )}
       </div>
+
+      <Dialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Transaction</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete this transaction? This action cannot be undone and will adjust your account balance.
+          </p>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={confirmDelete} disabled={deleteTx.isPending}>
+              {deleteTx.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

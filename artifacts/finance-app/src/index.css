@@ -217,6 +217,18 @@
   background: transparent;
 }
 
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  color: hsl(210 40% 98%) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-label {
+  color: hsl(210 40% 98%) !important;
+}
+
+.recharts-tooltip-wrapper .recharts-default-tooltip .recharts-tooltip-item {
+  color: hsl(210 40% 98%) !important;
+}
+
 @media (max-width: 768px) {
   button, a, a[role="button"], [role="button"] {
     min-height: 44px;

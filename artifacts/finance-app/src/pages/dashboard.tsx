@@ -47,12 +47,20 @@ const CHART_COLORS = [
   "hsl(330, 65%, 50%)",
 ];
 
-const TOOLTIP_STYLE = {
+const TOOLTIP_STYLE: React.CSSProperties = {
   backgroundColor: "hsl(222 47% 10%)",
   borderColor: "hsl(222 47% 15%)",
   borderRadius: "8px",
   fontFamily: "var(--font-mono)",
   fontSize: "12px",
+  color: "hsl(210 40% 98%)",
+};
+
+const TOOLTIP_LABEL_STYLE: React.CSSProperties = {
+  color: "hsl(210 40% 98%)",
+};
+
+const TOOLTIP_ITEM_STYLE: React.CSSProperties = {
   color: "hsl(210 40% 98%)",
 };
 
@@ -286,7 +294,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {waterfallData.map((entry, index) => (
                     <Cell key={index} fill={entry.fill} />
@@ -389,6 +397,8 @@ export default function Dashboard() {
                   </Pie>
                   <RechartsTooltip
                     contentStyle={TOOLTIP_STYLE}
+                    labelStyle={TOOLTIP_LABEL_STYLE}
+                    itemStyle={TOOLTIP_ITEM_STYLE}
                     formatter={(value: number) => formatCurrency(value)}
                   />
                   <Legend content={<CustomPieLegend />} />
@@ -501,7 +511,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                 <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", paddingTop: "10px" }} />
                 {visibleCategories.map((cat, i) => (
                   <Area
@@ -552,7 +562,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
                   <Area type="monotone" dataKey="income" name="Income" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradIncome)" />
                   <Area type="monotone" dataKey="expenses" name="Expenses" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradExpenses)" />
@@ -639,7 +649,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradCcSpend)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -671,7 +681,7 @@ export default function Dashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Area type="monotone" dataKey="total" name="Living Expenses" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradLiving)" />
                 </AreaChart>
               </ResponsiveContainer>
