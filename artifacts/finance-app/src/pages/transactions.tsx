@@ -212,6 +212,9 @@ export default function Transactions() {
           queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(queryParams) });
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
+        onError: (err) => {
+          toast({ title: "Failed to delete transaction", description: String(err), variant: "destructive" });
+        },
       }
     );
   };
