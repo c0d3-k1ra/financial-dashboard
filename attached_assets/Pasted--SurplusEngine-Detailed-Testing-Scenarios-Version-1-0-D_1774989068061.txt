@@ -1,0 +1,372 @@
+# SurplusEngine — Detailed Testing Scenarios
+
+**Version:** 1.0  
+**Date:** April 1, 2026  
+**Covers:** All modules from the Comprehensive Requirements Document v1.0
+
+---
+
+## 1. Accounts
+
+### 1.1 Account Creation
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| A-01 | Create a Bank account with valid data | POST `/api/accounts` with `{ name: "HDFC Savings", type: "Bank", currentBalance: 50000 }` | 201 Created. Account appears in list with balance ₹50,000.00. |
+| A-02 | Create a Credit Card account with all optional fields | POST with `{ name: "ICICI Amazon", type: "Credit Card", currentBalance: 12500, creditLimit: 200000, billingDueDay: 15 }` | 201 Created. `creditLimit` and `billingDueDay` persisted. |
+| A-03 | Reject duplicate account name | Create two accounts with `name: "SBI"` | Second request returns 409/422 conflict (unique constraint on `name`). |
+| A-04 | Reject billingDueDay outside 1-31 | POST with `billingDueDay: 0` and again with `billingDueDay: 32` | 422 Validation Error for both. |
+| A-05 | Create Bank account — creditLimit and billingDueDay ignored | POST Bank account with `creditLimit: 100000` | Account created; `creditLimit` and `billingDueDay` are null. |
+| A-06 | Create account with zero balance | POST with `currentBalance: 0` | 201 Created with balance ₹0.00 (default). |
+
+### 1.2 Account Update
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| A-07 | Update account name | PUT `/api/accounts/:id` with new name | Name updated, no balance side-effects. |
+| A-08 | Update CC credit limit | PUT with `creditLimit: 300000` | Credit limit updated; outstanding balance unchanged. |
+| A-09 | Update billingDueDay to boundary value (31) | PUT with `billingDueDay: 31` | Stored as 31. CC due-date logic clamps to actual month length in Feb. |
+
+### 1.3 Account Deletion
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| A-10 | Delete account with zero transactions | DELETE `/api/accounts/:id` where no txns exist | 200 OK. Account removed from list. |
+| A-11 | Delete account with linked transactions | DELETE account that has at least one transaction | 409/422 rejection — "Cannot delete account with existing transactions." |
+| A-12 | Delete account referenced as `toAccountId` in a transfer | Same as above but for the destination side of a transfer | Deletion blocked. |
+
+### 1.4 Account Reconciliation
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| A-13 | Reconcile with higher actual balance | Account tracked: ₹45,000. Reconcile to ₹50,000. | Adjustment transaction of +₹5,000 created. Account balance now ₹50,000. |
+| A-14 | Reconcile with lower actual balance | Account tracked: ₹50,000. Reconcile to ₹47,500. | Adjustment transaction of −₹2,500 created. Balance now ₹47,500. |
+| A-15 | Reconcile with no difference | Reconcile to current tracked balance | Either no adjustment transaction created, or a ₹0 adjustment — verify consistent behavior. |
+
+---
+
+## 2. Transactions
+
+### 2.1 Transaction Creation
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| T-01 | Create Income transaction | POST `/api/transactions` with `{ type: "Income", amount: 125000, accountId: 1, category: "Paycheck (Salary)" }` | 201 Created. Account balance increases by ₹1,25,000. |
+| T-02 | Create Expense transaction | POST with `{ type: "Expense", amount: 3500, accountId: 1, category: "Food" }` | 201 Created. Account balance decreases by ₹3,500. |
+| T-03 | Reject transaction with missing required fields | Omit `amount` or `description` | 422 Validation Error listing missing fields. |
+| T-04 | Create transaction with zero amount | POST with `amount: 0` | Decide on behavior — either reject (422) or allow. Document the decision. |
+| T-05 | Create transaction with negative amount | POST with `amount: -500` | Reject — amounts should be positive; `type` determines direction. |
+| T-06 | Create transaction with very large amount | POST with `amount: 9999999999.99` (max for `numeric(12,2)`) | Either accepted at boundary or rejected if above column precision. |
+| T-07 | Create transaction for non-existent accountId | POST with `accountId: 99999` | 404/422 — FK constraint violation. |
+
+### 2.2 Transaction Update
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| T-08 | Update transaction amount | Change ₹3,500 expense to ₹4,000 | Old impact reversed (account +₹3,500), new impact applied (account −₹4,000). Net: account −₹500. |
+| T-09 | Change transaction type from Income to Expense | Update `type` from "Income" to "Expense" | Old Income reversed (−₹amount), new Expense applied (−₹amount). Double deduction from balance. |
+| T-10 | Change transaction's account | Move txn from Account A to Account B | Account A balance reverted, Account B balance adjusted. |
+
+### 2.3 Transaction Deletion
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| T-11 | Delete an Expense | DELETE `/api/transactions/:id` for an Expense of ₹2,000 | Account balance increases by ₹2,000. Transaction removed from list. |
+| T-12 | Delete an Income | DELETE an Income of ₹50,000 | Account balance decreases by ₹50,000. |
+| T-13 | Delete a Transfer transaction | DELETE a transfer record | Both source and destination account balances reversed. |
+
+### 2.4 Transaction Filtering & Sorting
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| T-14 | Filter by billing cycle | GET `/api/transactions?cycle=2026-03` | Only transactions dated 25 Feb – 24 Mar returned. |
+| T-15 | Filter by type | GET `?type=Income` | Only Income transactions returned. |
+| T-16 | Search by description substring | GET `?search=salary` | Matches all transactions containing "salary" (case-insensitive). |
+| T-17 | Sort by amount descending | GET `?sort=amount&order=desc` | Highest amount first. |
+| T-18 | Combined filters | GET `?cycle=2026-03&type=Expense&category=Food` | Only Food expenses in the Mar cycle. |
+| T-19 | Recent transactions exclude transfers | GET `/api/transactions/recent?limit=5` | Returns up to 5 transactions; none have `type: "Transfer"`. |
+
+---
+
+## 3. Transfers
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| TR-01 | Valid inter-account transfer | POST `/api/transfers` with `{ fromAccountId: 1, toAccountId: 2, amount: 10000 }` | Source balance −₹10,000, destination balance +₹10,000. Transfer transaction created. |
+| TR-02 | Transfer to same account | POST with `fromAccountId: 1, toAccountId: 1` | 422 — Source and destination must differ. |
+| TR-03 | Transfer exceeding source balance | Source has ₹5,000; transfer ₹20,000 | Decide policy: allow overdraft or reject. Document decision. |
+| TR-04 | Transfer between Bank and Credit Card | Bank → CC (paying off a card) | Bank balance decreases, CC outstanding decreases. |
+
+---
+
+## 4. Categories
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| C-01 | Create expense category | POST `/api/categories` with `{ name: "Subscriptions", type: "Expense" }` | 201 Created. Appears in category list with `Tag` fallback icon. |
+| C-02 | Create income category | POST with `{ name: "Freelance", type: "Income" }` | 201 Created. |
+| C-03 | Reject duplicate category name | Create "Food" twice | 409/422. |
+| C-04 | Delete unused category | DELETE category with no linked transactions | 200 OK. Removed from list. |
+| C-05 | Delete category in use | DELETE category that has linked transactions | Decide: reject (referential integrity) or orphan transactions. Document. |
+| C-06 | Inline category creation from transaction form | In the transaction form, select "+ Add Category", type "Subscriptions", save | Category created, immediately selectable in the dropdown, transaction saves with it. |
+
+---
+
+## 5. Budget
+
+### 5.1 Budget Goals CRUD
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| B-01 | Create budget goal | POST `/api/budget-goals` for "Food" with `plannedAmount: 8000` | 201 Created. |
+| B-02 | Upsert — update existing | POST for "Food" again with `plannedAmount: 10000` | Existing record updated to ₹10,000 (upsert on category). |
+| B-03 | Delete budget goal | DELETE `/api/budget-goals/:id` | Removed; budget analysis no longer includes this category. |
+
+### 5.2 Budget Analysis
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| B-04 | Month with all categories under budget | GET `/api/budget-analysis?month=2026-03` | Every category shows positive difference. Net Difference is emerald/positive. |
+| B-05 | Month with one category over budget | Food planned ₹8,000, actual ₹9,200 | Food row shows −₹1,200 difference with alert icon. |
+| B-06 | Month with no transactions | Query a future month | All actuals are ₹0; differences equal planned amounts. |
+| B-07 | Category with budget but no transactions | "Travel Fund" planned at ₹5,000, no Travel Fund expenses | Actual: ₹0, Difference: +₹5,000. |
+
+---
+
+## 6. Savings Goals
+
+### 6.1 Goal CRUD
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| G-01 | Create goal with all fields | POST `/api/goals` with name, targetAmount, targetDate, categoryType, accountId, icon | 201 Created. Status defaults to "Active". |
+| G-02 | Create goal with minimum fields | Only name and accountId | 201 Created. targetAmount defaults to ₹0, status "Active", categoryType "General". |
+| G-03 | Update goal progress | PUT with `currentAmount: 25000` | currentAmount updated. Progress percentage recalculated. |
+| G-04 | Delete a goal | DELETE `/api/goals/:id` | Goal removed. Any surplus allocations referencing it remain as historical records. |
+| G-05 | Mark goal as Achieved | PUT with `status: "Achieved"` when `currentAmount >= targetAmount` | Status changed. Goal card shows "Achieved" badge. |
+
+### 6.2 Goal Intelligence
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| G-06 | Savings velocity calculation | Goal created 3 months ago, currentAmount: ₹15,000 | Velocity = ₹5,000/mo. |
+| G-07 | Projected finish date | Target: ₹1,00,000. Current: ₹15,000. Velocity: ₹5,000/mo. | Projected finish: ~17 months from start. |
+| G-08 | Status: On Track | Projected finish is before targetDate | Status shows "On Track" (green). |
+| G-09 | Status: Behind | Projected finish is after targetDate | Status shows "Behind" (red). |
+| G-10 | Status: Not Started | currentAmount = 0, no allocations | Status shows "Not Started". |
+| G-11 | Goal with zero velocity | Created today, no contributions yet | Velocity: ₹0/mo. Projected finish: N/A or "Insufficient data". |
+
+### 6.3 Waterfall & Stress Test
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| G-12 | Waterfall calculation | Banks total: ₹3,00,000. Goal allocations total: ₹2,20,000. | GET `/api/goals/waterfall` returns liquid cash = ₹80,000. |
+| G-13 | Stress test — Goal Rich, Cash Poor | Liquid cash (₹80,000) < monthly living expenses (₹95,000) | Warning banner displayed: "Goal Rich but Cash Poor". |
+| G-14 | Stress test — healthy | Liquid cash > monthly living expenses | No warning banner. |
+
+### 6.4 Goal Projection
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| G-15 | 12-month projection chart | GET `/api/goals/:id/projection` | Returns 12 monthly data points extrapolating from current velocity. Line crosses target if on track. |
+| G-16 | Projection for zero-velocity goal | No contributions made | Flat line at current amount for all 12 months. |
+
+---
+
+## 7. Surplus Management (Core Waterfall Logic)
+
+### 7.1 Surplus Calculation
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| S-01 | Positive surplus | Income: ₹1,50,000. Expenses: ₹95,000. | GET `/api/surplus/monthly?month=2026-03` returns surplus = ₹55,000. |
+| S-02 | Zero surplus | Income = Expenses = ₹1,00,000 | Surplus = ₹0. |
+| S-03 | Negative surplus (deficit) | Income: ₹80,000. Expenses: ₹1,10,000. | Surplus = −₹30,000. Distribution should be blocked or capped at ₹0. |
+| S-04 | Surplus aligned to billing cycle | Transactions span 25th–24th boundaries | Only transactions within the correct billing cycle window are included. |
+
+### 7.2 Surplus Distribution
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| S-05 | Distribute surplus across 3 active goals proportionally | Surplus: ₹60,000. Goals A, B, C with equal targets remaining. | Each goal receives ₹20,000. Account transfers executed. `surplus_allocations` records created. |
+| S-06 | Distribute when surplus is zero | Surplus = ₹0 | No allocations made. User receives informational message. |
+| S-07 | Distribute when surplus is negative | Surplus = −₹10,000 | Distribution blocked. Clear error/message returned. |
+| S-08 | Distribute with one Achieved goal | 3 goals, one already "Achieved" | Only 2 active goals receive allocation. Achieved goal skipped. |
+| S-09 | Distribute to single active goal | Only 1 active goal exists | Entire surplus goes to that goal. |
+| S-10 | Idempotency check — distribute same month twice | POST distribute for 2026-03, then POST again | Either: second call rejected ("already distributed"), or a new distribution overwrites. Document expected behavior. |
+| S-11 | Verify account balance updates after distribution | Surplus from Account X distributed to Goal funded by Account Y | Account X debited, Account Y credited (if different). If same account, only goal `currentAmount` increases. |
+
+### 7.3 Surplus Allocation History
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| S-12 | List all allocations | GET `/api/surplus/allocations` | Returns historical list with month, goalId, amount, allocatedAt. |
+| S-13 | Verify ledger record after consolidation | After distribution for 2026-03 | `surplus_ledger` has entry for month "2026-03" with correct amount and vault name. |
+
+---
+
+## 8. Dashboard & Analytics
+
+### 8.1 Dashboard Summary
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| D-01 | Summary with healthy finances | GET `/api/dashboard/summary?month=2026-03` | Returns: total balances, income, expenses, surplus, burn rate. Liquidity badge: "Liquid" (green). |
+| D-02 | Summary with low cash | Bank balance < monthly expenses | Liquidity badge: "Low Cash" (amber). |
+| D-03 | Net Liquidity calculation | Banks: ₹2,50,000. CC Outstanding: ₹45,000. | Net Liquidity = ₹2,05,000. |
+| D-04 | Burn Rate under 100% | Actual living expenses: ₹40,000. Planned: ₹50,000. | Burn Rate = 80%. Progress bar green. |
+| D-05 | Burn Rate over 100% | Actual: ₹55,000. Planned: ₹50,000. | Burn Rate = 110%. Progress bar turns red. |
+| D-06 | Burn Rate with zero planned | No living expense budget set | Handle gracefully — either show 0% or "No budget set". No division by zero. |
+
+### 8.2 Trends
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| D-07 | Monthly trend — 6 months | GET `/api/dashboard/monthly-trend` | Returns 6 data points: income and expense per billing cycle. |
+| D-08 | CC Spend trend | GET `/api/trends/cc-spend` | 6-cycle trend of credit card expenses only. |
+| D-09 | Living expense trend | GET `/api/trends/living-expenses` | 6-cycle trend filtering to "Living Expenses" category. |
+| D-10 | Trend with fewer than 6 months of data | New user with 2 months of history | Returns 2 data points, not padded to 6. Charts render gracefully. |
+
+### 8.3 Spend Analytics
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| D-11 | Spend by category — pie chart data | GET `/api/analytics/spend-by-category?month=2026-03` | Returns category breakdown with amounts and percentages. |
+| D-12 | Category trend with dropdown filter | GET `/api/analytics/category-trend` (all) and `?category=Food` | All: stacked/multi-line for all categories. Filtered: single category trend. |
+| D-13 | CC Dues with urgency | GET `/api/analytics/cc-dues`. Card due in 5 days. | Returns card with "Urgent" flag (red), amount, and days remaining = 5. |
+| D-14 | CC Dues — due in 10 days | Card due in 10 days | "Warning" flag (amber). |
+| D-15 | CC Dues — due in 20 days | Card due in 20 days | "OK" flag (green). |
+| D-16 | CC Due day 31 in February | Card has `billingDueDay: 31`, current month is February (non-leap) | Due date clamped to Feb 28. Days remaining calculated from clamped date. |
+| D-17 | CC Due day 31 in Feb (leap year) | Same as above but in a leap year | Due date clamped to Feb 29. |
+
+---
+
+## 9. Billing Cycle Logic
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| BC-01 | Cycle boundaries — standard month | Query cycle for March 2026 | Returns transactions from 25 Feb 2026 to 24 Mar 2026 (inclusive). |
+| BC-02 | Transaction on boundary — 25th | Transaction dated 25 Feb | Belongs to the March cycle. |
+| BC-03 | Transaction on boundary — 24th | Transaction dated 24 Mar | Belongs to the March cycle. |
+| BC-04 | Transaction on 25th of cycle month | Transaction dated 25 Mar | Belongs to the **April** cycle. |
+| BC-05 | Available billing cycles endpoint | GET `/api/billing-cycles` | Returns list of all cycles that contain at least one transaction. |
+| BC-06 | Year boundary — Dec/Jan cycle | Transactions from 25 Dec 2025 to 24 Jan 2026 | Correctly grouped as Jan 2026 cycle. |
+
+---
+
+## 10. Currency & Formatting
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| F-01 | Indian number formatting | Display ₹1,25,000.50 | Uses `en-IN` locale: "₹1,25,000.50" (lakh separator). |
+| F-02 | Small amount formatting | ₹150 | Displays as "₹150.00". |
+| F-03 | Large amount (crore range) | ₹2,50,00,000 | Displays as "₹2,50,00,000.00". |
+| F-04 | Zero amount | ₹0 | Displays as "₹0.00". |
+| F-05 | Negative amount (deficit) | −₹30,000 | Displays with negative sign and proper formatting. |
+| F-06 | Date formatting | March 31, 2026 | Displays as "Mar 31, 2026" (en-US). |
+| F-07 | Monetary values use JetBrains Mono | Inspect any currency figure in the UI | Font-family is `JetBrains Mono` (monospace). |
+
+---
+
+## 11. Responsive & Mobile UX
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| M-01 | Transaction entry on mobile | Tap "Add Transaction" on a <768px viewport | Bottom-sheet drawer opens (not dialog modal). |
+| M-02 | Transaction entry on desktop | Click "Add Transaction" on ≥768px viewport | Dialog modal opens. |
+| M-03 | Transaction table — mobile | View `/transactions` on mobile | Card layout replaces the table. Each card shows date, amount, category badge, description. |
+| M-04 | Touch target size | Inspect all buttons, links, interactive elements on mobile | All are at least 44×44px. |
+| M-05 | Navigation on mobile | View nav bar on mobile viewport | Scrollable horizontal pill bar. |
+| M-06 | Account cards on mobile | View `/accounts` on mobile | Separate card sections: Bank (emerald border) and Credit Card (rose border). |
+| M-07 | Sort controls on mobile — transactions | View transactions on mobile | Dedicated sort dropdown and direction toggle visible. |
+| M-08 | Budget table — mobile | View `/budget` on mobile | Table remains readable or collapses to card layout. Editable inputs accessible. |
+
+---
+
+## 12. UI Theme & Visual Design
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| UI-01 | Dark theme background | Inspect `<body>` or root element | Background color is Deep Slate (#0f172a). |
+| UI-02 | Card glassmorphism | Inspect a dashboard card | Has `border: 1px solid rgba(255,255,255,0.1)` and `backdrop-filter: blur(...)`. |
+| UI-03 | Header blur | Scroll page with header visible | Header has `backdrop-filter: blur(...)` with semi-transparent background. |
+| UI-04 | Income amounts — emerald | Display an income transaction | Amount text uses Emerald-500 color. |
+| UI-05 | Expense amounts — rose | Display an expense transaction | Amount text uses Rose-500 color. |
+| UI-06 | Category badges with icons | View any transaction list | Each category badge shows its designated Lucide icon with low-opacity background. |
+| UI-07 | Transfer icon | View a transfer transaction in the ledger | Blue ArrowLeftRight icon displayed. |
+| UI-08 | Chart tooltips | Hover over any chart data point | Dark-themed tooltip with monospace font and rounded corners. |
+| UI-09 | Mesh gradient background | Inspect root background | Subtle CSS radial gradient (deep blues/purples) behind content. |
+| UI-10 | Primary CTA styling | Inspect "Add Transaction" / "Consolidate Surplus" buttons | Solid Emerald background, white text. |
+
+---
+
+## 13. Edge Cases & Error Handling
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| E-01 | Empty state — no accounts | New user, no accounts created | Dashboard gracefully shows zero balances, empty charts, prompt to add an account. |
+| E-02 | Empty state — no transactions | Accounts exist, no transactions logged | Dashboard shows account balances, ₹0 income/expense/surplus, empty trend charts. |
+| E-03 | Empty state — no goals | No goals created | Goal Vault page shows empty state message / CTA to create first goal. |
+| E-04 | Decimal precision | Create transaction with ₹99.999 | Rounded or truncated to ₹100.00 (2 decimal places per `numeric(12,2)`). |
+| E-05 | Concurrent balance updates | Two transactions created simultaneously for the same account | Both balance adjustments applied correctly; no race condition losing one update. |
+| E-06 | API returns 500 | Simulate backend error | Frontend displays error toast/message. Does not crash. React Query retries if configured. |
+| E-07 | Network offline | Disconnect network, attempt action | Frontend shows connection error. No silent data loss. |
+| E-08 | Very long description | Transaction with 1,000-character description | Either accepted and truncated in display, or rejected with validation error. |
+| E-09 | Special characters in account/category names | Name: `O'Brien & Sons "Special" <Account>` | Properly escaped in DB and UI. No XSS or SQL injection. |
+| E-10 | Monthly config — starting balance | Set `startingBalance: 100000` for 2026-04 | Dashboard summary for April incorporates starting balance. |
+| E-11 | Surplus ledger uniqueness | Attempt two surplus ledger entries for same month | Second insert fails (unique constraint on `month`). |
+| E-12 | Goal vault uniqueness | Create two vaults with the same name | Second insert fails (unique constraint on `name`). |
+
+---
+
+## 14. API Contract & Validation
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| V-01 | Health check | GET `/api/healthz` | 200 OK, body: `{ "status": "ok" }`. |
+| V-02 | Invalid JSON body | POST any endpoint with malformed JSON | 400 Bad Request. |
+| V-03 | Unknown endpoint | GET `/api/foobar` | 404 Not Found. |
+| V-04 | Missing Content-Type header | POST without `Content-Type: application/json` | 400 or 415 Unsupported Media Type. |
+| V-05 | String where number expected | POST transaction with `amount: "abc"` | 422 Validation Error. |
+| V-06 | Negative creditLimit | POST account with `creditLimit: -5000` | 422 Validation Error. |
+
+---
+
+## 15. Settings — Category Manager
+
+| # | Scenario | Steps | Expected Result |
+|---|----------|-------|-----------------|
+| SET-01 | Add category from settings | Navigate to `/settings`, add "Subscriptions" as Expense | Category created, appears in list with Tag icon. |
+| SET-02 | Delete category from settings | Delete an unused category | Removed from list. |
+| SET-03 | Default categories present | Check category list on fresh install | All 16 expense + 4 income default categories present with correct Lucide icons. |
+| SET-04 | Mobile category view | View settings on mobile | Categories grouped by type (Expense / Income) in list format. |
+| SET-05 | Desktop category view | View settings on desktop | Categories shown in table format. |
+
+---
+
+## 16. Cross-Cutting Concerns
+
+### 16.1 Data Integrity
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| X-01 | Sum of all account adjustments from transactions equals current account balances | Balances are always derivable from transaction history + initial balance. |
+| X-02 | Surplus allocations total never exceeds calculated surplus for a month | Allocation endpoint validates against available surplus. |
+| X-03 | Goal `currentAmount` matches sum of its surplus allocations + direct updates | Consistency between goals and surplus_allocations tables. |
+
+### 16.2 Query Invalidation (React Query)
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| X-04 | Create transaction → Dashboard auto-refreshes | Dashboard summary, trends, and recent ledger reflect new transaction without manual refresh. |
+| X-05 | Distribute surplus → Goals page auto-refreshes | Goal cards show updated `currentAmount` and progress. |
+| X-06 | Reconcile account → Accounts page auto-refreshes | Balance updates immediately in the account list. |
+| X-07 | Delete category → Settings and Transaction form updated | Category no longer appears in the dropdown or settings list. |
+
+### 16.3 Performance
+
+| # | Scenario | Expected |
+|---|----------|----------|
+| X-08 | Dashboard load with 1,000+ transactions | Page loads within 2 seconds. Charts render smoothly. |
+| X-09 | Transaction list with 500 records + sorting | Sorting completes within 500ms. No UI freeze. |
+| X-10 | Rapid successive API calls | Debounced or batched where appropriate. No duplicate mutations. |
