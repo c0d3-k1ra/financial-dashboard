@@ -16,6 +16,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Save } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { getCategoryIcon } from "@/lib/category-icons";
+import { CategoryBadge } from "@/components/category-badge";
 
 export default function Budget() {
   const { toast } = useToast();
@@ -66,7 +68,10 @@ export default function Budget() {
     {
       header: "Category",
       accessorKey: "category" as const,
-      className: "font-medium max-w-[150px] truncate",
+      className: "font-medium max-w-[200px]",
+      cell: (row: BudgetAnalysisRow) => (
+        <CategoryBadge category={row.category} type="Expense" />
+      ),
     },
     {
       header: "Planned",

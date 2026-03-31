@@ -13,6 +13,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Trash2, Tag } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { getCategoryIcon } from "@/lib/category-icons";
+
 
 export default function Settings() {
   const { toast } = useToast();
@@ -121,9 +123,16 @@ export default function Settings() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allCategories.map((cat) => (
-                      <TableRow key={cat.id} className="border-border/30">
-                        <TableCell className="font-medium">{cat.name}</TableCell>
+                    {allCategories.map((cat) => {
+                      const Icon = getCategoryIcon(cat.name);
+                      return (
+                      <TableRow key={cat.id} className="border-border/30 zebra-row">
+                        <TableCell className="font-medium">
+                          <span className="inline-flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-muted-foreground" />
+                            {cat.name}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border border-border/50 ${
                             cat.type === "Expense" ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-500"
@@ -142,7 +151,8 @@ export default function Settings() {
                           </Button>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                     {allCategories.length === 0 && (
                       <TableRow>
                         <TableCell colSpan={3} className="text-center py-8 text-muted-foreground font-mono text-sm">
@@ -158,9 +168,14 @@ export default function Settings() {
                 <div>
                   <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Expense Categories</h3>
                   <div className="space-y-2">
-                    {expenseCategories.map((cat) => (
+                    {expenseCategories.map((cat) => {
+                      const CatIcon = getCategoryIcon(cat.name);
+                      return (
                       <div key={cat.id} className="flex items-center justify-between p-3 rounded-md bg-secondary/30 border border-border/50">
-                        <span className="text-sm font-medium">{cat.name}</span>
+                        <span className="text-sm font-medium inline-flex items-center gap-2">
+                          <CatIcon className="w-4 h-4 text-muted-foreground" />
+                          {cat.name}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -170,7 +185,8 @@ export default function Settings() {
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
-                    ))}
+                    );
+                    })}
                     {!expenseCategories.length && (
                       <p className="text-muted-foreground text-sm font-mono">No expense categories.</p>
                     )}
@@ -179,9 +195,14 @@ export default function Settings() {
                 <div>
                   <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Income Categories</h3>
                   <div className="space-y-2">
-                    {incomeCategories.map((cat) => (
+                    {incomeCategories.map((cat) => {
+                      const CatIcon = getCategoryIcon(cat.name);
+                      return (
                       <div key={cat.id} className="flex items-center justify-between p-3 rounded-md bg-secondary/30 border border-border/50">
-                        <span className="text-sm font-medium">{cat.name}</span>
+                        <span className="text-sm font-medium inline-flex items-center gap-2">
+                          <CatIcon className="w-4 h-4 text-muted-foreground" />
+                          {cat.name}
+                        </span>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -191,7 +212,8 @@ export default function Settings() {
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
-                    ))}
+                    );
+                    })}
                     {!incomeCategories.length && (
                       <p className="text-muted-foreground text-sm font-mono">No income categories.</p>
                     )}

@@ -16,15 +16,19 @@ import {
   getGetCcDuesQueryKey,
   useGetCategoryTrend,
   getGetCategoryTrendQueryKey,
+  useListGoals,
+  useGetGoalsWaterfall,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
+import { getCategoryIcon } from "@/lib/category-icons";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  LineChart, Line, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
@@ -44,13 +48,67 @@ const CHART_COLORS = [
 ];
 
 const TOOLTIP_STYLE = {
-  backgroundColor: "hsl(var(--popover))",
-  borderColor: "hsl(var(--border))",
+  backgroundColor: "hsl(222 47% 10%)",
+  borderColor: "hsl(222 47% 15%)",
   borderRadius: "8px",
   fontFamily: "var(--font-mono)",
   fontSize: "12px",
-  color: "hsl(var(--popover-foreground))",
+  color: "hsl(210 40% 98%)",
 };
+
+function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | number; currentAmount: string | number }> }) {
+  const totalTarget = goals.reduce((s, g) => s + Number(g.targetAmount), 0);
+  const totalCurrent = goals.reduce((s, g) => s + Number(g.currentAmount), 0);
+  const progress = totalTarget > 0 ? Math.min((totalCurrent / totalTarget) * 100, 100) : 0;
+
+  const radius = 52;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (progress / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center justify-center h-full">
+      <div className="relative">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r={radius} fill="none" stroke="hsl(222 47% 15%)" strokeWidth="10" />
+          <circle
+            cx="70" cy="70" r={radius} fill="none"
+            stroke="hsl(160 84% 39%)" strokeWidth="10"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            transform="rotate(-90 70 70)"
+            className="transition-all duration-1000 ease-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-2xl font-bold font-mono">{progress.toFixed(0)}%</span>
+          <span className="text-[10px] text-muted-foreground font-mono">GOALS</span>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground font-mono mt-2">
+        {formatCurrency(totalCurrent)} / {formatCurrency(totalTarget)}
+      </p>
+    </div>
+  );
+}
+
+function CustomPieLegend({ payload }: { payload?: Array<{ value: string; color: string }> }) {
+  if (!payload) return null;
+  return (
+    <div className="flex flex-wrap gap-2 justify-center mt-2">
+      {payload.map((entry, i) => {
+        const Icon = getCategoryIcon(entry.value);
+        return (
+          <span key={i} className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
+            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: entry.color }} />
+            <Icon className="w-3 h-3" />
+            {entry.value}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Dashboard() {
   const [currentMonth] = useState(() => {
@@ -97,6 +155,9 @@ export default function Dashboard() {
     { query: { enabled: true, queryKey: getGetCategoryTrendQueryKey({ month: currentMonth }) } }
   );
 
+  const { data: goals } = useListGoals();
+  const { data: waterfall } = useGetGoalsWaterfall();
+
   const pieData = (spendByCategory ?? []).map((item, i) => ({
     name: item.category,
     value: Number(item.total),
@@ -126,70 +187,119 @@ export default function Dashboard() {
 
   const visibleCategories = selectedCategory === "all" ? categoryNames : [selectedCategory];
 
+  const waterfallData = useMemo(() => {
+    if (!summary) return [];
+    const income = Number(summary.totalIncome || 0);
+    const expenses = Number(summary.actualLivingExpenses || 0) + Number(summary.unpaidCcDues || 0);
+    const surplus = Number(summary.monthlySurplus || 0);
+    const goalTotal = goals?.reduce((s, g) => s + Number(g.currentAmount), 0) || 0;
+    return [
+      { name: "Income", value: income, fill: "hsl(160 84% 39%)" },
+      { name: "Expenses", value: expenses, fill: "hsl(354 70% 54%)" },
+      { name: "Surplus", value: Math.max(surplus, 0), fill: "hsl(210 100% 50%)" },
+      { name: "Goals", value: goalTotal, fill: "hsl(270 100% 60%)" },
+    ];
+  }, [summary, goals]);
+
+  const liquidCash = Number(summary?.bankBalance || 0);
+  const monthlyExpenses = Number(summary?.plannedLivingExpenses || 1);
+  const liquidityRatio = monthlyExpenses > 0 ? liquidCash / monthlyExpenses : 1;
+  const liquidityHealthy = liquidityRatio >= 1;
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financial Cockpit</h1>
-        <div className="text-sm font-mono text-muted-foreground bg-secondary/50 px-3 py-1 rounded-md border border-border/50">
-          {currentMonth}
+        <div className="flex items-center gap-3">
+          {!isLoadingSummary && (
+            <div className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg border ${
+              liquidityHealthy
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+            }`}>
+              <Droplets className="w-3.5 h-3.5" />
+              {liquidityHealthy ? "Liquid" : "Low Cash"}
+            </div>
+          )}
+          <div className="text-sm font-mono text-muted-foreground bg-secondary/50 px-3 py-1 rounded-md border border-border/50">
+            {currentMonth}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-card/50 backdrop-blur border-border/60 shadow-sm hover:border-border transition-colors">
+        <Card className="md:col-span-2 glass-card rounded-xl shadow-lg">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Liquidity</CardTitle>
             <Activity className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent>
             {isLoadingSummary ? (
-              <Skeleton className="h-8 w-32" />
+              <Skeleton className="h-12 w-48" />
             ) : (
-              <div className="text-3xl font-bold font-mono tracking-tight text-foreground">
+              <div className="text-4xl md:text-5xl font-extrabold font-mono tracking-tight text-foreground">
                 {formatCurrency(summary?.netLiquidity || 0)}
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1 font-mono">Bank Balance - CC Dues</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card/50 backdrop-blur border-border/60 shadow-sm hover:border-border transition-colors">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Bank Balance</CardTitle>
-            <Wallet className="w-4 h-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className="text-3xl font-bold font-mono tracking-tight text-emerald-500">
+            <div className="flex gap-6 mt-3 text-sm font-mono text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5 text-emerald-500" />
                 {formatCurrency(summary?.bankBalance || 0)}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1 font-mono">Available Cash</p>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-destructive" />
+                -{formatCurrency(summary?.unpaidCcDues || 0)}
+              </span>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur border-border/60 shadow-sm hover:border-border transition-colors">
-          <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Unpaid CC Dues</CardTitle>
-            <CreditCard className="w-4 h-4 text-destructive" />
+        <Card className="glass-card rounded-xl shadow-lg">
+          <CardHeader className="pb-1">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-1.5">
+              <Target className="w-3.5 h-3.5" /> Goal Progress
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <Skeleton className="h-8 w-32" />
+          <CardContent className="h-[180px]">
+            {goals && goals.length > 0 ? (
+              <GoalProgressRing goals={goals} />
             ) : (
-              <div className="text-3xl font-bold font-mono tracking-tight text-destructive">
-                {formatCurrency(summary?.unpaidCcDues || 0)}
+              <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm">
+                No active goals
               </div>
             )}
-            <p className="text-xs text-muted-foreground mt-1 font-mono">Pending Liabilities</p>
           </CardContent>
         </Card>
       </div>
 
+      <Card className="glass-card rounded-xl shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-lg">Monthly Flow</CardTitle>
+          <CardDescription>Income → Expenses → Surplus → Goals</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[220px] w-full pt-2">
+          {isLoadingSummary ? (
+            <Skeleton className="w-full h-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={waterfallData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {waterfallData.map((entry, index) => (
+                    <Cell key={index} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Monthly Burn Rate</CardTitle>
             <CardDescription>Actual vs Planned Living Expenses</CardDescription>
@@ -218,7 +328,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Monthly Overview</CardTitle>
             <CardDescription>Income & Surplus</CardDescription>
@@ -252,7 +362,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-border/60">
+        <Card className="lg:col-span-2 glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Spend by Category</CardTitle>
             <CardDescription>Expense breakdown for this billing cycle</CardDescription>
@@ -266,14 +376,12 @@ export default function Dashboard() {
                   <Pie
                     data={pieData}
                     cx="50%"
-                    cy="50%"
+                    cy="45%"
                     innerRadius={60}
                     outerRadius={110}
                     paddingAngle={2}
                     dataKey="value"
                     nameKey="name"
-                    label={({ name, percent }: { name: string; percent: number }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={{ stroke: "hsl(var(--muted-foreground))" }}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.fill} />
@@ -283,6 +391,7 @@ export default function Dashboard() {
                     contentStyle={TOOLTIP_STYLE}
                     formatter={(value: number) => formatCurrency(value)}
                   />
+                  <Legend content={<CustomPieLegend />} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -293,7 +402,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-destructive" /> CC Payment Dues
@@ -352,7 +461,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card className="bg-card/50 backdrop-blur border-border/60">
+      <Card className="glass-card rounded-xl">
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
@@ -377,14 +486,25 @@ export default function Dashboard() {
             <Skeleton className="w-full h-full" />
           ) : categoryTrendLineData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={categoryTrendLineData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+              <AreaChart data={categoryTrendLineData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <defs>
+                  {visibleCategories.map((cat, i) => {
+                    const color = CHART_COLORS[categoryNames.indexOf(cat) % CHART_COLORS.length];
+                    return (
+                      <linearGradient key={cat} id={`grad-cat-${i}`} x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={color} stopOpacity={0} />
+                      </linearGradient>
+                    );
+                  })}
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
                 <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
                 <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", paddingTop: "10px" }} />
                 {visibleCategories.map((cat, i) => (
-                  <Line
+                  <Area
                     key={cat}
                     type="monotone"
                     dataKey={cat}
@@ -393,9 +513,11 @@ export default function Dashboard() {
                     strokeWidth={2}
                     dot={{ r: 3 }}
                     activeDot={{ r: 5 }}
+                    fillOpacity={1}
+                    fill={`url(#grad-cat-${i})`}
                   />
                 ))}
-              </LineChart>
+              </AreaChart>
             </ResponsiveContainer>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
@@ -406,7 +528,7 @@ export default function Dashboard() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-border/60">
+        <Card className="lg:col-span-2 glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Income vs Expenses Trend</CardTitle>
             <CardDescription>Last 6 billing cycles (25th-24th)</CardDescription>
@@ -416,15 +538,25 @@ export default function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : monthlyTrend && monthlyTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <AreaChart data={monthlyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(160 84% 39%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(160 84% 39%)" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradExpenses" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(354 70% 54%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(354 70% 54%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
                   <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
-                  <Line type="monotone" dataKey="income" name="Income" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                  <Line type="monotone" dataKey="expenses" name="Expenses" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
+                  <Area type="monotone" dataKey="income" name="Income" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradIncome)" />
+                  <Area type="monotone" dataKey="expenses" name="Expenses" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradExpenses)" />
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
@@ -434,7 +566,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur border-border/60 flex flex-col">
+        <Card className="glass-card rounded-xl flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg">Recent Ledger</CardTitle>
             <Link href="/transactions" className="text-xs flex items-center gap-1 text-primary hover:text-primary/80 transition-colors">
@@ -450,22 +582,32 @@ export default function Dashboard() {
               </div>
             ) : recentTxs && recentTxs.length > 0 ? (
               <div className="space-y-3 pt-2">
-                {recentTxs.map((tx) => (
-                  <div key={tx.id} className="flex justify-between items-center pb-3 border-b border-border/40 last:border-0 last:pb-0">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium line-clamp-1">{tx.description}</span>
-                      <div className="flex gap-2 text-xs text-muted-foreground font-mono">
-                        <span>{formatDate(tx.date)}</span>
-                        <span>&bull;</span>
-                        <span className="truncate max-w-[100px]">{tx.category}</span>
+                {recentTxs.map((tx) => {
+                  const Icon = getCategoryIcon(tx.category);
+                  return (
+                    <div key={tx.id} className="flex justify-between items-center pb-3 border-b border-border/40 last:border-0 last:pb-0">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                          tx.type === "Income" ? "bg-emerald-500/10" : "bg-rose-500/10"
+                        }`}>
+                          <Icon className={`w-4 h-4 ${tx.type === "Income" ? "text-emerald-400" : "text-rose-400"}`} />
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium line-clamp-1">{tx.description}</span>
+                          <div className="flex gap-2 text-xs text-muted-foreground font-mono">
+                            <span>{formatDate(tx.date)}</span>
+                            <span>&bull;</span>
+                            <span className="truncate max-w-[80px]">{tx.category}</span>
+                          </div>
+                        </div>
                       </div>
+                      <span className={`font-mono text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
+                        {tx.type === "Income" ? "+" : "-"}
+                        {formatCurrency(tx.amount)}
+                      </span>
                     </div>
-                    <span className={`font-mono text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
-                      {tx.type === "Income" ? "+" : "-"}
-                      {formatCurrency(tx.amount)}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
@@ -477,7 +619,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">CC Spend Trend</CardTitle>
             <CardDescription>Credit card spending per billing cycle</CardDescription>
@@ -487,13 +629,19 @@ export default function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={ccSpendTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <AreaChart data={ccSpendTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="gradCcSpend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(43 100% 60%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
                   <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
-                  <Line type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
+                  <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradCcSpend)" />
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
@@ -503,7 +651,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Living Expenses Trend</CardTitle>
             <CardDescription>Last 6 billing cycles</CardDescription>
@@ -513,13 +661,19 @@ export default function Dashboard() {
               <Skeleton className="w-full h-full" />
             ) : livingExpensesTrend && livingExpensesTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={livingExpensesTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <AreaChart data={livingExpensesTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="gradLiving" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(210 100% 50%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(210 100% 50%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `\u20B9${value / 1000}k`} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
                   <RechartsTooltip contentStyle={TOOLTIP_STYLE} formatter={(value: number) => formatCurrency(value)} />
-                  <Line type="monotone" dataKey="total" name="Living Expenses" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                </LineChart>
+                  <Area type="monotone" dataKey="total" name="Living Expenses" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradLiving)" />
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
               <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">

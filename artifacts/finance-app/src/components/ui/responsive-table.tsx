@@ -46,7 +46,7 @@ export function ResponsiveTable<T>({
           </TableHeader>
           <TableBody>
             {data.map((row, rowIndex) => (
-              <TableRow key={keyExtractor(row, rowIndex)} className="transition-colors hover:bg-muted/30">
+              <TableRow key={keyExtractor(row, rowIndex)} className="transition-colors hover:bg-muted/30 zebra-row">
                 {columns.map((col, colIndex) => (
                   <TableCell key={colIndex} className={col.className}>
                     {col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? "") : null)}

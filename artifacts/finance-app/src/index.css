@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
@@ -113,10 +113,11 @@
   --chart-4: 43 100% 60%;
   --chart-5: 270 100% 60%;
 
-  --app-font-sans: 'Plus Jakarta Sans', sans-serif;
+  --app-font-sans: 'Inter', 'Plus Jakarta Sans', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'JetBrains Mono', monospace;
   --radius: .5rem; 
+  --font-heading: 'Inter', sans-serif;
 
   --shadow-2xs: 0px 1px 2px 0px rgba(0,0,0,0.05);
   --shadow-xs: 0px 1px 2px 0px rgba(0,0,0,0.05);
@@ -137,11 +138,10 @@
   --elevate-1: rgba(255,255,255, .04);
   --elevate-2: rgba(255,255,255, .09);
 
-  /* Deep slate blue/teal tones for the Bloomberg Terminal x Craftsman feel */
   --background: 222 47% 7%;
   --foreground: 210 40% 98%;
   --border: 222 47% 15%;
-  --card: 222 47% 10%;
+  --card: 0 0% 9.4%;
   --card-foreground: 210 40% 98%;
   --card-border: 222 47% 15%;
   
@@ -186,5 +186,40 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.02em;
+  }
+}
+
+.mesh-gradient-bg {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 40% 80%, rgba(16, 185, 129, 0.04) 0%, transparent 50%),
+    hsl(var(--background));
+}
+
+.glass-card {
+  background: hsl(var(--card) / 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.zebra-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.zebra-row:nth-child(odd) {
+  background: transparent;
+}
+
+@media (max-width: 768px) {
+  button, a, a[role="button"], [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
   }
 }

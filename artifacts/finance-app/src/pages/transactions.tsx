@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +28,9 @@ import * as z from "zod";
 import { Plus, Search, Trash2, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CategoryBadge } from "@/components/category-badge";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 const formSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -241,9 +244,7 @@ export default function Transactions() {
       cardLabel: "Category",
       accessorKey: "category" as const,
       cell: (tx: Transaction) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground border border-border/50">
-          {tx.category}
-        </span>
+        <CategoryBadge category={tx.category} type={tx.type as "Income" | "Expense"} />
       ),
     },
     {
@@ -297,167 +298,22 @@ export default function Transactions() {
           <p className="text-muted-foreground text-sm mt-1">Track and manage your daily cash flow.</p>
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button data-testid="btn-new-tx" className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider">
-              <Plus className="w-4 h-4 mr-2" /> Log Transaction
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>New Transaction</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
-                        <Select onValueChange={(val: string) => onTypeChange(val as "Income" | "Expense")} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="Expense">Expense</SelectItem>
-                            <SelectItem value="Income">Income</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                          <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Input placeholder="What was this for?" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="category"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      {isAddingCategory ? (
-                        <div className="flex gap-2">
-                          <Input
-                            value={newCatName}
-                            onChange={(e) => setNewCatName(e.target.value)}
-                            placeholder="New category name"
-                            className="font-mono text-sm"
-                            autoFocus
-                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
-                          />
-                          <Button type="button" size="sm" onClick={handleAddCategory} disabled={createCategory.isPending}>
-                            {createCategory.isPending ? "..." : "Add"}
-                          </Button>
-                          <Button type="button" size="sm" variant="ghost" onClick={() => { setIsAddingCategory(false); setNewCatName(""); }}>
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <Select onValueChange={(val) => { if (val === "__add_new__") { setIsAddingCategory(true); } else { field.onChange(val); } }} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {filteredCategories.map((c) => (
-                              <SelectItem key={c.id} value={c.name}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                            <SelectItem value="__add_new__" className="text-primary font-medium border-t border-border/50 mt-1">
-                              + Add Category
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="accountId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Account</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select account" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {(accounts ?? []).map((a) => (
-                            <SelectItem key={a.id} value={String(a.id)}>
-                              {a.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <DialogFooter className="pt-4">
-                  <Button type="submit" disabled={createTx.isPending} className="w-full">
-                    {createTx.isPending ? "Saving..." : "Save Transaction"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        <TransactionFormWrapper
+          isOpen={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
+          form={form}
+          onSubmit={onSubmit}
+          onTypeChange={onTypeChange}
+          filteredCategories={filteredCategories}
+          accounts={accounts ?? []}
+          isAddingCategory={isAddingCategory}
+          setIsAddingCategory={setIsAddingCategory}
+          newCatName={newCatName}
+          setNewCatName={setNewCatName}
+          handleAddCategory={handleAddCategory}
+          createCategory={createCategory}
+          createTx={createTx}
+        />
       </div>
 
       <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6 flex flex-col gap-4">
@@ -524,5 +380,238 @@ export default function Transactions() {
         )}
       </div>
     </div>
+  );
+}
+
+function TransactionFormFields({
+  form,
+  onSubmit,
+  onTypeChange,
+  filteredCategories,
+  accounts,
+  isAddingCategory,
+  setIsAddingCategory,
+  newCatName,
+  setNewCatName,
+  handleAddCategory,
+  createCategory,
+  createTx,
+}: {
+  form: ReturnType<typeof useForm<FormValues>>;
+  onSubmit: (data: FormValues) => void;
+  onTypeChange: (val: "Income" | "Expense") => void;
+  filteredCategories: Array<{ id: number; name: string }>;
+  accounts: Array<{ id: number; name: string }>;
+  isAddingCategory: boolean;
+  setIsAddingCategory: (v: boolean) => void;
+  newCatName: string;
+  setNewCatName: (v: string) => void;
+  handleAddCategory: () => void;
+  createCategory: { isPending: boolean };
+  createTx: { isPending: boolean };
+}) {
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="type"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Type</FormLabel>
+                <Select onValueChange={(val: string) => onTypeChange(val as "Income" | "Expense")} defaultValue={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="Expense">Expense</SelectItem>
+                    <SelectItem value="Income">Income</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="date"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Amount</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                  <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Input placeholder="What was this for?" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              {isAddingCategory ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="New category name"
+                    className="font-mono text-sm"
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddCategory(); } }}
+                  />
+                  <Button type="button" size="sm" onClick={handleAddCategory} disabled={createCategory.isPending}>
+                    {createCategory.isPending ? "..." : "Add"}
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => { setIsAddingCategory(false); setNewCatName(""); }}>
+                    Cancel
+                  </Button>
+                </div>
+              ) : (
+                <Select onValueChange={(val) => { if (val === "__add_new__") { setIsAddingCategory(true); } else { field.onChange(val); } }} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {filteredCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.name}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="__add_new__" className="text-primary font-medium border-t border-border/50 mt-1">
+                      + Add Category
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="accountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Account</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select account" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="pt-4">
+          <Button type="submit" disabled={createTx.isPending} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+            {createTx.isPending ? "Saving..." : "Save Transaction"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+function TransactionFormWrapper(props: {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  form: ReturnType<typeof useForm<FormValues>>;
+  onSubmit: (data: FormValues) => void;
+  onTypeChange: (val: "Income" | "Expense") => void;
+  filteredCategories: Array<{ id: number; name: string }>;
+  accounts: Array<{ id: number; name: string }>;
+  isAddingCategory: boolean;
+  setIsAddingCategory: (v: boolean) => void;
+  newCatName: string;
+  setNewCatName: (v: string) => void;
+  handleAddCategory: () => void;
+  createCategory: { isPending: boolean };
+  createTx: { isPending: boolean };
+}) {
+  const isMobile = useMediaQuery("(max-width: 767px)");
+
+  if (isMobile) {
+    return (
+      <Sheet open={props.isOpen} onOpenChange={props.onOpenChange}>
+        <SheetTrigger asChild>
+          <Button data-testid="btn-new-tx" className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Plus className="w-4 h-4 mr-2" /> Log Transaction
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>New Transaction</SheetTitle>
+          </SheetHeader>
+          <TransactionFormFields {...props} />
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
+      <DialogTrigger asChild>
+        <Button data-testid="btn-new-tx" className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white">
+          <Plus className="w-4 h-4 mr-2" /> Log Transaction
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle>New Transaction</DialogTitle>
+        </DialogHeader>
+        <TransactionFormFields {...props} />
+      </DialogContent>
+    </Dialog>
   );
 }

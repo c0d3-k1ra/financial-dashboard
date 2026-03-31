@@ -141,3 +141,20 @@ The app uses a custom billing cycle: 25th of the previous month through 24th of 
 ## Categories
 
 Categories are stored in the database (not hardcoded) and manageable via Settings > Category Manager. Seeded with: EMI (PL), Father, Credit Card (CC), Living Expenses, SIP (Investment), Travel Fund, Term Insurance, Health Insurance, Food, Gifts, Home, Transportation, Personal, Utilities, Medical, Other (Tax), Paycheck (Salary), Bonus, Interest, Other.
+
+### Category Icon Mapping
+
+Every category has a matching Lucide icon via `src/lib/category-icons.ts`. The `getCategoryIcon(name)` function returns the icon component; unknown categories fall back to `Tag`. The `CategoryBadge` component (`src/components/category-badge.tsx`) renders icon + name with emerald tint for income or rose tint for expenses. Used in transactions table, budget breakdown, dashboard recent ledger, and settings category list.
+
+## UI Theme — "Sophisticated Midnight"
+
+- **Heading font**: Inter with -0.02em letter-spacing; JetBrains Mono for monetary values
+- **Background**: Mesh gradient (deep blues/purples via CSS radials) applied in layout
+- **Cards**: Glassmorphism — `glass-card` CSS class (backdrop-blur + rgba white border)
+- **Dashboard hero**: Net Worth spans 2/3 of top row; Goal Progress radial ring in remaining 1/3
+- **Monthly Flow**: Full-width waterfall bar chart (Income → Expenses → Surplus → Goals)
+- **Charts**: All line charts use monotone curves with linearGradient fills underneath
+- **Liquidity health**: Badge indicator on dashboard — green "Liquid" or amber "Low Cash"
+- **Action buttons**: Solid emerald (bg-emerald-600) for primary actions (Log Transaction, etc.)
+- **Tables**: Zebra striping via `zebra-row` CSS class
+- **Mobile**: 44px minimum touch targets; bottom-sheet drawer (Sheet) for adding transactions on mobile viewports
