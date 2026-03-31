@@ -1,14 +1,42 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, goalVaultsTable, transactionsTable } from "@workspace/db";
+import { db, goalVaultsTable, transactionsTable, surplusLedgerTable, monthlyConfigTable } from "@workspace/db";
 import { ConsolidateSurplusBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
+
+function getNextMonth(month: string): string {
+  const [y, m] = month.split("-").map(Number);
+  let ny = y;
+  let nm = m + 1;
+  if (nm > 12) { nm = 1; ny++; }
+  return `${ny}-${String(nm).padStart(2, "0")}`;
+}
 
 router.post("/surplus/consolidate", async (req, res) => {
   try {
     const data = ConsolidateSurplusBody.parse(req.body);
     const month = data.month;
+
+    const existingLedger = await db
+      .select()
+      .from(surplusLedgerTable)
+      .where(eq(surplusLedgerTable.month, month));
+
+    if (existingLedger.length > 0) {
+      const entry = existingLedger[0];
+      const vault = await db
+        .select()
+        .from(goalVaultsTable)
+        .where(eq(goalVaultsTable.name, "Emergency Fund (IDFC)"));
+
+      res.json({
+        success: true,
+        newBalance: vault.length > 0 ? Number(vault[0].currentBalance).toFixed(2) : "0.00",
+        amountAdded: Number(entry.amount).toFixed(2),
+      });
+      return;
+    }
 
     const incomeResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
@@ -52,6 +80,37 @@ router.post("/surplus/consolidate", async (req, res) => {
           targetAmount: "300000.00",
         })
         .returning();
+    }
+
+    await db.insert(surplusLedgerTable).values({
+      month,
+      amount: surplus.toFixed(2),
+      vaultName: "Emergency Fund (IDFC)",
+    });
+
+    const config = await db
+      .select()
+      .from(monthlyConfigTable)
+      .where(eq(monthlyConfigTable.month, month));
+
+    const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
+    const endBalance = startingBalance + totalIncome - totalExpenses;
+    const nextMonth = getNextMonth(month);
+
+    const existingNext = await db
+      .select()
+      .from(monthlyConfigTable)
+      .where(eq(monthlyConfigTable.month, nextMonth));
+
+    if (existingNext.length > 0) {
+      await db
+        .update(monthlyConfigTable)
+        .set({ startingBalance: endBalance.toFixed(2) })
+        .where(eq(monthlyConfigTable.month, nextMonth));
+    } else {
+      await db
+        .insert(monthlyConfigTable)
+        .values({ month: nextMonth, startingBalance: endBalance.toFixed(2) });
     }
 
     res.json({

@@ -105,6 +105,13 @@ export const UpsertMonthlyConfigResponse = zod.object({
 });
 
 /**
+ * @summary Delete a monthly config
+ */
+export const DeleteMonthlyConfigParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List budget goals
  */
 export const ListBudgetGoalsResponseItem = zod.object({

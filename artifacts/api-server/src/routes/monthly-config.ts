@@ -40,4 +40,15 @@ router.post("/monthly-config", async (req, res) => {
   }
 });
 
+router.delete("/monthly-config/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await db.delete(monthlyConfigTable).where(eq(monthlyConfigTable.id, id));
+    res.status(204).send();
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to delete monthly config");
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
 export default router;

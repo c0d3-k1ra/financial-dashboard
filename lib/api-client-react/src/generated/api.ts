@@ -639,6 +639,90 @@ export const useUpsertMonthlyConfig = <
 };
 
 /**
+ * @summary Delete a monthly config
+ */
+export const getDeleteMonthlyConfigUrl = (id: number) => {
+  return `/api/monthly-config/${id}`;
+};
+
+export const deleteMonthlyConfig = async (
+  id: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteMonthlyConfigUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteMonthlyConfigMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMonthlyConfig>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteMonthlyConfig>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteMonthlyConfig"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteMonthlyConfig>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteMonthlyConfig(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteMonthlyConfigMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteMonthlyConfig>>
+>;
+
+export type DeleteMonthlyConfigMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a monthly config
+ */
+export const useDeleteMonthlyConfig = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMonthlyConfig>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteMonthlyConfig>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteMonthlyConfigMutationOptions(options));
+};
+
+/**
  * @summary List budget goals
  */
 export const getListBudgetGoalsUrl = () => {

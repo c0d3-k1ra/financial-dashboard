@@ -158,6 +158,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/MonthlyConfig"
 
+  /monthly-config/{id}:
+    delete:
+      operationId: deleteMonthlyConfig
+      tags: [monthly-config]
+      summary: Delete a monthly config
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /budget-goals:
     get:
       operationId: listBudgetGoals
