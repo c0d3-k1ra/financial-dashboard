@@ -1,0 +1,38 @@
+"Update the UI theme to a 'Sophisticated Midnight' aesthetic. Follow these specific styling rules:
+
+Color Palette: Use Deep Slate (#0f172a) for the background and Zinc-900 (#18181b) for card backgrounds. Use Emerald-500 for all positive money flows (Income/Surplus) and Rose-500 for expenses/debt.
+
+Glassmorphism: Apply a subtle border (1px solid white/10%) and a slight background-blur effect to all dashboard cards to give them depth.
+
+Typography: Use the Inter font family. Headings should be Semi-bold with tight letter spacing (-0.02em). Monetary values should use a Monospace font (like JetBrains Mono) for a 'ticker' feel.
+
+Gradients: Use subtle mesh gradients in the background (deep blues and purples) to prevent the dark mode from looking flat."
+
+2. How to Update the UI Layout (The "Waterfall" View)
+The current UI uses four equal-sized cards. To make it more intuitive, you need Visual Hierarchy. Tell Replit:
+
+"Restructure the Dashboard Layout for better Hierarchy:
+
+The Hero Section: Make the 'Net Worth' (Net Liquidity) card span 2/3 of the top row. Use a large, bold font for the main balance.
+
+The Goal Progress: Replace the 'Monthly Burn Rate' card with a Radial Progress Chart for the primary Goal (e.g., Emergency Fund).
+
+The Waterfall Visualization: Below the top cards, add a full-width section called 'The Monthly Flow.' Use a horizontal 'Sankey' or 'Waterfall' chart that visually shows Income flowing into Expenses, and the remainder flowing into Goals.
+
+Action Contrast: Make the 'Add Transaction' and 'Consolidate Surplus' buttons high-contrast (Solid Emerald) so they stand out from the dark background."
+
+3. Specific Component Updates
+To make the UI feel "Premium," ask for these specific micro-details:
+
+For Charts: "Use Recharts with custom tooltips. The line charts should use a 'monotone' curve with a gradient fill underneath the line."
+
+For Tables: "The transaction history table should have 'Zebra striping' using very subtle grey-900 shades. Category badges should have low-opacity background colors (e.g., a faint red background for a red text label)."
+
+For Mobile: "Ensure all cards have a minimum touch-target of 44px and use 'Bottom Sheet' drawers for adding transactions instead of centered modals."
+
+4. The "Intelligence" UI Update
+Since we added the "Goal Rich, Cash Poor" test, you need a way to see it. Tell Replit:
+
+"Add a 'Status Bar' at the very top of the app. > * If the Liquidity Stress Test passes, show a subtle green checkmark: 'Liquidity Healthy.'
+
+If the Stress Test fails, turn the entire Top Bar into a Warning Amber Gradient with the text: '⚠️ Goal Rich, Cash Poor: Low Liquid Cash for Expenses.'"
