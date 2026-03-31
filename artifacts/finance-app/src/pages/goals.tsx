@@ -15,9 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { ShieldCheck, ArrowRightLeft, Target } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export default function Goals() {
   const { toast } = useToast();
@@ -38,26 +35,18 @@ export default function Goals() {
 
   const consolidate = useConsolidateSurplus();
 
-  // Dialog state
-  const [isConsolidateOpen, setIsConsolidateOpen] = useState(false);
-  const [consolidateAmount, setConsolidateAmount] = useState("");
-
   const handleConsolidate = () => {
-    if (!consolidateAmount || isNaN(Number(consolidateAmount))) return;
-
-    consolidate.mutate({ data: { month: currentMonth, amount: consolidateAmount } }, {
+    consolidate.mutate({ data: { month: currentMonth } }, {
       onSuccess: (res) => {
         if (res.success) {
           toast({ 
             title: "Surplus Consolidated", 
             description: `Moved ${formatCurrency(res.amountAdded)} into Wealth Shield. New Balance: ${formatCurrency(res.newBalance)}` 
           });
-          setIsConsolidateOpen(false);
-          setConsolidateAmount("");
           queryClient.invalidateQueries({ queryKey: getListGoalVaultsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetGoalProjectionQueryKey({ month: currentMonth }) });
         } else {
-          toast({ title: "Consolidation Failed", description: "Could not consolidate surplus", variant: "destructive" });
+          toast({ title: "No Surplus", description: "There is no surplus to consolidate for this month.", variant: "destructive" });
         }
       },
       onError: (err) => {
@@ -82,45 +71,16 @@ export default function Goals() {
           <p className="text-muted-foreground text-sm mt-1">Automate surplus into financial security.</p>
         </div>
 
-        <Dialog open={isConsolidateOpen} onOpenChange={setIsConsolidateOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider bg-primary hover:bg-primary/90 text-primary-foreground">
-              <ArrowRightLeft className="w-4 h-4 mr-2" /> Consolidate Surplus
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Sweep Surplus</DialogTitle>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Move remaining monthly cash flow into your Emergency Fund (Wealth Shield).
-              </p>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount to Sweep</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                  <Input 
-                    id="amount" 
-                    type="number" 
-                    placeholder="0.00" 
-                    className="pl-7 font-mono"
-                    value={consolidateAmount}
-                    onChange={(e) => setConsolidateAmount(e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleConsolidate} disabled={consolidate.isPending || !consolidateAmount}>
-                {consolidate.isPending ? "Executing..." : "Execute Transfer"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={handleConsolidate}
+          disabled={consolidate.isPending}
+          className="w-full sm:w-auto font-mono text-xs uppercase tracking-wider bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          <ArrowRightLeft className="w-4 h-4 mr-2" /> 
+          {consolidate.isPending ? "Consolidating..." : "Consolidate Surplus"}
+        </Button>
       </div>
 
-      {/* Main Wealth Shield Focus */}
       <Card className="bg-card/80 backdrop-blur border-primary/30 shadow-[0_0_30px_-10px_rgba(16,185,129,0.15)]">
         <CardHeader className="flex flex-row items-center gap-3 pb-2">
           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
@@ -168,7 +128,6 @@ export default function Goals() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Projection Chart */}
         <Card className="lg:col-span-2 bg-card/50 backdrop-blur border-border/60">
           <CardHeader>
             <CardTitle className="text-lg">12-Month Projection</CardTitle>
@@ -217,7 +176,6 @@ export default function Goals() {
           </CardContent>
         </Card>
 
-        {/* Other Vaults */}
         <Card className="bg-card/50 backdrop-blur border-border/60">
           <CardHeader>
             <CardTitle className="text-lg">Other Vaults</CardTitle>

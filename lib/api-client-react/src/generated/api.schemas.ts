@@ -86,7 +86,6 @@ export interface BudgetAnalysisRow {
 
 export interface ConsolidateRequest {
   month: string;
-  amount: string;
 }
 
 export interface ConsolidateResult {

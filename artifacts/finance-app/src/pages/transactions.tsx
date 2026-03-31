@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   useListTransactions, 
   getListTransactionsQueryKey,
@@ -16,7 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Search, Trash2, ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { Plus, Search, Trash2, ArrowDownRight, ArrowUpRight, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -30,11 +30,16 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+type SortField = "date" | "amount" | "category" | "description";
+type SortDir = "asc" | "desc";
+
 export default function Transactions() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -44,6 +49,45 @@ export default function Transactions() {
     { search: search || undefined, month: currentMonth },
     { query: { enabled: true, queryKey: getListTransactionsQueryKey({ search: search || undefined, month: currentMonth }) } }
   );
+
+  const sortedTransactions = useMemo(() => {
+    if (!transactions) return [];
+    const sorted = [...transactions].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "date":
+          cmp = a.date.localeCompare(b.date);
+          break;
+        case "amount":
+          cmp = Number(a.amount) - Number(b.amount);
+          break;
+        case "category":
+          cmp = a.category.localeCompare(b.category);
+          break;
+        case "description":
+          cmp = a.description.localeCompare(b.description);
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return sorted;
+  }, [transactions, sortField, sortDir]);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 ml-1 opacity-40" />;
+    return sortDir === "asc" 
+      ? <ArrowUp className="w-3 h-3 ml-1 text-primary" /> 
+      : <ArrowDown className="w-3 h-3 ml-1 text-primary" />;
+  };
 
   const createTx = useCreateTransaction();
   const deleteTx = useDeleteTransaction();
@@ -62,7 +106,6 @@ export default function Transactions() {
   const watchType = form.watch("type");
   const categories = watchType === "Expense" ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
 
-  // Handle category reset when type changes
   const onTypeChange = (val: "Income" | "Expense") => {
     form.setValue("type", val);
     form.setValue("category", "");
@@ -75,7 +118,6 @@ export default function Transactions() {
         setIsDialogOpen(false);
         form.reset();
         queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey({ search: search || undefined, month: currentMonth }) });
-        // Also invalidate other queries that might need this data
         queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
       },
       onError: (err) => {
@@ -96,17 +138,32 @@ export default function Transactions() {
 
   const columns = [
     {
-      header: "Date",
+      header: (
+        <button onClick={() => toggleSort("date")} className="flex items-center hover:text-foreground transition-colors">
+          Date <SortIcon field="date" />
+        </button>
+      ),
+      cardLabel: "Date",
       accessorKey: "date" as const,
       cell: (tx: any) => <span className="font-mono">{formatDate(tx.date)}</span>,
     },
     {
-      header: "Description",
+      header: (
+        <button onClick={() => toggleSort("description")} className="flex items-center hover:text-foreground transition-colors">
+          Description <SortIcon field="description" />
+        </button>
+      ),
+      cardLabel: "Description",
       accessorKey: "description" as const,
       className: "font-medium max-w-[200px] truncate",
     },
     {
-      header: "Category",
+      header: (
+        <button onClick={() => toggleSort("category")} className="flex items-center hover:text-foreground transition-colors">
+          Category <SortIcon field="category" />
+        </button>
+      ),
+      cardLabel: "Category",
       accessorKey: "category" as const,
       cell: (tx: any) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground border border-border/50">
@@ -115,7 +172,12 @@ export default function Transactions() {
       ),
     },
     {
-      header: "Amount",
+      header: (
+        <button onClick={() => toggleSort("amount")} className="flex items-center justify-end w-full hover:text-foreground transition-colors">
+          Amount <SortIcon field="amount" />
+        </button>
+      ),
+      cardLabel: "Amount",
       accessorKey: "amount" as const,
       className: "text-right",
       cell: (tx: any) => (
@@ -217,7 +279,7 @@ export default function Transactions() {
                       <FormLabel>Amount</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                          <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
                           <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
                         </div>
                       </FormControl>
@@ -275,14 +337,37 @@ export default function Transactions() {
       </div>
 
       <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6 flex flex-col gap-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search transactions..." 
-            className="pl-9 bg-background/50"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Search transactions..." 
+              className="pl-9 bg-background/50"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 md:hidden">
+            <Select value={sortField} onValueChange={(v) => { setSortField(v as SortField); }}>
+              <SelectTrigger className="w-[130px] h-9 text-xs">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="amount">Amount</SelectItem>
+                <SelectItem value="category">Category</SelectItem>
+                <SelectItem value="description">Description</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="h-9 px-3"
+              onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")}
+            >
+              {sortDir === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -294,7 +379,7 @@ export default function Transactions() {
           </div>
         ) : (
           <ResponsiveTable 
-            data={transactions || []} 
+            data={sortedTransactions} 
             columns={columns} 
             keyExtractor={(tx) => tx.id}
             emptyState={

@@ -40,4 +40,15 @@ router.post("/budget-goals", async (req, res) => {
   }
 });
 
+router.delete("/budget-goals/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await db.delete(budgetGoalsTable).where(eq(budgetGoalsTable.id, id));
+    res.status(204).send();
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to delete budget goal");
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
 export default router;

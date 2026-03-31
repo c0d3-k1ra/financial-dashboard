@@ -96,4 +96,15 @@ router.get("/goal-vaults/projection", async (req, res) => {
   }
 });
 
+router.delete("/goal-vaults/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await db.delete(goalVaultsTable).where(eq(goalVaultsTable.id, id));
+    res.status(204).send();
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to delete goal vault");
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
 export default router;

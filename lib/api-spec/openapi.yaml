@@ -190,6 +190,21 @@ paths:
               schema:
                 $ref: "#/components/schemas/BudgetGoal"
 
+  /budget-goals/{id}:
+    delete:
+      operationId: deleteBudgetGoal
+      tags: [budget-goals]
+      summary: Delete a budget goal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
   /goal-vaults:
     get:
       operationId: listGoalVaults
@@ -221,6 +236,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GoalVault"
+
+  /goal-vaults/{id}:
+    delete:
+      operationId: deleteGoalVault
+      tags: [goal-vaults]
+      summary: Delete a goal vault
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
 
   /dashboard/summary:
     get:
@@ -538,11 +568,8 @@ components:
       properties:
         month:
           type: string
-        amount:
-          type: string
       required:
         - month
-        - amount
 
     ConsolidateResult:
       type: object

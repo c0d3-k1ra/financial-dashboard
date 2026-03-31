@@ -8,5 +8,4 @@
 
 export interface ConsolidateRequest {
   month: string;
-  amount: string;
 }

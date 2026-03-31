@@ -129,6 +129,13 @@ export const UpsertBudgetGoalResponse = zod.object({
 });
 
 /**
+ * @summary Delete a budget goal
+ */
+export const DeleteBudgetGoalParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
  * @summary List goal vaults
  */
 export const ListGoalVaultsResponseItem = zod.object({
@@ -153,6 +160,13 @@ export const UpsertGoalVaultResponse = zod.object({
   name: zod.string(),
   currentBalance: zod.string(),
   targetAmount: zod.string(),
+});
+
+/**
+ * @summary Delete a goal vault
+ */
+export const DeleteGoalVaultParams = zod.object({
+  id: zod.coerce.number(),
 });
 
 /**
@@ -199,7 +213,6 @@ export const GetBudgetAnalysisResponse = zod.array(
  */
 export const ConsolidateSurplusBody = zod.object({
   month: zod.string(),
-  amount: zod.string(),
 });
 
 export const ConsolidateSurplusResponse = zod.object({
