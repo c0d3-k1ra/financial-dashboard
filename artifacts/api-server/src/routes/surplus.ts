@@ -123,7 +123,7 @@ router.post("/surplus/distribute", async (req, res) => {
 
         await tx
           .update(goalsTable)
-          .set({ currentAmount: sql`(${goalsTable.currentAmount}::numeric + ${amount})::text` })
+          .set({ currentAmount: sql`${goalsTable.currentAmount}::numeric + ${amount}` })
           .where(eq(goalsTable.id, alloc.goalId));
 
         const updatedGoal = await tx.select().from(goalsTable).where(eq(goalsTable.id, alloc.goalId));

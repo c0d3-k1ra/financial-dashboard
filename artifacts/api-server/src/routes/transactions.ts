@@ -69,6 +69,11 @@ router.post("/transactions", async (req, res) => {
       return;
     }
 
+    if (Number(data.amount) < 0) {
+      res.status(400).json({ error: "Amount must be non-negative." });
+      return;
+    }
+
     const result = await db.transaction(async (tx) => {
       const [created] = await tx
         .insert(transactionsTable)
@@ -111,6 +116,11 @@ router.put("/transactions/:id", async (req, res) => {
 
     if (data.type === "Transfer") {
       res.status(400).json({ error: "Use the /transfers endpoint to create transfers." });
+      return;
+    }
+
+    if (Number(data.amount) < 0) {
+      res.status(400).json({ error: "Amount must be non-negative." });
       return;
     }
 

@@ -24,12 +24,14 @@ SurplusEngine — a personal finance web application that tracks bank balances, 
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
 │   ├── api-server/         # Express API server
+│   │   └── src/__tests__/  # Vitest + Supertest integration & unit tests
 │   └── finance-app/        # React + Vite frontend (SurplusEngine)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
 │   └── db/                 # Drizzle ORM schema + DB connection
+│       └── src/test-seed.ts # Comprehensive test seed data script
 ├── scripts/                # Utility scripts (single workspace package)
 │   └── src/                # Individual .ts scripts
 ├── pnpm-workspace.yaml     # pnpm workspace
@@ -37,6 +39,15 @@ artifacts-monorepo/
 ├── tsconfig.json           # Root TS project references
 └── package.json            # Root package with hoisted devDeps
 ```
+
+## Testing
+
+- **Test runner**: Vitest (configured in `artifacts/api-server/vitest.config.ts`)
+- **Integration tests**: Supertest against Express app with real PostgreSQL
+- **Run tests**: `pnpm --filter @workspace/api-server test`
+- **Run seed data**: `pnpm --filter @workspace/db test-seed`
+- **Test coverage**: 117 tests across 12 files (accounts, transactions, transfers, categories, budgets, goals, surplus, dashboard, analytics, health, billing cycle, edge cases)
+- Tests use `beforeEach` truncation for isolation, running sequentially in a single fork
 
 ## TypeScript & Composite Projects
 

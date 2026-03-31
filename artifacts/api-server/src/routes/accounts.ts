@@ -22,6 +22,10 @@ router.post("/accounts", async (req, res) => {
       res.status(400).json({ error: "billingDueDay must be between 1 and 31" });
       return;
     }
+    if (data.creditLimit != null && Number(data.creditLimit) < 0) {
+      res.status(400).json({ error: "creditLimit must be non-negative." });
+      return;
+    }
     const [created] = await db
       .insert(accountsTable)
       .values({
@@ -45,6 +49,10 @@ router.put("/accounts/:id", async (req, res) => {
     const data = CreateAccountBody.parse(req.body);
     if (data.billingDueDay != null && (data.billingDueDay < 1 || data.billingDueDay > 31)) {
       res.status(400).json({ error: "billingDueDay must be between 1 and 31" });
+      return;
+    }
+    if (data.creditLimit != null && Number(data.creditLimit) < 0) {
+      res.status(400).json({ error: "creditLimit must be non-negative." });
       return;
     }
     const [updated] = await db
