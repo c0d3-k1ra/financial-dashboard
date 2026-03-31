@@ -1,0 +1,51 @@
+To build this correctly, you should use the Replit Agent. The following prompt is engineered to give the Agent the exact logic, categories, and "Waterfall" surplus math from your Excel files.
+
+Copy and paste this entire block into the Replit Agent:
+
+Replit Agent Prompt: The SurplusEngine Finance App
+Objective:
+Build a personal finance web application using Python, Streamlit, and SQLite. The app must track consolidated bank balances, daily transactions, and automate the "surplus waterfall" logic for financial goals (Emergency Fund and Loan Prepayment) based on specific Excel formulas.
+
+1. Core Data Structure (SQLite):
+
+Transactions: Date, Amount, Description, Category, Type (Income/Expense).
+
+Monthly_Config: Month, Starting_Balance (the sum of all bank accounts at the start of the month).
+
+Budget_Goals: Category name, Planned_Amount.
+
+Goal_Vaults: Current balances for 'Emergency Fund (IDFC)', 'Travel Fund', and 'Loan Prepayment Accumulation'.
+
+2. Specific Categories (Must match my Excel):
+
+Expense Categories: EMI (PL), Father, Credit Card (CC), Living Expenses, SIP (Investment), Travel Fund, Term Insurance, Health Insurance, Food, Gifts, Home, Transportation, Personal, Utilities, Medical, Other (Tax).
+
+Income Categories: Paycheck (Salary), Bonus, Interest, Other.
+
+3. The "Waterfall" Logic (The Engine):
+
+Total Expenses & Savings: Calculate as the sum of all mandatory costs: (EMI + Father + CC + Living Exp + SIP + Travel Fund + Insurances).
+
+Monthly Surplus: Total Actual Income - Total Expenses & Savings.
+
+Surplus Allocation: At the end of each month, the app must provide a "Consolidate" button that moves the Monthly Surplus into the Emergency Fund (IDFC) vault.
+
+Rolling Balance: The End Balance of Month A must automatically become the Starting Balance of Month B. End Balance = Starting Balance + Income - Expenses.
+
+4. User Interface Requirements (Streamlit):
+
+Dashboard Tab: A "Net Liquidity" gauge. Large cards showing 'Bank Balance' vs. 'Unpaid CC Dues'. A progress bar for the "Monthly Burn Rate" (Actual Living Expenses vs. Planned).
+
+Transaction Tab: A clean form to log entries and a searchable table of recent history.
+
+Budget Analysis Tab: A "Planned vs. Actual" table exactly like an Excel summary. Columns: Category, Planned, Actual, Difference (highlighted Red if over-budget).
+
+Goals Tab: Visual "Wealth Shields" for the Emergency Fund. Show a 12-month projection chart: "If I maintain this surplus, my Emergency Fund will hit its target by [Date]."
+
+5. Design Aesthetic:
+
+Use a professional Dark Mode theme.
+
+Use Plotly for a line chart showing the growth of the Emergency Fund over time.
+
+Keep the navigation simple: Dashboard, Transactions, Budget, Goal Vault.
