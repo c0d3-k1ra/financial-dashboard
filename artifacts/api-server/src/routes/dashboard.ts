@@ -31,7 +31,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const expenseResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
+      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
     const totalIncome = Number(incomeResult[0]?.total ?? 0);
     const totalExpenses = Number(expenseResult[0]?.total ?? 0);
@@ -105,7 +105,7 @@ router.get("/dashboard/monthly-trend", async (req, res) => {
       const expenseResult = await db
         .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
         .from(transactionsTable)
-        .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
+        .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
       trendData.push({
         month,
