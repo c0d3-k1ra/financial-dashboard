@@ -17,8 +17,15 @@ import {
   useGetCategoryTrend,
   getGetCategoryTrendQueryKey,
   useListGoals,
+  getListGoalsQueryKey,
   useGetGoalsWaterfall,
+  getGetGoalsWaterfallQueryKey,
   useListAccounts,
+  useGetMonthlySurplus,
+  getGetMonthlySurplusQueryKey,
+  useDistributeSurplus,
+  useListSurplusAllocations,
+  getListSurplusAllocationsQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/category-icons";
@@ -31,6 +38,11 @@ import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight,
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import CreateTransactionDialog from "@/components/create-transaction-dialog";
 import TransferModal from "@/components/transfer-modal";
+import SurplusDistributeModal from "@/components/surplus-distribute-modal";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
+import { getApiErrorMessage } from "@/lib/constants";
 import {
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid,
@@ -107,6 +119,8 @@ function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | num
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -114,6 +128,7 @@ export default function Dashboard() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [isTxDialogOpen, setIsTxDialogOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [distributeOpen, setDistributeOpen] = useState(false);
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
     { month: currentMonth },
@@ -156,6 +171,29 @@ export default function Dashboard() {
   const { data: goals } = useListGoals();
   const { data: waterfall } = useGetGoalsWaterfall();
   const { data: allAccounts } = useListAccounts();
+  const { refetch: refetchSurplus } = useGetMonthlySurplus(
+    { month: currentMonth },
+    { query: { enabled: false, queryKey: getGetMonthlySurplusQueryKey({ month: currentMonth }) } }
+  );
+  const { data: allAllocations } = useListSurplusAllocations();
+  const distribute = useDistributeSurplus();
+
+  const activeGoals = goals?.filter((g) => g.status === "Active") || [];
+  const cycleAlreadyEnded = allAllocations?.some((a) => a.month === currentMonth) ?? false;
+
+  const handleEndCycle = async () => {
+    const result = await refetchSurplus();
+    const surplus = Number(result.data?.surplus ?? 0);
+    if (surplus <= 0) {
+      toast({
+        title: "No Surplus",
+        description: `No surplus for ${new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}. Income minus expenses is ${formatCurrency(result.data?.surplus ?? "0")}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    setDistributeOpen(true);
+  };
 
   const loanAccounts = useMemo(() =>
     (allAccounts ?? []).filter((a) => a.type === "loan" && Number(a.currentBalance ?? 0) > 0),
@@ -223,9 +261,15 @@ export default function Dashboard() {
           <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => setIsTransferOpen(true)}>
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
           </Button>
-          <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => navigate("/goals")}>
-            <CheckCircle2 className="w-4 h-4 mr-1.5" /> End Cycle
-          </Button>
+          {cycleAlreadyEnded ? (
+            <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider opacity-60" disabled>
+              <CheckCircle2 className="w-4 h-4 mr-1.5" /> Cycle Ended
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={handleEndCycle}>
+              <CheckCircle2 className="w-4 h-4 mr-1.5" /> End Cycle
+            </Button>
+          )}
           {!isLoadingSummary && (
             <div className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg border ${
               liquidityHealthy
@@ -822,6 +866,40 @@ export default function Dashboard() {
 
       <CreateTransactionDialog open={isTxDialogOpen} onOpenChange={setIsTxDialogOpen} />
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
+
+      <Dialog open={distributeOpen} onOpenChange={setDistributeOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <SurplusDistributeModal
+            goals={activeGoals}
+            accounts={(allAccounts || []).filter(a => a.type === "bank")}
+            month={currentMonth}
+            onDistribute={(data) => {
+              distribute.mutate(
+                { data },
+                {
+                  onSuccess: (res) => {
+                    if (res.success) {
+                      toast({
+                        title: "Cycle Ended — Surplus Distributed",
+                        description: `₹${res.allocatedTotal} allocated across goals. ${res.transfers} transfer(s) created.`,
+                      });
+                      setDistributeOpen(false);
+                      queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+                      queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
+                      queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
+                      queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
+                    }
+                  },
+                  onError: (err) => {
+                    toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
+                  },
+                }
+              );
+            }}
+            isPending={distribute.isPending}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
