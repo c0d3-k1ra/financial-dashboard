@@ -250,10 +250,10 @@ export default function Dashboard() {
                 <CreditCard className="w-3.5 h-3.5 text-destructive" />
                 -{formatCurrency(summary?.unpaidCcDues || 0)}
               </span>
-              {Number(summary?.totalLoanOutstanding || 0) > 0 && (
+              {Number(summary?.totalEmiDue || 0) > 0 && (
                 <span className="flex items-center gap-1.5">
                   <Landmark className="w-3.5 h-3.5 text-amber-500" />
-                  -{formatCurrency(summary?.totalLoanOutstanding || 0)}
+                  -{formatCurrency(summary?.totalEmiDue || 0)}
                 </span>
               )}
             </div>

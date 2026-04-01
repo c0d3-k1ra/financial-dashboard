@@ -51,7 +51,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalEmiDue = allAccounts
       .filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0)
       .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
-    const netLiquidity = totalBankBalance - totalCcOutstanding - totalLoanOutstanding;
+    const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
 
     const livingResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
