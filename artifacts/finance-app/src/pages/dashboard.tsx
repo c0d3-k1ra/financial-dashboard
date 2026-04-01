@@ -18,6 +18,7 @@ import {
   getGetCategoryTrendQueryKey,
   useListGoals,
   useGetGoalsWaterfall,
+  useListAccounts,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/category-icons";
@@ -165,6 +166,12 @@ export default function Dashboard() {
 
   const { data: goals } = useListGoals();
   const { data: waterfall } = useGetGoalsWaterfall();
+  const { data: allAccounts } = useListAccounts();
+
+  const loanAccounts = useMemo(() =>
+    (allAccounts ?? []).filter((a) => a.type === "loan" && Number(a.currentBalance ?? 0) > 0),
+    [allAccounts]
+  );
 
   const pieData = (spendByCategory ?? []).map((item, i) => ({
     name: item.category,
@@ -476,6 +483,73 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {(loanAccounts.length > 0 || Number(summary?.totalLoanOutstanding || 0) > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="glass-card rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-amber-500" /> Loan Outstanding
+              </CardTitle>
+              <CardDescription>Total loan principal remaining</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold font-mono text-amber-500">
+                {formatCurrency(summary?.totalLoanOutstanding || 0)}
+              </div>
+              {Number(summary?.totalEmiDue || 0) > 0 && (
+                <p className="text-sm font-mono text-muted-foreground mt-2">
+                  Monthly EMI burden: {formatCurrency(summary?.totalEmiDue || 0)}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card rounded-xl">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Landmark className="w-4 h-4 text-amber-500" /> Upcoming EMI Dues
+              </CardTitle>
+              <CardDescription>Active loan EMI schedule</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loanAccounts.length > 0 ? (
+                <div className="space-y-3">
+                  {loanAccounts.map((loan) => (
+                    <div key={loan.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-sm font-medium">{loan.name}</p>
+                          <p className="text-lg font-bold font-mono mt-0.5">
+                            {loan.emiAmount ? formatCurrency(loan.emiAmount) : "—"}/mo
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1">
+                          {loan.emiDay && (
+                            <span className="text-xs font-mono px-2 py-1 rounded bg-amber-500/15 text-amber-400">
+                              {loan.emiDay}th
+                            </span>
+                          )}
+                          {loan.interestRate && (
+                            <span className="text-xs font-mono text-muted-foreground">@ {loan.interestRate}%</span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground font-mono mt-1">
+                        Outstanding: {formatCurrency(loan.currentBalance)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
+                  No active loans
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card className="glass-card rounded-xl">
         <CardHeader>

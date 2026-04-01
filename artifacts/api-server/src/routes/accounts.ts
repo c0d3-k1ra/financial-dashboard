@@ -31,8 +31,8 @@ router.post("/accounts", async (req, res) => {
       return;
     }
     if (data.type === "loan") {
-      if (data.emiAmount != null && Number(data.emiAmount) < 0) {
-        res.status(400).json({ error: "EMI amount must be non-negative." });
+      if (data.emiAmount != null && Number(data.emiAmount) <= 0) {
+        res.status(400).json({ error: "EMI amount must be greater than zero." });
         return;
       }
       if (data.interestRate != null && Number(data.interestRate) < 0) {
@@ -82,8 +82,8 @@ router.put("/accounts/:id", async (req, res) => {
       return;
     }
     if (data.type === "loan") {
-      if (data.emiAmount != null && Number(data.emiAmount) < 0) {
-        res.status(400).json({ error: "EMI amount must be non-negative." });
+      if (data.emiAmount != null && Number(data.emiAmount) <= 0) {
+        res.status(400).json({ error: "EMI amount must be greater than zero." });
         return;
       }
       if (data.interestRate != null && Number(data.interestRate) < 0) {
@@ -284,9 +284,13 @@ router.post("/accounts/process-emis", async (req, res) => {
     });
 
     res.json({ processed, results });
-  } catch (e) {
+  } catch (e: unknown) {
     req.log.error({ err: e }, "Failed to process EMIs");
-    res.status(500).json({ error: "Internal error" });
+    if (e && typeof e === "object" && "name" in e && (e as { name: string }).name === "ZodError") {
+      res.status(400).json({ error: "Invalid request body" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

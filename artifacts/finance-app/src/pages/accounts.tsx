@@ -6,6 +6,7 @@ import {
   useDeleteAccount,
   useReconcileAccount,
   useUpdateAccount,
+  useProcessEmis,
 } from "@workspace/api-client-react";
 import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +65,7 @@ export default function Accounts() {
   const deleteAccount = useDeleteAccount();
   const reconcileAccount = useReconcileAccount();
   const updateAccount = useUpdateAccount();
+  const processEmis = useProcessEmis();
 
   const reconcileTarget = accounts?.find((a) => a.id === reconcileId);
   const reconcileCurrentBalance = reconcileTarget ? Number(reconcileTarget.currentBalance) : 0;
@@ -196,6 +198,30 @@ export default function Accounts() {
     );
   };
 
+  const handleProcessEmis = () => {
+    const d = new Date();
+    const currentMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    processEmis.mutate(
+      { data: { month: currentMonth } },
+      {
+        onSuccess: (res) => {
+          if (res.processed === 0) {
+            toast({ title: "No EMIs to process", description: res.message || "All loans are up to date." });
+          } else {
+            toast({
+              title: `${res.processed} EMI(s) processed`,
+              description: res.results?.map((r) => `${r.accountName}: ${formatCurrency(r.emiAmount)}`).join(", "),
+            });
+          }
+          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to process EMIs", description: getApiErrorMessage(err), variant: "destructive" });
+        },
+      }
+    );
+  };
+
   const allAccounts = [...bankAccounts, ...ccAccounts, ...loanAccounts];
 
   const getAccountIcon = (type: string) => {
@@ -218,6 +244,11 @@ export default function Accounts() {
           <p className="text-muted-foreground text-sm mt-1">Track your bank accounts, credit cards, and loans.</p>
         </div>
         <div className="flex gap-2">
+          {loanAccounts.length > 0 && (
+            <Button variant="outline" onClick={handleProcessEmis} disabled={processEmis.isPending} className="font-mono text-xs uppercase tracking-wider">
+              <Landmark className="w-4 h-4 mr-2" /> {processEmis.isPending ? "Processing..." : "Process EMIs"}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setIsTransferOpen(true)} className="font-mono text-xs uppercase tracking-wider">
             <ArrowLeftRight className="w-4 h-4 mr-2" /> Transfer
           </Button>

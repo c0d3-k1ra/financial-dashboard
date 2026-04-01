@@ -2018,6 +2018,87 @@ export const useReconcileAccount = <
 };
 
 /**
+ * @summary Process monthly EMIs for loan accounts
+ */
+export const getProcessEmisUrl = () => {
+  return `/api/accounts/process-emis`;
+};
+
+export const processEmis = async (
+  processEmisRequest: { month: string },
+  options?: RequestInit,
+): Promise<{ processed: number; results?: Array<{ accountName: string; emiAmount: string; newBalance: string }>; message?: string }> => {
+  return customFetch<{ processed: number; results?: Array<{ accountName: string; emiAmount: string; newBalance: string }>; message?: string }>(getProcessEmisUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(processEmisRequest),
+  });
+};
+
+export const getProcessEmisMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof processEmis>>,
+    TError,
+    { data: { month: string } },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof processEmis>>,
+  TError,
+  { data: { month: string } },
+  TContext
+> => {
+  const mutationKey = ["processEmis"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof processEmis>>,
+    { data: { month: string } }
+  > = (props) => {
+    const { data } = props ?? {};
+    return processEmis(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ProcessEmisMutationResult = NonNullable<
+  Awaited<ReturnType<typeof processEmis>>
+>;
+export type ProcessEmisMutationError = ErrorType<unknown>;
+
+export const useProcessEmis = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof processEmis>>,
+    TError,
+    { data: { month: string } },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof processEmis>>,
+  TError,
+  { data: { month: string } },
+  TContext
+> => {
+  return useMutation(getProcessEmisMutationOptions(options));
+};
+
+/**
  * @summary Get recent transactions across all months
  */
 export const getGetRecentTransactionsUrl = (
