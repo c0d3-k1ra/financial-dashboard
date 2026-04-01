@@ -195,16 +195,34 @@ router.delete("/transactions/:id", async (req, res) => {
       await db.transaction(async (tx) => {
         if (existing.type === "Transfer") {
           if (existing.accountId) {
-            await tx
-              .update(accountsTable)
-              .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${existing.amount}::numeric` })
-              .where(eq(accountsTable.id, existing.accountId));
+            const [fromAcct] = await tx.select().from(accountsTable).where(eq(accountsTable.id, existing.accountId));
+            const fromIsDebt = fromAcct && (fromAcct.type === "credit_card" || fromAcct.type === "loan");
+            if (fromIsDebt) {
+              await tx
+                .update(accountsTable)
+                .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${existing.amount}::numeric` })
+                .where(eq(accountsTable.id, existing.accountId));
+            } else {
+              await tx
+                .update(accountsTable)
+                .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${existing.amount}::numeric` })
+                .where(eq(accountsTable.id, existing.accountId));
+            }
           }
           if (existing.toAccountId) {
-            await tx
-              .update(accountsTable)
-              .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${existing.amount}::numeric` })
-              .where(eq(accountsTable.id, existing.toAccountId));
+            const [toAcct] = await tx.select().from(accountsTable).where(eq(accountsTable.id, existing.toAccountId));
+            const toIsDebt = toAcct && (toAcct.type === "credit_card" || toAcct.type === "loan");
+            if (toIsDebt) {
+              await tx
+                .update(accountsTable)
+                .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${existing.amount}::numeric` })
+                .where(eq(accountsTable.id, existing.toAccountId));
+            } else {
+              await tx
+                .update(accountsTable)
+                .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${existing.amount}::numeric` })
+                .where(eq(accountsTable.id, existing.toAccountId));
+            }
           }
         } else if (existing.accountId) {
           if (existing.type === "Income") {

@@ -53,7 +53,7 @@ export default function Transactions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [dateRange, setDateRange] = useState<string>("1");
+  const [dateRange, setDateRange] = useState<string>("all");
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
   const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
   const [filterCategory, setFilterCategory] = useState<string>("all");
