@@ -6,7 +6,7 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_REMOVE_DELAY = 1000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -54,6 +54,7 @@ interface State {
 }
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
+const autoDismissTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
@@ -93,9 +94,19 @@ export const reducer = (state: State, action: Action): State => {
       // ! Side effects ! - This could be extracted into a dismissToast() action,
       // but I'll keep it here for simplicity
       if (toastId) {
+        const autoDismissTimeout = autoDismissTimeouts.get(toastId)
+        if (autoDismissTimeout) {
+          clearTimeout(autoDismissTimeout)
+          autoDismissTimeouts.delete(toastId)
+        }
         addToRemoveQueue(toastId)
       } else {
         state.toasts.forEach((toast) => {
+          const autoDismissTimeout = autoDismissTimeouts.get(toast.id)
+          if (autoDismissTimeout) {
+            clearTimeout(autoDismissTimeout)
+            autoDismissTimeouts.delete(toast.id)
+          }
           addToRemoveQueue(toast.id)
         })
       }
@@ -160,6 +171,12 @@ function toast({ ...props }: Toast) {
       },
     },
   })
+
+  const autoDismissTimeout = setTimeout(() => {
+    autoDismissTimeouts.delete(id)
+    dismiss()
+  }, 5000)
+  autoDismissTimeouts.set(id, autoDismissTimeout)
 
   return {
     id: id,
