@@ -31,28 +31,32 @@ router.get("/surplus/monthly", async (req, res) => {
     const settings = await getAppSettings();
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
-    const incomeResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
+    const incomeResult = await db.execute(sql`
+      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
+      FROM ${transactionsTable} t
+      INNER JOIN ${accountsTable} a ON a.id = t.account_id
+      WHERE t.type = 'Income' AND a.use_in_surplus = true
+        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
+    `);
 
     const bankExpenseResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
       INNER JOIN ${accountsTable} a ON a.id = t.account_id
-      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank'
+      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND a.use_in_surplus = true
         AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
     const ccTransferResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a ON a.id = t.to_account_id
-      WHERE t.type = 'Transfer' AND a.type = 'credit_card'
+      INNER JOIN ${accountsTable} a_from ON a_from.id = t.account_id
+      INNER JOIN ${accountsTable} a_to ON a_to.id = t.to_account_id
+      WHERE t.type = 'Transfer' AND a_to.type = 'credit_card' AND a_from.use_in_surplus = true
         AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
-    const income = Number(incomeResult[0]?.total ?? 0);
+    const income = extractTotal(incomeResult);
     const bankExpenses = extractTotal(bankExpenseResult);
     const ccTransfers = extractTotal(ccTransferResult);
     const expenses = bankExpenses + ccTransfers;
@@ -97,28 +101,32 @@ router.post("/surplus/distribute", async (req, res) => {
     const settings = await getAppSettings();
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
-    const incomeResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
+    const incomeResult = await db.execute(sql`
+      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
+      FROM ${transactionsTable} t
+      INNER JOIN ${accountsTable} a ON a.id = t.account_id
+      WHERE t.type = 'Income' AND a.use_in_surplus = true
+        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
+    `);
 
     const bankExpResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
       INNER JOIN ${accountsTable} a ON a.id = t.account_id
-      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank'
+      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND a.use_in_surplus = true
         AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
     const ccTrResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a ON a.id = t.to_account_id
-      WHERE t.type = 'Transfer' AND a.type = 'credit_card'
+      INNER JOIN ${accountsTable} a_from ON a_from.id = t.account_id
+      INNER JOIN ${accountsTable} a_to ON a_to.id = t.to_account_id
+      WHERE t.type = 'Transfer' AND a_to.type = 'credit_card' AND a_from.use_in_surplus = true
         AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
-    const surplus = Number(incomeResult[0]?.total ?? 0) - extractTotal(bankExpResult) - extractTotal(ccTrResult);
+    const surplus = extractTotal(incomeResult) - extractTotal(bankExpResult) - extractTotal(ccTrResult);
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });
