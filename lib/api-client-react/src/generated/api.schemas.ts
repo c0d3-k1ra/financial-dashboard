@@ -64,8 +64,8 @@ export interface DashboardSummary {
   actualLivingExpenses: string;
   startingBalance: string;
   endBalance: string;
-  totalLoanOutstanding?: string;
-  totalEmiDue?: string;
+  totalLoanOutstanding: string;
+  totalEmiDue: string;
 }
 
 export interface BudgetAnalysisRow {
@@ -123,6 +123,14 @@ export interface CategoryItem {
 export interface CreateCategory {
   name: string;
   type: string;
+}
+
+export interface ProcessEmis {
+  month: string;
+}
+
+export interface RenameCategory {
+  name: string;
 }
 
 export interface CreateTransfer {
@@ -291,6 +299,18 @@ export type GetMonthlySurplus200 = {
 
 export type GetRecentTransactionsParams = {
   limit?: number;
+};
+
+export type ProcessEmis200ResultsItem = {
+  accountName: string;
+  emiAmount: string;
+  newBalance: string;
+};
+
+export type ProcessEmis200 = {
+  processed: number;
+  message?: string;
+  results?: ProcessEmis200ResultsItem[];
 };
 
 export type ListCategoriesParams = {

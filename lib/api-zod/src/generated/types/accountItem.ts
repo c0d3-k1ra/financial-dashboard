@@ -13,4 +13,8 @@ export interface AccountItem {
   currentBalance: string;
   creditLimit?: string | null;
   billingDueDay?: number | null;
+  emiAmount?: string | null;
+  emiDay?: number | null;
+  loanTenure?: number | null;
+  interestRate?: string | null;
 }

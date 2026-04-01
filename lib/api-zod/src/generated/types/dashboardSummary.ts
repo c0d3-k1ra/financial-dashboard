@@ -18,4 +18,6 @@ export interface DashboardSummary {
   actualLivingExpenses: string;
   startingBalance: string;
   endBalance: string;
+  totalLoanOutstanding: string;
+  totalEmiDue: string;
 }

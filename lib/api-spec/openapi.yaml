@@ -579,6 +579,47 @@ paths:
         "204":
           description: Deleted
 
+  /accounts/process-emis:
+    post:
+      operationId: processEmis
+      tags: [accounts]
+      summary: Process EMI payments for a given month
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProcessEmis"
+      responses:
+        "200":
+          description: EMI processing result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed:
+                    type: integer
+                  message:
+                    type: string
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        accountName:
+                          type: string
+                        emiAmount:
+                          type: string
+                        newBalance:
+                          type: string
+                      required:
+                        - accountName
+                        - emiAmount
+                        - newBalance
+                required:
+                  - processed
+
   /categories:
     get:
       operationId: listCategories
@@ -617,6 +658,29 @@ paths:
                 $ref: "#/components/schemas/CategoryItem"
 
   /categories/{id}:
+    patch:
+      operationId: renameCategory
+      tags: [categories]
+      summary: Rename a category
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RenameCategory"
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryItem"
     delete:
       operationId: deleteCategory
       tags: [categories]
@@ -905,6 +969,10 @@ components:
           type: string
         endBalance:
           type: string
+        totalLoanOutstanding:
+          type: string
+        totalEmiDue:
+          type: string
       required:
         - bankBalance
         - unpaidCcDues
@@ -917,6 +985,8 @@ components:
         - actualLivingExpenses
         - startingBalance
         - endBalance
+        - totalLoanOutstanding
+        - totalEmiDue
 
     BudgetAnalysisRow:
       type: object
@@ -986,6 +1056,18 @@ components:
         billingDueDay:
           type: integer
           nullable: true
+        emiAmount:
+          type: string
+          nullable: true
+        emiDay:
+          type: integer
+          nullable: true
+        loanTenure:
+          type: integer
+          nullable: true
+        interestRate:
+          type: string
+          nullable: true
       required:
         - id
         - name
@@ -1006,6 +1088,18 @@ components:
           nullable: true
         billingDueDay:
           type: integer
+          nullable: true
+        emiAmount:
+          type: string
+          nullable: true
+        emiDay:
+          type: integer
+          nullable: true
+        loanTenure:
+          type: integer
+          nullable: true
+        interestRate:
+          type: string
           nullable: true
       required:
         - name
@@ -1035,6 +1129,22 @@ components:
       required:
         - name
         - type
+
+    ProcessEmis:
+      type: object
+      properties:
+        month:
+          type: string
+      required:
+        - month
+
+    RenameCategory:
+      type: object
+      properties:
+        name:
+          type: string
+      required:
+        - name
 
     CreateTransfer:
       type: object

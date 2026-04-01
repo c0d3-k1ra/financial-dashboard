@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { sql } from "drizzle-orm";
-import { db, transactionsTable, budgetGoalsTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import { db, transactionsTable, budgetGoalsTable, categoriesTable, accountsTable } from "@workspace/db";
 import { GetBudgetAnalysisQueryParams } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
 
@@ -16,7 +16,22 @@ router.get("/budget-analysis", async (req, res) => {
 
     const { startDate, endDate } = getCycleDates(month);
 
+    const expenseCategories = await db
+      .select()
+      .from(categoriesTable)
+      .where(eq(categoriesTable.type, "Expense"));
+
     const goals = await db.select().from(budgetGoalsTable);
+    const goalMap = new Map(goals.map((g) => [g.category, Number(g.plannedAmount)]));
+
+    const loanAccounts = await db
+      .select()
+      .from(accountsTable)
+      .where(eq(accountsTable.type, "loan"));
+
+    const totalEmi = loanAccounts
+      .filter((a) => Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0)
+      .reduce((sum, a) => sum + Number(a.emiAmount), 0);
 
     const actuals = await db
       .select({
@@ -29,12 +44,17 @@ router.get("/budget-analysis", async (req, res) => {
 
     const actualMap = new Map(actuals.map((a) => [a.category, Number(a.total)]));
 
-    const analysis = goals.map((goal) => {
-      const planned = Number(goal.plannedAmount);
-      const actual = actualMap.get(goal.category) ?? 0;
+    const analysis = expenseCategories.map((cat) => {
+      let planned = goalMap.get(cat.name) ?? 0;
+
+      if (cat.name === "EMI (PL)") {
+        planned = totalEmi;
+      }
+
+      const actual = actualMap.get(cat.name) ?? 0;
       const difference = planned - actual;
       return {
-        category: goal.category,
+        category: cat.name,
         planned: planned.toFixed(2),
         actual: actual.toFixed(2),
         difference: difference.toFixed(2),

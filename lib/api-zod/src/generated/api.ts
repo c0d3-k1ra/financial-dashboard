@@ -169,8 +169,8 @@ export const GetDashboardSummaryResponse = zod.object({
   actualLivingExpenses: zod.string(),
   startingBalance: zod.string(),
   endBalance: zod.string(),
-  totalLoanOutstanding: zod.string().optional(),
-  totalEmiDue: zod.string().optional(),
+  totalLoanOutstanding: zod.string(),
+  totalEmiDue: zod.string(),
 });
 
 /**
@@ -428,7 +428,6 @@ export const CreateAccountBody = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
-  linkedAccountId: zod.number().nullish(),
 });
 
 /**
@@ -448,7 +447,6 @@ export const UpdateAccountBody = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
-  linkedAccountId: zod.number().nullish(),
 });
 
 export const UpdateAccountResponse = zod.object({
@@ -462,14 +460,6 @@ export const UpdateAccountResponse = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
-  linkedAccountId: zod.number().nullish(),
-});
-
-/**
- * @summary Process monthly EMIs for loan accounts
- */
-export const ProcessEmisBody = zod.object({
-  month: zod.string(),
 });
 
 /**
@@ -477,6 +467,27 @@ export const ProcessEmisBody = zod.object({
  */
 export const DeleteAccountParams = zod.object({
   id: zod.coerce.number(),
+});
+
+/**
+ * @summary Process EMI payments for a given month
+ */
+export const ProcessEmisBody = zod.object({
+  month: zod.string(),
+});
+
+export const ProcessEmisResponse = zod.object({
+  processed: zod.number(),
+  message: zod.string().optional(),
+  results: zod
+    .array(
+      zod.object({
+        accountName: zod.string(),
+        emiAmount: zod.string(),
+        newBalance: zod.string(),
+      }),
+    )
+    .optional(),
 });
 
 /**
@@ -497,6 +508,23 @@ export const ListCategoriesResponse = zod.array(ListCategoriesResponseItem);
  * @summary Create a category
  */
 export const CreateCategoryBody = zod.object({
+  name: zod.string(),
+  type: zod.string(),
+});
+
+/**
+ * @summary Rename a category
+ */
+export const RenameCategoryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RenameCategoryBody = zod.object({
+  name: zod.string(),
+});
+
+export const RenameCategoryResponse = zod.object({
+  id: zod.number(),
   name: zod.string(),
   type: zod.string(),
 });

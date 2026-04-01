@@ -1,6 +1,7 @@
 import { db, budgetGoalsTable, accountsTable, categoriesTable, transactionsTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "./logger";
+import { BUDGET_DEFAULTS, DEFAULT_PLANNED } from "./budget-defaults";
 
 const EXPENSE_CATEGORIES = [
   "EMI (PL)",
@@ -27,17 +28,54 @@ export async function seedBudgetCategories() {
   try {
     const existing = await db.select().from(budgetGoalsTable);
     if (existing.length > 0) {
-      logger.info("Budget categories already seeded, skipping");
+      let updated = 0;
+      for (const goal of existing) {
+        if (Number(goal.plannedAmount) === 0 && goal.category !== "EMI (PL)") {
+          const defaultAmount = BUDGET_DEFAULTS[goal.category] ?? DEFAULT_PLANNED;
+          await db
+            .update(budgetGoalsTable)
+            .set({ plannedAmount: defaultAmount.toFixed(2) })
+            .where(eq(budgetGoalsTable.id, goal.id));
+          updated++;
+        }
+      }
+      if (updated > 0) {
+        logger.info({ count: updated }, "Updated budget goals with default amounts");
+      }
+
+      const existingCategories = existing.map((g) => g.category);
+      const expenseCats = await db
+        .select()
+        .from(categoriesTable)
+        .where(eq(categoriesTable.type, "Expense"));
+      let inserted = 0;
+      for (const cat of expenseCats) {
+        if (!existingCategories.includes(cat.name)) {
+          const defaultAmount = cat.name === "EMI (PL)" ? 0 : (BUDGET_DEFAULTS[cat.name] ?? DEFAULT_PLANNED);
+          await db.insert(budgetGoalsTable).values({
+            category: cat.name,
+            plannedAmount: defaultAmount.toFixed(2),
+          });
+          inserted++;
+        }
+      }
+      if (inserted > 0) {
+        logger.info({ count: inserted }, "Created missing budget goals for existing categories");
+      }
+
+      if (updated === 0 && inserted === 0) {
+        logger.info("Budget categories already seeded, skipping");
+      }
       return;
     }
 
     const values = EXPENSE_CATEGORIES.map((category) => ({
       category,
-      plannedAmount: "0.00",
+      plannedAmount: category === "EMI (PL)" ? "0.00" : (BUDGET_DEFAULTS[category] ?? DEFAULT_PLANNED).toFixed(2),
     }));
 
     await db.insert(budgetGoalsTable).values(values);
-    logger.info({ count: values.length }, "Seeded budget categories");
+    logger.info({ count: values.length }, "Seeded budget categories with defaults");
   } catch (e) {
     logger.error({ err: e }, "Failed to seed budget categories");
   }

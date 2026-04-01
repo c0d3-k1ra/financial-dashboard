@@ -3,6 +3,7 @@ import {
   useListCategories,
   useCreateCategory,
   useDeleteCategory,
+  useRenameCategory,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/constants";
-import { Plus, Trash2, Tag } from "lucide-react";
+import { Plus, Trash2, Tag, Pencil, Check, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCategoryIcon } from "@/lib/category-icons";
 
@@ -24,6 +25,8 @@ export default function Settings() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryType, setNewCategoryType] = useState<string>("Expense");
   const [deleteCatId, setDeleteCatId] = useState<number | null>(null);
+  const [editingCatId, setEditingCatId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState("");
 
   const { data: categories, isLoading } = useListCategories(
     {},
@@ -32,6 +35,7 @@ export default function Settings() {
 
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
+  const renameCategory = useRenameCategory();
 
   const expenseCategories = categories?.filter((c) => c.type === "Expense") ?? [];
   const incomeCategories = categories?.filter((c) => c.type === "Income") ?? [];
@@ -69,6 +73,34 @@ export default function Settings() {
         },
         onError: (err) => {
           toast({ title: "Failed to delete category", description: getApiErrorMessage(err), variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const startEditing = (cat: { id: number; name: string }) => {
+    setEditingCatId(cat.id);
+    setEditingName(cat.name);
+  };
+
+  const cancelEditing = () => {
+    setEditingCatId(null);
+    setEditingName("");
+  };
+
+  const saveRename = () => {
+    if (editingCatId === null || !editingName.trim()) return;
+
+    renameCategory.mutate(
+      { id: editingCatId, data: { name: editingName.trim() } },
+      {
+        onSuccess: () => {
+          toast({ title: "Category renamed" });
+          cancelEditing();
+          queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to rename category", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -126,19 +158,36 @@ export default function Settings() {
                     <TableRow className="border-border/50 hover:bg-transparent">
                       <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Name</TableHead>
                       <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Type</TableHead>
-                      <TableHead className="w-12"></TableHead>
+                      <TableHead className="w-24"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {allCategories.map((cat) => {
                       const Icon = getCategoryIcon(cat.name);
+                      const isEditing = editingCatId === cat.id;
                       return (
                       <TableRow key={cat.id} className="border-border/30 zebra-row">
                         <TableCell className="font-medium">
-                          <span className="inline-flex items-center gap-2">
-                            <Icon className="w-4 h-4 text-muted-foreground" />
-                            {cat.name}
-                          </span>
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <Icon className="w-4 h-4 text-muted-foreground" />
+                              <Input
+                                value={editingName}
+                                onChange={(e) => setEditingName(e.target.value)}
+                                className="h-7 text-sm max-w-[200px]"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") saveRename();
+                                  if (e.key === "Escape") cancelEditing();
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-2">
+                              <Icon className="w-4 h-4 text-muted-foreground" />
+                              {cat.name}
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border border-border/50 ${
@@ -148,14 +197,48 @@ export default function Settings() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => setDeleteCatId(cat.id)}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {isEditing ? (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-emerald-500 hover:text-emerald-600"
+                                  onClick={saveRename}
+                                  disabled={renameCategory.isPending}
+                                >
+                                  <Check className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  onClick={cancelEditing}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                  onClick={() => startEditing(cat)}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setDeleteCatId(cat.id)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
@@ -177,20 +260,50 @@ export default function Settings() {
                   <div className="space-y-2">
                     {expenseCategories.map((cat) => {
                       const CatIcon = getCategoryIcon(cat.name);
+                      const isEditing = editingCatId === cat.id;
                       return (
                       <div key={cat.id} className="flex items-center justify-between p-3 rounded-md bg-secondary/30 border border-border/50">
-                        <span className="text-sm font-medium inline-flex items-center gap-2">
-                          <CatIcon className="w-4 h-4 text-muted-foreground" />
-                          {cat.name}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteCatId(cat.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1 mr-2">
+                            <CatIcon className="w-4 h-4 text-muted-foreground" />
+                            <Input
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              className="h-7 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveRename();
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-sm font-medium inline-flex items-center gap-2">
+                            <CatIcon className="w-4 h-4 text-muted-foreground" />
+                            {cat.name}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-500" onClick={saveRename} disabled={renameCategory.isPending}>
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={cancelEditing}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEditing(cat)}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteCatId(cat.id)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                     })}
@@ -204,20 +317,50 @@ export default function Settings() {
                   <div className="space-y-2">
                     {incomeCategories.map((cat) => {
                       const CatIcon = getCategoryIcon(cat.name);
+                      const isEditing = editingCatId === cat.id;
                       return (
                       <div key={cat.id} className="flex items-center justify-between p-3 rounded-md bg-secondary/30 border border-border/50">
-                        <span className="text-sm font-medium inline-flex items-center gap-2">
-                          <CatIcon className="w-4 h-4 text-muted-foreground" />
-                          {cat.name}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteCatId(cat.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        {isEditing ? (
+                          <div className="flex items-center gap-2 flex-1 mr-2">
+                            <CatIcon className="w-4 h-4 text-muted-foreground" />
+                            <Input
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              className="h-7 text-sm"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveRename();
+                                if (e.key === "Escape") cancelEditing();
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-sm font-medium inline-flex items-center gap-2">
+                            <CatIcon className="w-4 h-4 text-muted-foreground" />
+                            {cat.name}
+                          </span>
+                        )}
+                        <div className="flex items-center gap-1">
+                          {isEditing ? (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-500" onClick={saveRename} disabled={renameCategory.isPending}>
+                                <Check className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={cancelEditing}>
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEditing(cat)}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteCatId(cat.id)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     );
                     })}
