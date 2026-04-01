@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { sql } from "drizzle-orm";
-import { db, transactionsTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
+import { db, transactionsTable, accountsTable } from "@workspace/db";
 import { getCycleDates } from "../lib/billing-cycle";
 
 const router: IRouter = Router();
@@ -46,8 +46,9 @@ router.get("/trends/cc-spend", async (req, res) => {
           total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
         })
         .from(transactionsTable)
+        .innerJoin(accountsTable, eq(transactionsTable.accountId, accountsTable.id))
         .where(
-          sql`${transactionsTable.category} = 'Credit Card (CC)'
+          sql`${accountsTable.type} = 'credit_card'
               AND ${transactionsTable.type} != 'Transfer'
               AND ${transactionsTable.date}::date >= ${cycle.startDate}::date
               AND ${transactionsTable.date}::date <= ${cycle.endDate}::date`
