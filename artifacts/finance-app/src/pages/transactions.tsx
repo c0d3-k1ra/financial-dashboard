@@ -9,12 +9,12 @@ import {
   useCreateCategory,
   useListAccounts,
   getListAccountsQueryKey,
-  useListBillingCycles,
-  getListBillingCyclesQueryKey,
 } from "@workspace/api-client-react";
 import type { Transaction } from "@workspace/api-client-react";
 
 import { formatCurrency, formatDate, getApiErrorMessage } from "@/lib/constants";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format, subMonths } from "date-fns";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,33 +53,36 @@ export default function Transactions() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [selectedCycle, setSelectedCycle] = useState<string>("all");
+  const [dateRange, setDateRange] = useState<string>("1");
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [newCatName, setNewCatName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const { data: billingCycles } = useListBillingCycles({
-    query: { queryKey: getListBillingCyclesQueryKey() },
-  });
-
-  const selectedCycleData = useMemo(() => {
-    if (selectedCycle === "all" || !billingCycles) return null;
-    const idx = parseInt(selectedCycle);
-    return billingCycles[idx] || null;
-  }, [selectedCycle, billingCycles]);
+  const dateRangeParams = useMemo(() => {
+    if (dateRange === "custom") {
+      if (customFrom && customTo) {
+        return { cycleStart: format(customFrom, "yyyy-MM-dd"), cycleEnd: format(customTo, "yyyy-MM-dd") };
+      }
+      return {};
+    }
+    if (dateRange === "all") return {};
+    const months = parseInt(dateRange);
+    const end = new Date();
+    const start = subMonths(end, months);
+    return { cycleStart: format(start, "yyyy-MM-dd"), cycleEnd: format(end, "yyyy-MM-dd") };
+  }, [dateRange, customFrom, customTo]);
 
   const queryParams = useMemo(() => {
     const params: Record<string, string | undefined> = {
       search: search || undefined,
       category: filterCategory !== "all" ? filterCategory : undefined,
+      ...dateRangeParams,
     };
-    if (selectedCycleData) {
-      params.cycleStart = selectedCycleData.startDate;
-      params.cycleEnd = selectedCycleData.endDate;
-    }
     return params;
-  }, [search, selectedCycleData, filterCategory]);
+  }, [search, filterCategory, dateRangeParams]);
 
   const { data: transactions, isLoading } = useListTransactions(queryParams, {
     query: { enabled: true, queryKey: getListTransactionsQueryKey(queryParams) },
@@ -347,19 +350,26 @@ export default function Transactions() {
               ))}
             </SelectContent>
           </Select>
-          <Select value={selectedCycle} onValueChange={setSelectedCycle}>
-            <SelectTrigger className="w-full sm:w-[220px] h-9 text-xs">
-              <SelectValue placeholder="Billing Cycle" />
+          <Select value={dateRange} onValueChange={setDateRange}>
+            <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+              <SelectValue placeholder="Date Range" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Transactions</SelectItem>
-              {billingCycles?.map((cycle, idx) => (
-                <SelectItem key={idx} value={String(idx)}>
-                  {cycle.label}
-                </SelectItem>
-              ))}
+              <SelectItem value="1">Past 1 Month</SelectItem>
+              <SelectItem value="3">Past 3 Months</SelectItem>
+              <SelectItem value="6">Past 6 Months</SelectItem>
+              <SelectItem value="12">Past 12 Months</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+              <SelectItem value="custom">Custom Range</SelectItem>
             </SelectContent>
           </Select>
+          {dateRange === "custom" && (
+            <div className="flex gap-2 items-center">
+              <DatePicker date={customFrom} onSelect={setCustomFrom} placeholder="From" className="w-[140px]" />
+              <span className="text-muted-foreground text-xs">to</span>
+              <DatePicker date={customTo} onSelect={setCustomTo} placeholder="To" className="w-[140px]" />
+            </div>
+          )}
           <div className="flex gap-2 md:hidden">
             <Select value={sortField} onValueChange={(v) => setSortField(v as SortField)}>
               <SelectTrigger className="w-[130px] h-9 text-xs">
