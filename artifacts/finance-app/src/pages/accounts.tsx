@@ -37,6 +37,7 @@ const formSchema = z.object({
   loanTenure: z.string().optional(),
   interestRate: z.string().optional(),
   linkedAccountId: z.string().optional(),
+  useInSurplus: z.boolean().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -57,6 +58,7 @@ export default function Accounts() {
   const [editLoanTenure, setEditLoanTenure] = useState("");
   const [editInterestRate, setEditInterestRate] = useState("");
   const [editLinkedAccountId, setEditLinkedAccountId] = useState("");
+  const [editUseInSurplus, setEditUseInSurplus] = useState(false);
   const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useListAccounts({
@@ -87,6 +89,7 @@ export default function Accounts() {
     setEditLoanTenure(acct.loanTenure ? String(acct.loanTenure) : "");
     setEditInterestRate(acct.interestRate ? String(acct.interestRate) : "");
     setEditLinkedAccountId(acct.linkedAccountId ? String(acct.linkedAccountId) : "");
+    setEditUseInSurplus(acct.useInSurplus ?? false);
   };
 
   const handleEdit = () => {
@@ -105,6 +108,7 @@ export default function Accounts() {
           loanTenure: editTarget.type === "loan" && editLoanTenure ? Number(editLoanTenure) : null,
           interestRate: editTarget.type === "loan" ? editInterestRate || null : null,
           linkedAccountId: editTarget.type === "loan" && editLinkedAccountId ? Number(editLinkedAccountId) : null,
+          useInSurplus: editTarget.type === "bank" ? editUseInSurplus : false,
         },
       },
       {
@@ -143,7 +147,7 @@ export default function Accounts() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "" },
+    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "", useInSurplus: false },
   });
 
   const watchType = form.watch("type");
@@ -170,6 +174,7 @@ export default function Accounts() {
           loanTenure: data.type === "loan" && data.loanTenure ? Number(data.loanTenure) : null,
           interestRate: data.type === "loan" ? data.interestRate || null : null,
           linkedAccountId: data.type === "loan" && data.linkedAccountId ? Number(data.linkedAccountId) : null,
+          useInSurplus: data.type === "bank" ? (data.useInSurplus ?? false) : false,
         },
       },
       {
@@ -320,6 +325,25 @@ export default function Accounts() {
                       </FormItem>
                     )}
                   />
+                  {watchType === "bank" && (
+                    <FormField
+                      control={form.control}
+                      name="useInSurplus"
+                      render={({ field }) => (
+                        <FormItem className="flex items-center gap-2 space-y-0">
+                          <FormControl>
+                            <input
+                              type="checkbox"
+                              checked={field.value ?? false}
+                              onChange={field.onChange}
+                              className="h-4 w-4 rounded border-border accent-primary"
+                            />
+                          </FormControl>
+                          <FormLabel className="text-sm font-normal cursor-pointer">Use in surplus calculation</FormLabel>
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   {watchType === "credit_card" && (
                     <>
                       <FormField
@@ -500,6 +524,9 @@ export default function Accounts() {
                       <div className="flex items-center gap-2">
                         {getAccountIcon(account.type)}
                         {account.name}
+                        {account.useInSurplus && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">Surplus</span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -573,7 +600,12 @@ export default function Accounts() {
                       <CardContent className="pt-4 pb-4">
                         <div className="flex justify-between items-center">
                           <div>
-                            <p className="font-medium text-sm">{account.name}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">{account.name}</p>
+                              {account.useInSurplus && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">Surplus</span>
+                              )}
+                            </div>
                             <p className="text-xl font-bold font-mono mt-0.5 text-emerald-500">
                               {formatCurrency(account.currentBalance)}
                             </p>
@@ -847,6 +879,18 @@ export default function Accounts() {
                   </Select>
                 </div>
               </>
+            )}
+            {editTarget?.type === "bank" && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={editUseInSurplus}
+                  onChange={(e) => setEditUseInSurplus(e.target.checked)}
+                  className="h-4 w-4 rounded border-border accent-primary"
+                  id="edit-use-in-surplus"
+                />
+                <Label htmlFor="edit-use-in-surplus" className="text-sm font-normal cursor-pointer">Use in surplus calculation</Label>
+              </div>
             )}
           </div>
           <DialogFooter>

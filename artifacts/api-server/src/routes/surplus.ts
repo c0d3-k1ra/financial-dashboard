@@ -33,7 +33,12 @@ router.get("/surplus/monthly", async (req, res) => {
 
     const income = Number(incomeResult[0]?.total ?? 0);
     const expenses = Number(expenseResult[0]?.total ?? 0);
-    const surplus = income - expenses;
+
+    const surplusAccounts = await db
+      .select({ currentBalance: accountsTable.currentBalance })
+      .from(accountsTable)
+      .where(eq(accountsTable.useInSurplus, true));
+    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
 
     res.json({
       month,
@@ -81,7 +86,11 @@ router.post("/surplus/distribute", async (req, res) => {
       .from(transactionsTable)
       .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
 
-    const surplus = Number(incomeResult[0]?.total ?? 0) - Number(expenseResult[0]?.total ?? 0);
+    const surplusAccounts = await db
+      .select({ currentBalance: accountsTable.currentBalance })
+      .from(accountsTable)
+      .where(eq(accountsTable.useInSurplus, true));
+    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });
