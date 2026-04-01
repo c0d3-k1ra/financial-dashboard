@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, ne } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, goalsTable, surplusAllocationsTable, accountsTable } from "@workspace/db";
 import { DistributeSurplusBody, UndoSurplusDistributionBody } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
@@ -32,11 +32,25 @@ router.get("/surplus/monthly", async (req, res) => {
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const surplusAccounts = await db
-      .select({ currentBalance: accountsTable.currentBalance })
+      .select({ id: accountsTable.id, currentBalance: accountsTable.currentBalance })
       .from(accountsTable)
       .where(sql`${accountsTable.useInSurplus} = true`);
 
-    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+    const grossBalance = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+
+    const surplusAccountIds = surplusAccounts.map(a => a.id);
+    const activeGoals = surplusAccountIds.length > 0
+      ? await db
+          .select({ currentAmount: goalsTable.currentAmount })
+          .from(goalsTable)
+          .where(and(
+            sql`${goalsTable.accountId} IN (${sql.join(surplusAccountIds.map(id => sql`${id}`), sql`, `)})`,
+            ne(goalsTable.status, "Achieved"),
+          ))
+      : [];
+
+    const goalCommitments = activeGoals.reduce((sum, g) => sum + Number(g.currentAmount ?? 0), 0);
+    const surplus = grossBalance - goalCommitments;
 
     res.json({
       month,
@@ -76,11 +90,25 @@ router.post("/surplus/distribute", async (req, res) => {
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const surplusAccounts = await db
-      .select({ currentBalance: accountsTable.currentBalance })
+      .select({ id: accountsTable.id, currentBalance: accountsTable.currentBalance })
       .from(accountsTable)
       .where(sql`${accountsTable.useInSurplus} = true`);
 
-    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+    const grossBalance = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+
+    const surplusAccountIds = surplusAccounts.map(a => a.id);
+    const activeGoalsForSurplus = surplusAccountIds.length > 0
+      ? await db
+          .select({ currentAmount: goalsTable.currentAmount })
+          .from(goalsTable)
+          .where(and(
+            sql`${goalsTable.accountId} IN (${sql.join(surplusAccountIds.map(id => sql`${id}`), sql`, `)})`,
+            ne(goalsTable.status, "Achieved"),
+          ))
+      : [];
+
+    const goalCommitments = activeGoalsForSurplus.reduce((sum, g) => sum + Number(g.currentAmount ?? 0), 0);
+    const surplus = grossBalance - goalCommitments;
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });
@@ -88,7 +116,7 @@ router.post("/surplus/distribute", async (req, res) => {
     }
 
     if (totalAllocation > surplus) {
-      res.status(400).json({ error: `Total allocation (₹${totalAllocation.toFixed(2)}) exceeds surplus (₹${surplus.toFixed(2)}).` });
+      res.status(400).json({ error: `Total allocation (₹${totalAllocation.toFixed(2)}) exceeds available surplus (₹${surplus.toFixed(2)}).` });
       return;
     }
 
@@ -100,6 +128,41 @@ router.post("/surplus/distribute", async (req, res) => {
       }
       if (Number(alloc.amount) <= 0) {
         res.status(400).json({ error: `Amount for goal "${goalExists[0].name}" must be positive.` });
+        return;
+      }
+    }
+
+    const accountAllocMap = new Map<number, number>();
+    for (const alloc of allocations) {
+      const goal = await db.select().from(goalsTable).where(eq(goalsTable.id, alloc.goalId));
+      if (goal.length && goal[0].accountId) {
+        const accId = goal[0].accountId;
+        accountAllocMap.set(accId, (accountAllocMap.get(accId) ?? 0) + Number(alloc.amount));
+      }
+    }
+
+    for (const [accId, incomingAmount] of accountAllocMap) {
+      const account = await db.select().from(accountsTable).where(eq(accountsTable.id, accId));
+      if (!account.length) continue;
+
+      let effectiveBalance = Number(account[0].currentBalance ?? 0);
+      if (accId !== sourceAccountId) {
+        effectiveBalance += incomingAmount;
+      }
+
+      const existingGoals = await db
+        .select({ currentAmount: goalsTable.currentAmount })
+        .from(goalsTable)
+        .where(and(eq(goalsTable.accountId, accId), ne(goalsTable.status, "Achieved")));
+
+      const existingTotal = existingGoals.reduce((sum, g) => sum + Number(g.currentAmount ?? 0), 0);
+      const totalRequired = existingTotal + incomingAmount;
+
+      if (totalRequired > effectiveBalance) {
+        const shortfall = totalRequired - effectiveBalance;
+        res.status(400).json({
+          error: `Account "${account[0].name}" cannot support this allocation. Balance would be ₹${effectiveBalance.toFixed(2)} but goals would require ₹${totalRequired.toFixed(2)} (shortfall: ₹${shortfall.toFixed(2)}).`,
+        });
         return;
       }
     }

@@ -1,10 +1,45 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and, ne } from "drizzle-orm";
 import { db, goalsTable, accountsTable, surplusAllocationsTable, transactionsTable } from "@workspace/db";
 import { CreateGoalBody, UpdateGoalBody } from "@workspace/api-zod";
 import { computeGoalIntelligence } from "../lib/goal-intelligence";
 
 const router: IRouter = Router();
+
+async function validateAccountBalance(
+  accountId: number,
+  newGoalAmount: number,
+  excludeGoalId?: number,
+): Promise<{ valid: boolean; error?: string }> {
+  const account = await db.select().from(accountsTable).where(eq(accountsTable.id, accountId));
+  if (!account.length) {
+    return { valid: false, error: "Funding account not found." };
+  }
+
+  const accountBalance = Number(account[0].currentBalance ?? 0);
+
+  const existingGoals = await db
+    .select({ currentAmount: goalsTable.currentAmount })
+    .from(goalsTable)
+    .where(
+      excludeGoalId
+        ? and(eq(goalsTable.accountId, accountId), ne(goalsTable.id, excludeGoalId), ne(goalsTable.status, "Achieved"))
+        : and(eq(goalsTable.accountId, accountId), ne(goalsTable.status, "Achieved")),
+    );
+
+  const existingTotal = existingGoals.reduce((sum, g) => sum + Number(g.currentAmount ?? 0), 0);
+  const totalRequired = existingTotal + newGoalAmount;
+
+  if (totalRequired > accountBalance) {
+    const shortfall = totalRequired - accountBalance;
+    return {
+      valid: false,
+      error: `Insufficient account balance. Account "${account[0].name}" has ₹${accountBalance.toFixed(2)} but goals would require ₹${totalRequired.toFixed(2)} (shortfall: ₹${shortfall.toFixed(2)}).`,
+    };
+  }
+
+  return { valid: true };
+}
 
 const CATEGORY_ICONS: Record<string, string> = {
   Emergency: "🛡️",
@@ -53,6 +88,14 @@ router.post("/goals", async (req, res) => {
     const data = CreateGoalBody.parse(req.body);
     const icon = data.icon || CATEGORY_ICONS[data.categoryType] || "🎯";
 
+    if (data.accountId) {
+      const validation = await validateAccountBalance(data.accountId, 0);
+      if (!validation.valid) {
+        res.status(400).json({ error: validation.error });
+        return;
+      }
+    }
+
     const [created] = await db.insert(goalsTable).values({
       name: data.name,
       targetAmount: data.targetAmount,
@@ -91,6 +134,20 @@ router.put("/goals/:id", async (req, res) => {
     }
     const currentAmt = Number(data.currentAmount ?? existing[0].currentAmount ?? 0);
     const targetAmt = Number(data.targetAmount);
+
+    const effectiveAccountId = data.accountId ?? existing[0].accountId;
+    const oldCurrentAmt = Number(existing[0].currentAmount ?? 0);
+    const accountChanged = data.accountId !== undefined && data.accountId !== existing[0].accountId;
+    const amountIncreased = currentAmt > oldCurrentAmt;
+
+    if (effectiveAccountId && (accountChanged || amountIncreased)) {
+      const validation = await validateAccountBalance(effectiveAccountId, currentAmt, id);
+      if (!validation.valid) {
+        res.status(400).json({ error: validation.error });
+        return;
+      }
+    }
+
     const newStatus = targetAmt > 0 && currentAmt >= targetAmt ? "Achieved" : "Active";
 
     const setFields: Record<string, unknown> = {

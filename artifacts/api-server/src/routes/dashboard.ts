@@ -72,8 +72,27 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalLoanOutstanding = allAccounts
       .filter(a => a.type === "loan")
       .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
-    const totalEmiDue = allAccounts
-      .filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0)
+    const activeLoanAccounts = allAccounts.filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0);
+
+    const activeLoanIds = activeLoanAccounts.map(a => a.id);
+    const emiPaidResult = activeLoanIds.length > 0
+      ? await db
+          .select({ toAccountId: transactionsTable.toAccountId, accountId: transactionsTable.accountId })
+          .from(transactionsTable)
+          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.date}::text LIKE ${month + '%'}`)
+      : [];
+
+    const emiPaidLoanIds = new Set<number>();
+    for (const r of emiPaidResult) {
+      if (r.toAccountId && activeLoanIds.includes(r.toAccountId)) {
+        emiPaidLoanIds.add(r.toAccountId);
+      } else if (r.accountId && activeLoanIds.includes(r.accountId)) {
+        emiPaidLoanIds.add(r.accountId);
+      }
+    }
+
+    const totalEmiDue = activeLoanAccounts
+      .filter(a => !emiPaidLoanIds.has(a.id))
       .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
     const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
 
