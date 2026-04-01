@@ -26,14 +26,17 @@ import { getCategoryIcon } from "@/lib/category-icons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import CreateTransactionDialog from "@/components/create-transaction-dialog";
+import TransferModal from "@/components/transfer-modal";
 import {
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
 } from "recharts";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const CHART_COLORS = [
   "hsl(var(--chart-1))",
@@ -103,11 +106,14 @@ function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | num
 
 
 export default function Dashboard() {
+  const [, navigate] = useLocation();
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isTxDialogOpen, setIsTxDialogOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
     { month: currentMonth },
@@ -208,9 +214,18 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financial Cockpit</h1>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button size="sm" className="font-mono text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setIsTxDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-1.5" /> Log Transaction
+          </Button>
+          <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => setIsTransferOpen(true)}>
+            <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
+          </Button>
+          <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => navigate("/goals")}>
+            <CheckCircle2 className="w-4 h-4 mr-1.5" /> End Cycle
+          </Button>
           {!isLoadingSummary && (
             <div className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg border ${
               liquidityHealthy
@@ -804,6 +819,9 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <CreateTransactionDialog open={isTxDialogOpen} onOpenChange={setIsTxDialogOpen} />
+      <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
     </div>
   );
 }
