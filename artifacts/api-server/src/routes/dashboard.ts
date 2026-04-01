@@ -53,20 +53,10 @@ router.get("/dashboard/summary", async (req, res) => {
       .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
     const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
 
-    const livingResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.category} = 'Living Expenses' AND ${transactionsTable.type} != 'Transfer' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
-
-    const actualLivingExpenses = Number(livingResult[0]?.total ?? 0);
-
-    const plannedLivingGoal = await db
-      .select()
-      .from(budgetGoalsTable)
-      .where(eq(budgetGoalsTable.category, "Living Expenses"));
-
-    const plannedLivingExpenses = plannedLivingGoal.length > 0 ? Number(plannedLivingGoal[0].plannedAmount) : 0;
-    const burnRate = plannedLivingExpenses > 0 ? (actualLivingExpenses / plannedLivingExpenses) * 100 : 0;
+    const allBudgetGoals = await db.select().from(budgetGoalsTable);
+    const plannedExpenses = allBudgetGoals.reduce((sum, g) => sum + Number(g.plannedAmount ?? 0), 0);
+    const actualExpenses = totalExpenses;
+    const burnRate = plannedExpenses > 0 ? (actualExpenses / plannedExpenses) * 100 : 0;
 
     res.json({
       bankBalance: totalBankBalance.toFixed(2),
