@@ -70,9 +70,10 @@ export default function Transactions() {
     }
     if (dateRange === "all") return {};
     const months = parseInt(dateRange);
-    const end = new Date();
-    const start = subMonths(end, months);
-    return { cycleStart: format(start, "yyyy-MM-dd"), cycleEnd: format(end, "yyyy-MM-dd") };
+    const now = new Date();
+    const start = subMonths(now, months);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { cycleStart: format(start, "yyyy-MM-dd"), cycleEnd: format(endOfMonth, "yyyy-MM-dd") };
   }, [dateRange, customFrom, customTo]);
 
   const queryParams = useMemo(() => {
