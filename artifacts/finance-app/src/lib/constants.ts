@@ -43,7 +43,19 @@ export const formatDate = (dateStr: string) => {
 };
 
 export function getApiErrorMessage(err: unknown): string {
-  const msg = err instanceof Error ? err.message : String(err);
-  const match = msg.match(/^HTTP \d{3} [^:]+:\s*(.+)$/);
-  return match ? match[1] : msg;
+  if (err && typeof err === "object") {
+    const data = (err as Record<string, unknown>).data;
+    if (data && typeof data === "object") {
+      const d = data as Record<string, unknown>;
+      if (typeof d.error === "string" && d.error.trim()) return d.error.trim();
+      if (typeof d.message === "string" && d.message.trim()) return d.message.trim();
+    }
+  }
+
+  if (err instanceof Error) {
+    const match = err.message.match(/^HTTP \d{3} [^:]+:\s*(.+)$/);
+    if (match) return match[1];
+  }
+
+  return "Something went wrong. Please try again.";
 }
