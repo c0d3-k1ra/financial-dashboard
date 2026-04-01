@@ -51,7 +51,7 @@ function ProgressBar({ row, isFixed }: { row: BudgetAnalysisRow; isFixed: boolea
 
   return (
     <div className="flex items-center gap-2 mt-1.5">
-      <div className="flex-1 h-2 rounded-full bg-muted relative">
+      <div className="flex-1 h-2 rounded-full bg-muted relative overflow-hidden">
         <div
           className={`h-full rounded-l-full transition-all duration-500 ${isOver ? "bg-destructive" : colorClass} ${totalPercent <= 100 ? "rounded-r-full" : ""}`}
           style={{ width: `${Math.min(percent, 100)}%` }}
