@@ -319,25 +319,4 @@ router.post("/accounts/process-emis", async (req, res) => {
   }
 });
 
-router.post("/accounts/cleanup-emi", async (req, res) => {
-  try {
-    const { transactionId, loanAccountId, restoreAmount } = req.body;
-    if (!transactionId || !loanAccountId || !restoreAmount) {
-      res.status(400).json({ error: "Missing transactionId, loanAccountId, or restoreAmount" });
-      return;
-    }
-    await db.transaction(async (tx) => {
-      await tx.delete(transactionsTable).where(eq(transactionsTable.id, transactionId));
-      await tx
-        .update(accountsTable)
-        .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${String(restoreAmount)}::numeric` })
-        .where(eq(accountsTable.id, loanAccountId));
-    });
-    res.json({ success: true, message: `Deleted transaction ${transactionId} and restored ${restoreAmount} to account ${loanAccountId}` });
-  } catch (e) {
-    req.log.error({ err: e }, "Cleanup failed");
-    res.status(500).json({ error: "Cleanup failed" });
-  }
-});
-
 export default router;
