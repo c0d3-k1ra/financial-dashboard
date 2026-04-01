@@ -54,6 +54,7 @@ export default function Transactions() {
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selectedCycle, setSelectedCycle] = useState<string>("all");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
   const [newCatName, setNewCatName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -71,13 +72,14 @@ export default function Transactions() {
   const queryParams = useMemo(() => {
     const params: Record<string, string | undefined> = {
       search: search || undefined,
+      category: filterCategory !== "all" ? filterCategory : undefined,
     };
     if (selectedCycleData) {
       params.cycleStart = selectedCycleData.startDate;
       params.cycleEnd = selectedCycleData.endDate;
     }
     return params;
-  }, [search, selectedCycleData]);
+  }, [search, selectedCycleData, filterCategory]);
 
   const { data: transactions, isLoading } = useListTransactions(queryParams, {
     query: { enabled: true, queryKey: getListTransactionsQueryKey(queryParams) },
@@ -332,6 +334,19 @@ export default function Transactions() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <Select value={filterCategory} onValueChange={setFilterCategory}>
+            <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories?.map((c) => (
+                <SelectItem key={c.id} value={c.name}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={selectedCycle} onValueChange={setSelectedCycle}>
             <SelectTrigger className="w-full sm:w-[220px] h-9 text-xs">
               <SelectValue placeholder="Billing Cycle" />
