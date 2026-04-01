@@ -57,7 +57,7 @@ router.delete("/categories/:id", async (req, res) => {
     const [linkedBudget] = await db
       .select({ count: sql<number>`count(*)` })
       .from(budgetGoalsTable)
-      .where(eq(budgetGoalsTable.category, cat.name));
+      .where(sql`${budgetGoalsTable.category} = ${cat.name} AND ${budgetGoalsTable.plannedAmount}::numeric > 0`);
 
     if (Number(linkedBudget.count) > 0) {
       res.status(409).json({
@@ -66,6 +66,7 @@ router.delete("/categories/:id", async (req, res) => {
       return;
     }
 
+    await db.delete(budgetGoalsTable).where(eq(budgetGoalsTable.category, cat.name));
     await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
     res.status(204).send();
   } catch (e) {
