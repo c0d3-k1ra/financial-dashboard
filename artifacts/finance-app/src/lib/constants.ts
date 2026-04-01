@@ -52,10 +52,12 @@ export function getApiErrorMessage(err: unknown): string {
     }
   }
 
-  if (err instanceof Error) {
-    const match = err.message.match(/^HTTP \d{3} [^:]+:\s*(.+)$/);
-    if (match) return match[1];
+  if (err instanceof Error && err.message) {
+    const cleaned = err.message.replace(/^HTTP \d{3} [^:]+:\s*/, "");
+    if (cleaned.trim()) return cleaned.trim();
   }
+
+  if (typeof err === "string" && err.trim()) return err.trim();
 
   return "Something went wrong. Please try again.";
 }
