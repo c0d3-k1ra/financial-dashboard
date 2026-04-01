@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +22,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryType, setNewCategoryType] = useState<string>("Expense");
+  const [deleteCatId, setDeleteCatId] = useState<number | null>(null);
 
   const { data: categories, isLoading } = useListCategories(
     {},
@@ -54,14 +56,18 @@ export default function Settings() {
     );
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("Delete this category?")) return;
+  const confirmDeleteCategory = () => {
+    if (deleteCatId === null) return;
     deleteCategory.mutate(
-      { id },
+      { id: deleteCatId },
       {
         onSuccess: () => {
           toast({ title: "Category deleted" });
+          setDeleteCatId(null);
           queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to delete category", description: String(err), variant: "destructive" });
         },
       }
     );
@@ -145,7 +151,7 @@ export default function Settings() {
                             variant="ghost"
                             size="icon"
                             className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleDelete(cat.id)}
+                            onClick={() => setDeleteCatId(cat.id)}
                           >
                             <Trash2 className="w-3 h-3" />
                           </Button>
@@ -180,7 +186,7 @@ export default function Settings() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(cat.id)}
+                          onClick={() => setDeleteCatId(cat.id)}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -207,7 +213,7 @@ export default function Settings() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(cat.id)}
+                          onClick={() => setDeleteCatId(cat.id)}
                         >
                           <Trash2 className="w-3 h-3" />
                         </Button>
@@ -224,6 +230,25 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={deleteCatId !== null} onOpenChange={(open) => { if (!open) setDeleteCatId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Category</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete this category? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={confirmDeleteCategory} disabled={deleteCategory.isPending}>
+              {deleteCategory.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

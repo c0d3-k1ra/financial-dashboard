@@ -46,6 +46,7 @@ export default function Accounts() {
   const [editName, setEditName] = useState("");
   const [editCreditLimit, setEditCreditLimit] = useState("");
   const [editBillingDueDay, setEditBillingDueDay] = useState("");
+  const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
@@ -156,14 +157,18 @@ export default function Accounts() {
     );
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("Delete this account? This cannot be undone.")) return;
+  const confirmDeleteAccount = () => {
+    if (deleteAccountId === null) return;
     deleteAccount.mutate(
-      { id },
+      { id: deleteAccountId },
       {
         onSuccess: () => {
           toast({ title: "Account deleted" });
+          setDeleteAccountId(null);
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+        },
+        onError: (err) => {
+          toast({ title: "Failed to delete account", description: String(err), variant: "destructive" });
         },
       }
     );
@@ -385,7 +390,7 @@ export default function Accounts() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => handleDelete(account.id)}
+                          onClick={() => setDeleteAccountId(account.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -436,7 +441,7 @@ export default function Accounts() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleDelete(account.id)}
+                              onClick={() => setDeleteAccountId(account.id)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -494,7 +499,7 @@ export default function Accounts() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => handleDelete(account.id)}
+                              onClick={() => setDeleteAccountId(account.id)}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
@@ -583,6 +588,25 @@ export default function Accounts() {
             </DialogClose>
             <Button onClick={handleEdit} disabled={updateAccount.isPending || !editName.trim()}>
               {updateAccount.isPending ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteAccountId !== null} onOpenChange={(open) => { if (!open) setDeleteAccountId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Account</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Are you sure you want to delete this account? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={confirmDeleteAccount} disabled={deleteAccount.isPending}>
+              {deleteAccount.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
