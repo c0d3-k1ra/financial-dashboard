@@ -127,7 +127,7 @@ export default function Goals() {
     if (surplus <= 0) {
       toast({
         title: "No Surplus",
-        description: `No surplus for ${currentMonth}. Income minus expenses is ${formatCurrency(result.data?.surplus ?? "0")}.`,
+        description: `No surplus for ${new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}. Income minus expenses is ${formatCurrency(result.data?.surplus ?? "0")}.`,
         variant: "destructive",
       });
       return;

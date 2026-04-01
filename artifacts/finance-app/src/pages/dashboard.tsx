@@ -230,7 +230,7 @@ export default function Dashboard() {
             </div>
           )}
           <div className="text-sm font-mono text-muted-foreground bg-secondary/50 px-3 py-1 rounded-md border border-border/50">
-            {currentMonth}
+            {new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </div>
         </div>
       </div>

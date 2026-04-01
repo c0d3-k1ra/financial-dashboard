@@ -136,7 +136,7 @@ export default function Budget() {
       
       <div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Budget Analysis</h1>
-        <p className="text-muted-foreground text-sm mt-1">Plan vs actual spending for {currentMonth}.</p>
+        <p className="text-muted-foreground text-sm mt-1">Plan vs actual spending for {new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
