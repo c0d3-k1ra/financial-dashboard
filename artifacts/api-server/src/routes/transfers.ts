@@ -28,16 +28,33 @@ router.post("/transfers", async (req, res) => {
       return;
     }
 
-    const transfer = await db.transaction(async (tx) => {
-      await tx
-        .update(accountsTable)
-        .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${data.amount}::numeric` })
-        .where(eq(accountsTable.id, data.fromAccountId));
+    const fromIsCc = fromAccount[0].type === "credit_card";
+    const toIsCc = toAccount[0].type === "credit_card";
 
-      await tx
-        .update(accountsTable)
-        .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${data.amount}::numeric` })
-        .where(eq(accountsTable.id, data.toAccountId));
+    const transfer = await db.transaction(async (tx) => {
+      if (fromIsCc) {
+        await tx
+          .update(accountsTable)
+          .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${data.amount}::numeric` })
+          .where(eq(accountsTable.id, data.fromAccountId));
+      } else {
+        await tx
+          .update(accountsTable)
+          .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${data.amount}::numeric` })
+          .where(eq(accountsTable.id, data.fromAccountId));
+      }
+
+      if (toIsCc) {
+        await tx
+          .update(accountsTable)
+          .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${data.amount}::numeric` })
+          .where(eq(accountsTable.id, data.toAccountId));
+      } else {
+        await tx
+          .update(accountsTable)
+          .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${data.amount}::numeric` })
+          .where(eq(accountsTable.id, data.toAccountId));
+      }
 
       const [created] = await tx
         .insert(transactionsTable)
