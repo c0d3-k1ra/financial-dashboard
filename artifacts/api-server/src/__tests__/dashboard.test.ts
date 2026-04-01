@@ -57,7 +57,9 @@ describe("Dashboard & Analytics API", () => {
 
   it("D-04: burn rate under 100%", async () => {
     const acc = await createAccount("DashBank4", "bank", "100000");
-    await request(app).post("/api/budget-goals").send({ category: "Living Expenses", plannedAmount: "30000" });
+    const catRes = await request(app).post("/api/categories").send({ name: "Living Expenses", type: "Expense" });
+    const catId = (catRes.body as { id: number }).id;
+    await request(app).post("/api/budget-goals").send({ categoryId: catId, plannedAmount: "30000" });
     await request(app).post("/api/transactions").send({
       date: "2025-03-01", amount: "20000", description: "Living", category: "Living Expenses", type: "Expense", accountId: acc.id,
     });
@@ -70,7 +72,9 @@ describe("Dashboard & Analytics API", () => {
 
   it("D-05: burn rate over 100%", async () => {
     const acc = await createAccount("DashBank5", "bank", "100000");
-    await request(app).post("/api/budget-goals").send({ category: "Living Expenses", plannedAmount: "10000" });
+    const catRes = await request(app).post("/api/categories").send({ name: "Living Expenses", type: "Expense" });
+    const catId = (catRes.body as { id: number }).id;
+    await request(app).post("/api/budget-goals").send({ categoryId: catId, plannedAmount: "10000" });
     await request(app).post("/api/transactions").send({
       date: "2025-03-01", amount: "15000", description: "Living", category: "Living Expenses", type: "Expense", accountId: acc.id,
     });

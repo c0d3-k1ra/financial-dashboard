@@ -32,10 +32,10 @@ router.post("/categories", async (req, res) => {
       const existing = await db
         .select()
         .from(budgetGoalsTable)
-        .where(eq(budgetGoalsTable.category, data.name));
+        .where(eq(budgetGoalsTable.categoryId, created.id));
       if (existing.length === 0) {
         await db.insert(budgetGoalsTable).values({
-          category: data.name,
+          categoryId: created.id,
           plannedAmount: plannedAmount.toFixed(2),
         });
       }
@@ -93,11 +93,6 @@ router.patch("/categories/:id", async (req, res) => {
         .update(transactionsTable)
         .set({ category: trimmedName })
         .where(eq(transactionsTable.category, oldName));
-
-      await tx
-        .update(budgetGoalsTable)
-        .set({ category: trimmedName })
-        .where(eq(budgetGoalsTable.category, oldName));
     });
 
     const [updated] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id));
@@ -134,7 +129,7 @@ router.delete("/categories/:id", async (req, res) => {
       return;
     }
 
-    await db.delete(budgetGoalsTable).where(eq(budgetGoalsTable.category, cat.name));
+    await db.delete(budgetGoalsTable).where(eq(budgetGoalsTable.categoryId, id));
     await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
     res.status(204).send();
   } catch (e) {

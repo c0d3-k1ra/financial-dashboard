@@ -98,39 +98,55 @@ export async function runStartupMigrations() {
 
   await db.execute(sql`
     DO $$
-    DECLARE
-      default_account_id integer;
     BEGIN
-      SELECT id INTO default_account_id FROM "accounts" WHERE LOWER("type") = 'bank' ORDER BY id LIMIT 1;
-
       IF EXISTS (
-        SELECT FROM information_schema.tables WHERE table_name = 'goal_vaults'
-      ) AND default_account_id IS NOT NULL THEN
-        INSERT INTO "goals" ("name", "target_amount", "current_amount", "account_id", "status", "category_type")
-        SELECT
-          gv."name",
-          COALESCE(gv."target_amount"::numeric(12,2), 0),
-          COALESCE(gv."current_balance"::numeric(12,2), 0),
-          default_account_id,
-          CASE WHEN COALESCE(gv."current_balance"::numeric, 0) >= COALESCE(gv."target_amount"::numeric, 0) AND COALESCE(gv."target_amount"::numeric, 0) > 0 THEN 'Achieved' ELSE 'Active' END,
-          'Emergency'
-        FROM "goal_vaults" gv
-        WHERE NOT EXISTS (
-          SELECT 1 FROM "goals" g WHERE g."name" = gv."name"
-        );
-      END IF;
-
-      IF default_account_id IS NOT NULL THEN
-        UPDATE "goals" SET "account_id" = default_account_id WHERE "account_id" IS NULL;
-      END IF;
-
-      IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'goals_account_id_not_null_check'
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'budget_goals' AND column_name = 'category'
       ) THEN
-        BEGIN
-          ALTER TABLE "goals" ALTER COLUMN "account_id" SET NOT NULL;
-        EXCEPTION WHEN others THEN NULL;
-        END;
+        ALTER TABLE "budget_goals" ADD COLUMN IF NOT EXISTS "category_id" integer;
+
+        UPDATE "budget_goals" bg
+        SET "category_id" = c."id"
+        FROM "categories" c
+        WHERE bg."category" = c."name"
+          AND c."type" = 'Expense'
+          AND bg."category_id" IS NULL;
+
+        IF EXISTS (SELECT 1 FROM "budget_goals" WHERE "category_id" IS NULL) THEN
+          RAISE WARNING 'budget_goals migration: % rows had no matching Expense category and were removed',
+            (SELECT count(*) FROM "budget_goals" WHERE "category_id" IS NULL);
+        END IF;
+        DELETE FROM "budget_goals" WHERE "category_id" IS NULL;
+
+        ALTER TABLE "budget_goals" ALTER COLUMN "category_id" SET NOT NULL;
+
+        ALTER TABLE "budget_goals" DROP COLUMN "category";
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'budget_goals_category_id_categories_id_fk'
+        ) THEN
+          ALTER TABLE "budget_goals"
+            ADD CONSTRAINT "budget_goals_category_id_categories_id_fk"
+            FOREIGN KEY ("category_id") REFERENCES "categories"("id");
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint WHERE conname = 'budget_goals_category_id_unique'
+        ) THEN
+          ALTER TABLE "budget_goals"
+            ADD CONSTRAINT "budget_goals_category_id_unique" UNIQUE ("category_id");
+        END IF;
+      ELSE
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'budget_goals' AND column_name = 'category_id'
+        ) THEN
+          CREATE TABLE IF NOT EXISTS "budget_goals" (
+            "id" serial PRIMARY KEY NOT NULL,
+            "category_id" integer NOT NULL UNIQUE REFERENCES "categories"("id"),
+            "planned_amount" numeric(12, 2) DEFAULT '0' NOT NULL
+          );
+        END IF;
       END IF;
     END $$
   `);

@@ -21,6 +21,7 @@ export interface TransactionResponse {
 
 export interface BudgetGoalResponse {
   id: number;
+  categoryId: number;
   category: string;
   plannedAmount: string;
 }
@@ -144,9 +145,3 @@ export interface CategoryResponse {
   type: string;
 }
 
-export interface GoalVaultResponse {
-  id: number;
-  name: string;
-  currentBalance: string;
-  targetAmount: string;
-}

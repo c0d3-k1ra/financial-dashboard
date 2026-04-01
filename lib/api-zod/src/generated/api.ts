@@ -124,6 +124,7 @@ export const DeleteMonthlyConfigParams = zod.object({
  */
 export const ListBudgetGoalsResponseItem = zod.object({
   id: zod.number(),
+  categoryId: zod.number(),
   category: zod.string(),
   plannedAmount: zod.string(),
 });
@@ -133,12 +134,13 @@ export const ListBudgetGoalsResponse = zod.array(ListBudgetGoalsResponseItem);
  * @summary Create or update a budget goal
  */
 export const UpsertBudgetGoalBody = zod.object({
-  category: zod.string(),
+  categoryId: zod.number(),
   plannedAmount: zod.string(),
 });
 
 export const UpsertBudgetGoalResponse = zod.object({
   id: zod.number(),
+  categoryId: zod.number(),
   category: zod.string(),
   plannedAmount: zod.string(),
 });

@@ -43,12 +43,13 @@ export interface CreateMonthlyConfig {
 
 export interface BudgetGoal {
   id: number;
+  categoryId: number;
   category: string;
   plannedAmount: string;
 }
 
 export interface CreateBudgetGoal {
-  category: string;
+  categoryId: number;
   plannedAmount: string;
 }
 

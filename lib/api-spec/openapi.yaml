@@ -924,24 +924,27 @@ components:
       properties:
         id:
           type: integer
+        categoryId:
+          type: integer
         category:
           type: string
         plannedAmount:
           type: string
       required:
         - id
+        - categoryId
         - category
         - plannedAmount
 
     CreateBudgetGoal:
       type: object
       properties:
-        category:
-          type: string
+        categoryId:
+          type: integer
         plannedAmount:
           type: string
       required:
-        - category
+        - categoryId
         - plannedAmount
 
     DashboardSummary:

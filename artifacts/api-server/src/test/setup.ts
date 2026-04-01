@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, afterAll } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
+import { runStartupMigrations } from "@workspace/db/migrate";
 
 beforeAll(async () => {
   const dbUrl = process.env.DATABASE_URL ?? "";
@@ -13,11 +14,18 @@ beforeAll(async () => {
   if (dbName.includes("prod")) {
     throw new Error(`SAFETY: Database name "${dbName}" appears to be a production database. Aborting tests.`);
   }
+
+  await runStartupMigrations();
 });
 
 beforeEach(async () => {
   await db.execute(sql`
-    TRUNCATE TABLE surplus_allocations, transactions, budget_goals, goals, goal_vaults, surplus_ledger, monthly_config, categories, accounts RESTART IDENTITY CASCADE
+    DO $$
+    BEGIN
+      TRUNCATE TABLE surplus_allocations, transactions, budget_goals, goals, monthly_config, categories, accounts RESTART IDENTITY CASCADE;
+    EXCEPTION WHEN undefined_table THEN
+      NULL;
+    END $$
   `);
 });
 

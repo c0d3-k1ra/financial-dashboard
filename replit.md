@@ -83,14 +83,13 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `health.ts` — `GET /api/healthz`
   - `transactions.ts` — CRUD for transactions + `GET /api/transactions/recent`
   - `monthly-config.ts` — upsert monthly starting balance
-  - `budget-goals.ts` — upsert budget planned amounts per category
-  - `goal-vaults.ts` — upsert goal vaults + `GET /api/goal-vaults/projection` (12-month projection) [legacy]
+  - `budget-goals.ts` — upsert budget planned amounts per category (uses category_id FK to categories)
   - `goals.ts` — Dynamic goal CRUD, `GET /api/goals/waterfall` (Net Worth Waterfall), `GET /api/goals/:id/projection` (per-goal 12-month projection)
   - `dashboard.ts` — `GET /api/dashboard/summary` + `GET /api/dashboard/monthly-trend` + `GET /api/billing-cycles`
   - `budget-analysis.ts` — `GET /api/budget-analysis` (planned vs actual per category, auto-syncs with all expense categories, EMI (PL) auto-calculated from active loans)
   - `surplus.ts` — `POST /api/surplus/consolidate` (legacy) + `POST /api/surplus/distribute` (distribute surplus across goals) + `GET /api/surplus/allocations`
   - `accounts.ts` — CRUD for bank accounts, credit cards, and loans + `POST /api/accounts/:id/reconcile` (balance reconciliation) + `POST /api/accounts/process-emis` (process monthly EMI payments for loan accounts)
-  - `categories.ts` — CRUD for expense/income categories + `PATCH /api/categories/:id` (rename with cascade to transactions & budget_goals). Creating expense categories auto-creates budget_goals with sensible defaults.
+  - `categories.ts` — CRUD for expense/income categories + `PATCH /api/categories/:id` (rename with cascade to transactions). Creating expense categories auto-creates budget_goals with sensible defaults via category_id FK.
   - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
   - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`
   - `analytics.ts` — `GET /api/analytics/spend-by-category` + `GET /api/analytics/category-trend` + `GET /api/analytics/cc-dues`
@@ -105,11 +104,9 @@ Database layer using Drizzle ORM with PostgreSQL. Tables:
 - `categories` — id, name, type (Income/Expense)
 - `transactions` — date, amount, description, category, type (Income/Expense/Transfer), account_id, to_account_id
 - `monthly_config` — month (YYYY-MM), starting_balance
-- `budget_goals` — category (unique), planned_amount
+- `budget_goals` — id, category_id (FK → categories, unique), planned_amount
 - `goals` — id, name, target_amount, current_amount, account_id (FK → accounts), status (Active/Paused/Achieved), target_date, category_type, icon
 - `surplus_allocations` — id, month, goal_id (FK → goals), amount, source_account_id (FK → accounts), allocated_at
-- `goal_vaults` — name (unique), current_balance, target_amount [legacy]
-- `surplus_ledger` — surplus tracking [legacy]
 
 Seed script: `lib/db/src/seed.ts` — creates default Primary Bank account, seeds categories from hardcoded lists, maps unmapped transactions.
 

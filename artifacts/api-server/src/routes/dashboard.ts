@@ -77,11 +77,17 @@ router.get("/dashboard/summary", async (req, res) => {
       .select()
       .from(categoriesTable)
       .where(eq(categoriesTable.type, "Expense"));
-    const expenseCatNames = new Set(expenseCategories.map(c => c.name));
 
-    const allBudgetGoals = await db.select().from(budgetGoalsTable);
+    const allBudgetGoals = await db
+      .select({
+        categoryId: budgetGoalsTable.categoryId,
+        plannedAmount: budgetGoalsTable.plannedAmount,
+      })
+      .from(budgetGoalsTable)
+      .innerJoin(categoriesTable, eq(budgetGoalsTable.categoryId, categoriesTable.id));
+    const expenseCatIds = new Set(expenseCategories.map(c => c.id));
     const plannedExpenses = allBudgetGoals
-      .filter(g => expenseCatNames.has(g.category))
+      .filter(g => expenseCatIds.has(g.categoryId))
       .reduce((sum, g) => sum + Number(g.plannedAmount ?? 0), 0);
     const actualExpenses = allExpenses;
     const burnRate = plannedExpenses > 0 ? (actualExpenses / plannedExpenses) * 100 : 0;

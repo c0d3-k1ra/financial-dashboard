@@ -26,12 +26,25 @@ const INCOME_CATEGORIES = ["Paycheck (Salary)", "Bonus", "Interest", "Other"] as
 
 export async function seedBudgetCategories() {
   try {
+    const expenseCats = await db
+      .select()
+      .from(categoriesTable)
+      .where(eq(categoriesTable.type, "Expense"));
+
+    if (expenseCats.length === 0) {
+      logger.info("No expense categories found, skipping budget goal seeding");
+      return;
+    }
+
     const existing = await db.select().from(budgetGoalsTable);
-    if (existing.length > 0) {
-      let updated = 0;
-      for (const goal of existing) {
-        if (Number(goal.plannedAmount) === 0 && goal.category !== "EMI (PL)") {
-          const defaultAmount = BUDGET_DEFAULTS[goal.category] ?? DEFAULT_PLANNED;
+    const existingCategoryIds = new Set(existing.map((g) => g.categoryId));
+
+    let updated = 0;
+    for (const goal of existing) {
+      if (Number(goal.plannedAmount) === 0) {
+        const cat = expenseCats.find((c) => c.id === goal.categoryId);
+        if (cat && cat.name !== "EMI (PL)") {
+          const defaultAmount = BUDGET_DEFAULTS[cat.name] ?? DEFAULT_PLANNED;
           await db
             .update(budgetGoalsTable)
             .set({ plannedAmount: defaultAmount.toFixed(2) })
@@ -39,43 +52,29 @@ export async function seedBudgetCategories() {
           updated++;
         }
       }
-      if (updated > 0) {
-        logger.info({ count: updated }, "Updated budget goals with default amounts");
-      }
-
-      const existingCategories = existing.map((g) => g.category);
-      const expenseCats = await db
-        .select()
-        .from(categoriesTable)
-        .where(eq(categoriesTable.type, "Expense"));
-      let inserted = 0;
-      for (const cat of expenseCats) {
-        if (!existingCategories.includes(cat.name)) {
-          const defaultAmount = cat.name === "EMI (PL)" ? 0 : (BUDGET_DEFAULTS[cat.name] ?? DEFAULT_PLANNED);
-          await db.insert(budgetGoalsTable).values({
-            category: cat.name,
-            plannedAmount: defaultAmount.toFixed(2),
-          });
-          inserted++;
-        }
-      }
-      if (inserted > 0) {
-        logger.info({ count: inserted }, "Created missing budget goals for existing categories");
-      }
-
-      if (updated === 0 && inserted === 0) {
-        logger.info("Budget categories already seeded, skipping");
-      }
-      return;
+    }
+    if (updated > 0) {
+      logger.info({ count: updated }, "Updated budget goals with default amounts");
     }
 
-    const values = EXPENSE_CATEGORIES.map((category) => ({
-      category,
-      plannedAmount: category === "EMI (PL)" ? "0.00" : (BUDGET_DEFAULTS[category] ?? DEFAULT_PLANNED).toFixed(2),
-    }));
+    let inserted = 0;
+    for (const cat of expenseCats) {
+      if (!existingCategoryIds.has(cat.id)) {
+        const defaultAmount = cat.name === "EMI (PL)" ? 0 : (BUDGET_DEFAULTS[cat.name] ?? DEFAULT_PLANNED);
+        await db.insert(budgetGoalsTable).values({
+          categoryId: cat.id,
+          plannedAmount: defaultAmount.toFixed(2),
+        });
+        inserted++;
+      }
+    }
+    if (inserted > 0) {
+      logger.info({ count: inserted }, "Created missing budget goals for existing categories");
+    }
 
-    await db.insert(budgetGoalsTable).values(values);
-    logger.info({ count: values.length }, "Seeded budget categories with defaults");
+    if (updated === 0 && inserted === 0) {
+      logger.info("Budget categories already seeded, skipping");
+    }
   } catch (e) {
     logger.error({ err: e }, "Failed to seed budget categories");
   }

@@ -7,6 +7,6 @@
  */
 
 export interface CreateBudgetGoal {
-  category: string;
+  categoryId: number;
   plannedAmount: string;
 }

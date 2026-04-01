@@ -7,15 +7,13 @@ import {
   goalsTable,
   surplusAllocationsTable,
   monthlyConfigTable,
-  surplusLedgerTable,
-  goalVaultsTable,
 } from "./schema";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 async function testSeed() {
   console.log("Truncating all tables...");
   await db.execute(sql`
-    TRUNCATE TABLE surplus_allocations, transactions, budget_goals, goals, goal_vaults, surplus_ledger, monthly_config, categories, accounts RESTART IDENTITY CASCADE
+    TRUNCATE TABLE surplus_allocations, transactions, budget_goals, goals, monthly_config, categories, accounts RESTART IDENTITY CASCADE
   `);
 
   console.log("Creating accounts...");
@@ -55,20 +53,23 @@ async function testSeed() {
     ...incomeCategories.map(name => ({ name, type: "Income" })),
   ]);
 
+  const allCategories = await db.select().from(categoriesTable);
+  const catByName = new Map(allCategories.map(c => [c.name, c.id]));
+
   console.log("Creating budget goals...");
   const budgetGoals = [
-    { category: "Living Expenses", plannedAmount: "25000" },
-    { category: "Food", plannedAmount: "12000" },
-    { category: "Transportation", plannedAmount: "5000" },
-    { category: "EMI (PL)", plannedAmount: "15000" },
-    { category: "SIP (Investment)", plannedAmount: "10000" },
-    { category: "Term Insurance", plannedAmount: "1500" },
-    { category: "Health Insurance", plannedAmount: "2000" },
-    { category: "Utilities", plannedAmount: "3000" },
-    { category: "Personal", plannedAmount: "5000" },
-    { category: "Entertainment", plannedAmount: "3000" },
-    { category: "Credit Card (CC)", plannedAmount: "20000" },
-    { category: "Father", plannedAmount: "10000" },
+    { categoryId: catByName.get("Living Expenses")!, plannedAmount: "25000" },
+    { categoryId: catByName.get("Food")!, plannedAmount: "12000" },
+    { categoryId: catByName.get("Transportation")!, plannedAmount: "5000" },
+    { categoryId: catByName.get("EMI (PL)")!, plannedAmount: "15000" },
+    { categoryId: catByName.get("SIP (Investment)")!, plannedAmount: "10000" },
+    { categoryId: catByName.get("Term Insurance")!, plannedAmount: "1500" },
+    { categoryId: catByName.get("Health Insurance")!, plannedAmount: "2000" },
+    { categoryId: catByName.get("Utilities")!, plannedAmount: "3000" },
+    { categoryId: catByName.get("Personal")!, plannedAmount: "5000" },
+    { categoryId: catByName.get("Entertainment")!, plannedAmount: "3000" },
+    { categoryId: catByName.get("Credit Card (CC)")!, plannedAmount: "20000" },
+    { categoryId: catByName.get("Father")!, plannedAmount: "10000" },
   ];
   await db.insert(budgetGoalsTable).values(budgetGoals);
 
@@ -263,19 +264,6 @@ async function testSeed() {
     }
   }
 
-  console.log("Creating goal vaults...");
-  await db.insert(goalVaultsTable).values([
-    { name: "Emergency Fund (IDFC)", currentBalance: "125000", targetAmount: "300000" },
-    { name: "Travel Fund (HDFC)", currentBalance: "35000", targetAmount: "50000" },
-    { name: "Home Down Payment (SBI)", currentBalance: "220000", targetAmount: "1500000" },
-  ]);
-
-  console.log("Creating surplus ledger entries...");
-  await db.insert(surplusLedgerTable).values([
-    { month: "2024-11", amount: "22000", vaultName: "Emergency Fund (IDFC)" },
-    { month: "2024-12", amount: "35000", vaultName: "Emergency Fund (IDFC)" },
-  ]);
-
   console.log("\n=== Test Seed Complete ===");
   console.log("Accounts: 5 (3 bank, 2 credit card)");
   console.log("Categories: 23 (18 expense, 5 income)");
@@ -283,8 +271,6 @@ async function testSeed() {
   console.log("Savings Goals: 5 (4 active, 1 achieved)");
   console.log("Transactions: 6+ months of realistic data");
   console.log("Surplus Allocations: spanning 5 months");
-  console.log("Goal Vaults: 3");
-  console.log("Surplus Ledger: 2 entries");
   console.log("Monthly Config: 7 months");
 
   await pool.end();

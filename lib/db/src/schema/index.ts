@@ -3,7 +3,5 @@ export * from "./categories";
 export * from "./transactions";
 export * from "./monthly-config";
 export * from "./budget-goals";
-export * from "./goal-vaults";
-export * from "./surplus-ledger";
 export * from "./goals";
 export * from "./surplus-allocations";

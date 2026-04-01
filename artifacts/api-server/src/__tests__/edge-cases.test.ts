@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../app";
-import type { AccountResponse, TransactionResponse, GoalVaultResponse } from "../test/types";
+import type { AccountResponse, TransactionResponse } from "../test/types";
 
 describe("Edge Cases", () => {
   it("E-04: decimal precision in amounts", async () => {
@@ -37,37 +37,6 @@ describe("Edge Cases", () => {
     expect(res.status).toBe(201);
     const body = res.body as AccountResponse;
     expect(body.name).toBe(xssName);
-  });
-
-  it("E-11: surplus ledger month uniqueness", async () => {
-    const { db, surplusLedgerTable } = await import("@workspace/db");
-
-    await db.insert(surplusLedgerTable).values({ month: "2025-03", amount: "5000", vaultName: "Emergency Fund" });
-
-    let duplicateError = false;
-    try {
-      await db.insert(surplusLedgerTable).values({ month: "2025-03", amount: "3000", vaultName: "Travel" });
-    } catch {
-      duplicateError = true;
-    }
-    expect(duplicateError).toBe(true);
-  });
-
-  it("E-11b: goal vault name uniqueness (via HTTP upsert)", async () => {
-    const res1 = await request(app).post("/api/goal-vaults").send({
-      name: "Emergency Fund (IDFC)", currentBalance: "50000", targetAmount: "300000",
-    });
-    expect(res1.status).toBe(200);
-    const vault1 = res1.body as GoalVaultResponse;
-    expect(Number(vault1.currentBalance)).toBe(50000);
-
-    const res2 = await request(app).post("/api/goal-vaults").send({
-      name: "Emergency Fund (IDFC)", currentBalance: "75000", targetAmount: "300000",
-    });
-    expect(res2.status).toBe(200);
-    const vault2 = res2.body as GoalVaultResponse;
-    expect(Number(vault2.currentBalance)).toBe(75000);
-    expect(vault1.id).toBe(vault2.id);
   });
 
   it("Special characters in transaction description (SQL injection safety)", async () => {

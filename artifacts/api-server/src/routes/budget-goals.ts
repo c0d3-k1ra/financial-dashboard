@@ -1,13 +1,21 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, budgetGoalsTable } from "@workspace/db";
+import { db, budgetGoalsTable, categoriesTable } from "@workspace/db";
 import { UpsertBudgetGoalBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
 router.get("/budget-goals", async (req, res) => {
   try {
-    const results = await db.select().from(budgetGoalsTable);
+    const results = await db
+      .select({
+        id: budgetGoalsTable.id,
+        categoryId: budgetGoalsTable.categoryId,
+        plannedAmount: budgetGoalsTable.plannedAmount,
+        category: categoriesTable.name,
+      })
+      .from(budgetGoalsTable)
+      .innerJoin(categoriesTable, eq(budgetGoalsTable.categoryId, categoriesTable.id));
     res.json(results);
   } catch (e) {
     req.log.error({ err: e }, "Failed to list budget goals");
@@ -21,19 +29,34 @@ router.post("/budget-goals", async (req, res) => {
     const existing = await db
       .select()
       .from(budgetGoalsTable)
-      .where(eq(budgetGoalsTable.category, data.category));
+      .where(eq(budgetGoalsTable.categoryId, data.categoryId));
 
     let result;
     if (existing.length > 0) {
       [result] = await db
         .update(budgetGoalsTable)
         .set({ plannedAmount: data.plannedAmount })
-        .where(eq(budgetGoalsTable.category, data.category))
+        .where(eq(budgetGoalsTable.categoryId, data.categoryId))
         .returning();
     } else {
-      [result] = await db.insert(budgetGoalsTable).values(data).returning();
+      [result] = await db.insert(budgetGoalsTable).values({
+        categoryId: data.categoryId,
+        plannedAmount: data.plannedAmount,
+      }).returning();
     }
-    res.json(result);
+
+    const [withCategory] = await db
+      .select({
+        id: budgetGoalsTable.id,
+        categoryId: budgetGoalsTable.categoryId,
+        plannedAmount: budgetGoalsTable.plannedAmount,
+        category: categoriesTable.name,
+      })
+      .from(budgetGoalsTable)
+      .innerJoin(categoriesTable, eq(budgetGoalsTable.categoryId, categoriesTable.id))
+      .where(eq(budgetGoalsTable.id, result.id));
+
+    res.json(withCategory);
   } catch (e) {
     req.log.error({ err: e }, "Failed to upsert budget goal");
     res.status(400).json({ error: "Invalid request" });

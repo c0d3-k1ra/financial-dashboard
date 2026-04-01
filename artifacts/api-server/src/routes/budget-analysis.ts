@@ -21,8 +21,13 @@ router.get("/budget-analysis", async (req, res) => {
       .from(categoriesTable)
       .where(eq(categoriesTable.type, "Expense"));
 
-    const goals = await db.select().from(budgetGoalsTable);
-    const goalMap = new Map(goals.map((g) => [g.category, Number(g.plannedAmount)]));
+    const goals = await db
+      .select({
+        categoryId: budgetGoalsTable.categoryId,
+        plannedAmount: budgetGoalsTable.plannedAmount,
+      })
+      .from(budgetGoalsTable);
+    const goalMap = new Map(goals.map((g) => [g.categoryId, Number(g.plannedAmount)]));
 
     const loanAccounts = await db
       .select()
@@ -45,7 +50,7 @@ router.get("/budget-analysis", async (req, res) => {
     const actualMap = new Map(actuals.map((a) => [a.category, Number(a.total)]));
 
     const analysis = expenseCategories.map((cat) => {
-      let planned = goalMap.get(cat.name) ?? 0;
+      let planned = goalMap.get(cat.id) ?? 0;
 
       if (cat.name === "EMI (PL)") {
         planned = totalEmi;

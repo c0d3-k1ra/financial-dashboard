@@ -8,6 +8,7 @@
 
 export interface BudgetGoal {
   id: number;
+  categoryId: number;
   category: string;
   plannedAmount: string;
 }
