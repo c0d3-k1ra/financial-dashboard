@@ -13,6 +13,8 @@ export interface DashboardSummary {
   totalIncome: string;
   totalExpenses: string;
   bankExpenses: string;
+  ccExpenses: string;
+  nonCcExpenses: string;
   ccTransfers: string;
   monthlySurplus: string;
   burnRate: number;

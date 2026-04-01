@@ -164,6 +164,8 @@ export const GetDashboardSummaryResponse = zod.object({
   totalIncome: zod.string(),
   totalExpenses: zod.string(),
   bankExpenses: zod.string(),
+  ccExpenses: zod.string(),
+  nonCcExpenses: zod.string(),
   ccTransfers: zod.string(),
   monthlySurplus: zod.string(),
   burnRate: zod.number(),

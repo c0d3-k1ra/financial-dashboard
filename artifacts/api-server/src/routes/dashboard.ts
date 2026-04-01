@@ -38,6 +38,11 @@ router.get("/dashboard/summary", async (req, res) => {
       .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.to_account_id = a.id`)
       .where(sql`t.type = 'Transfer' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
 
+    const ccExpenseResult = await db
+      .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
+      .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
+      .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
+
     const allExpenseResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
@@ -46,8 +51,10 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalIncome = Number(incomeResult[0]?.total ?? 0);
     const bankExpenses = Number(bankExpenseResult[0]?.total ?? 0);
     const ccTransfers = Number(ccTransferResult[0]?.total ?? 0);
-    const totalExpenses = bankExpenses + ccTransfers;
+    const ccExpenses = Number(ccExpenseResult[0]?.total ?? 0);
     const allExpenses = Number(allExpenseResult[0]?.total ?? 0);
+    const nonCcExpenses = allExpenses - ccExpenses;
+    const totalExpenses = bankExpenses + ccTransfers;
     const endBalance = startingBalance + totalIncome - totalExpenses;
     const monthlySurplus = totalIncome - totalExpenses;
 
@@ -86,6 +93,8 @@ router.get("/dashboard/summary", async (req, res) => {
       totalIncome: totalIncome.toFixed(2),
       totalExpenses: totalExpenses.toFixed(2),
       bankExpenses: bankExpenses.toFixed(2),
+      ccExpenses: ccExpenses.toFixed(2),
+      nonCcExpenses: nonCcExpenses.toFixed(2),
       ccTransfers: ccTransfers.toFixed(2),
       monthlySurplus: monthlySurplus.toFixed(2),
       burnRate: Math.round(burnRate),
