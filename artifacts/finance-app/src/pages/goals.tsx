@@ -417,19 +417,19 @@ export default function Goals() {
                   onClick={() => setSelectedGoalId(isSelected ? null : goal.id)}
                 >
                   <CardContent className="p-5 space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl">{goal.icon || CATEGORY_ICONS[goal.categoryType] || "🎯"}</span>
-                        <div>
-                          <h3 className="font-semibold text-sm leading-tight">{goal.name}</h3>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-2xl shrink-0">{goal.icon || CATEGORY_ICONS[goal.categoryType] || "🎯"}</span>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-sm leading-tight truncate">{goal.name}</h3>
                           {goal.accountName && (
                             <span className="text-[10px] font-mono text-muted-foreground">{goal.accountName}</span>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <span
-                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${
+                          className={`text-[10px] font-mono px-2 py-0.5 rounded-full border whitespace-nowrap ${
                             goal.status === "Achieved"
                               ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                               : STATUS_COLORS[goal.statusIndicator] || ""
