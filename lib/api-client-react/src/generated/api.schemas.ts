@@ -60,8 +60,8 @@ export interface DashboardSummary {
   totalExpenses: string;
   monthlySurplus: string;
   burnRate: number;
-  plannedLivingExpenses: string;
-  actualLivingExpenses: string;
+  plannedExpenses: string;
+  actualExpenses: string;
   startingBalance: string;
   endBalance: string;
   totalLoanOutstanding: string;

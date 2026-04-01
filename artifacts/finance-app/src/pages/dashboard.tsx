@@ -196,7 +196,7 @@ export default function Dashboard() {
   const waterfallData = useMemo(() => {
     if (!summary) return [];
     const income = Number(summary.totalIncome || 0);
-    const expenses = Number(summary.actualLivingExpenses || 0) + Number(summary.unpaidCcDues || 0);
+    const expenses = Number(summary.totalExpenses || 0);
     const surplus = Number(summary.monthlySurplus || 0);
     const goalTotal = goals?.reduce((s, g) => s + Number(g.currentAmount), 0) || 0;
     return [
@@ -208,7 +208,7 @@ export default function Dashboard() {
   }, [summary, goals]);
 
   const liquidCash = Number(summary?.bankBalance || 0);
-  const monthlyExpenses = Number(summary?.plannedLivingExpenses || 1);
+  const monthlyExpenses = Number(summary?.plannedExpenses || 1);
   const liquidityRatio = monthlyExpenses > 0 ? liquidCash / monthlyExpenses : 1;
   const liquidityHealthy = liquidityRatio >= 1;
 
@@ -323,7 +323,7 @@ export default function Dashboard() {
         <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Monthly Burn Rate</CardTitle>
-            <CardDescription>Actual vs Planned Living Expenses</CardDescription>
+            <CardDescription>Actual vs Planned Expenses</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {isLoadingSummary ? (
@@ -336,7 +336,7 @@ export default function Dashboard() {
                 <div className="flex justify-between items-end mb-2">
                   <div className="font-mono text-2xl font-bold">{summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%</div>
                   <div className="text-sm font-mono text-muted-foreground">
-                    {formatCurrency(summary?.actualLivingExpenses || 0)} / {formatCurrency(summary?.plannedLivingExpenses || 1)}
+                    {formatCurrency(summary?.actualExpenses || 0)} / {formatCurrency(summary?.plannedExpenses || 1)}
                   </div>
                 </div>
                 <Progress

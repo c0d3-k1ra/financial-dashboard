@@ -961,9 +961,9 @@ components:
           type: string
         burnRate:
           type: number
-        plannedLivingExpenses:
+        plannedExpenses:
           type: string
-        actualLivingExpenses:
+        actualExpenses:
           type: string
         startingBalance:
           type: string
@@ -981,8 +981,8 @@ components:
         - totalExpenses
         - monthlySurplus
         - burnRate
-        - plannedLivingExpenses
-        - actualLivingExpenses
+        - plannedExpenses
+        - actualExpenses
         - startingBalance
         - endBalance
         - totalLoanOutstanding
