@@ -4,6 +4,9 @@ import {
   useCreateCategory,
   useDeleteCategory,
   useRenameCategory,
+  useGetSettings,
+  useUpdateSettings,
+  useResetData,
 } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,11 +16,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getApiErrorMessage } from "@/lib/constants";
-import { Plus, Trash2, Tag, Pencil, Check, X } from "lucide-react";
+import { getApiErrorMessage, setActiveCurrency } from "@/lib/constants";
+import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCategoryIcon } from "@/lib/category-icons";
 
+const CYCLE_DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
+const CURRENCIES = [
+  { code: "INR", label: "INR - Indian Rupee" },
+  { code: "USD", label: "USD - US Dollar" },
+  { code: "EUR", label: "EUR - Euro" },
+  { code: "GBP", label: "GBP - British Pound" },
+];
 
 export default function Settings() {
   const { toast } = useToast();
@@ -27,15 +37,23 @@ export default function Settings() {
   const [deleteCatId, setDeleteCatId] = useState<number | null>(null);
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [showResetDialog, setShowResetDialog] = useState(false);
+  const [resetConfirmText, setResetConfirmText] = useState("");
 
   const { data: categories, isLoading } = useListCategories(
     {},
     { query: { queryKey: ["/api/categories"] } }
   );
 
+  const { data: settings, isLoading: settingsLoading } = useGetSettings({
+    query: { queryKey: ["/api/settings"] },
+  });
+
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
   const renameCategory = useRenameCategory();
+  const updateSettings = useUpdateSettings();
+  const resetData = useResetData();
 
   const expenseCategories = categories?.filter((c) => c.type === "Expense") ?? [];
   const incomeCategories = categories?.filter((c) => c.type === "Income") ?? [];
@@ -106,13 +124,140 @@ export default function Settings() {
     );
   };
 
+  const handleBillingCycleDayChange = (value: string) => {
+    const day = parseInt(value);
+    updateSettings.mutate(
+      { data: { billingCycleDay: day } },
+      {
+        onSuccess: () => {
+          toast({ title: `Billing cycle start day updated to ${day}` });
+          queryClient.invalidateQueries();
+        },
+        onError: (err) => {
+          toast({ title: "Failed to update billing cycle", description: getApiErrorMessage(err), variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleCurrencyChange = (value: string) => {
+    updateSettings.mutate(
+      { data: { currencyCode: value } },
+      {
+        onSuccess: () => {
+          setActiveCurrency(value);
+          toast({ title: `Currency updated to ${value}` });
+          queryClient.invalidateQueries();
+        },
+        onError: (err) => {
+          toast({ title: "Failed to update currency", description: getApiErrorMessage(err), variant: "destructive" });
+        },
+      }
+    );
+  };
+
+  const handleResetData = () => {
+    resetData.mutate(
+      {},
+      {
+        onSuccess: () => {
+          toast({ title: "All data has been reset" });
+          setShowResetDialog(false);
+          setResetConfirmText("");
+          queryClient.invalidateQueries();
+        },
+        onError: (err) => {
+          toast({ title: "Failed to reset data", description: getApiErrorMessage(err), variant: "destructive" });
+        },
+      }
+    );
+  };
+
   const allCategories = [...expenseCategories, ...incomeCategories];
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your categories and preferences.</p>
+        <p className="text-muted-foreground text-sm mt-1">Manage your categories, billing cycle, currency, and data.</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="bg-card/50 backdrop-blur border-border/60">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="w-5 h-5" /> Billing Cycle
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {settingsLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Set the day of the month when your billing cycle starts. This affects how transactions are grouped across the app.
+                </p>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium whitespace-nowrap">Start day:</span>
+                  <Select
+                    value={String(settings?.billingCycleDay ?? 25)}
+                    onValueChange={handleBillingCycleDayChange}
+                    disabled={updateSettings.isPending}
+                  >
+                    <SelectTrigger className="w-[100px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CYCLE_DAYS.map((day) => (
+                        <SelectItem key={day} value={String(day)}>
+                          {day}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="bg-card/50 backdrop-blur border-border/60">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="w-5 h-5" /> Currency
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {settingsLoading ? (
+              <Skeleton className="h-10 w-full" />
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Choose the currency used to display amounts throughout the app.
+                </p>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium whitespace-nowrap">Currency:</span>
+                  <Select
+                    value={settings?.currencyCode ?? "INR"}
+                    onValueChange={handleCurrencyChange}
+                    disabled={updateSettings.isPending}
+                  >
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((c) => (
+                        <SelectItem key={c.code} value={c.code}>
+                          {c.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="bg-card/50 backdrop-blur border-border/60">
@@ -375,6 +520,28 @@ export default function Settings() {
         </CardContent>
       </Card>
 
+      <Card className="bg-card/50 backdrop-blur border-destructive/30">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2 text-destructive">
+            <AlertTriangle className="w-5 h-5" /> Data Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Reset all transactions, goals, allocations, and account balances. Categories and settings will be preserved.
+            </p>
+            <Button
+              variant="destructive"
+              onClick={() => setShowResetDialog(true)}
+              className="font-mono text-xs uppercase tracking-wider"
+            >
+              Reset All Data
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Dialog open={deleteCatId !== null} onOpenChange={(open) => { if (!open) setDeleteCatId(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
@@ -389,6 +556,42 @@ export default function Settings() {
             </DialogClose>
             <Button variant="destructive" onClick={confirmDeleteCategory} disabled={deleteCategory.isPending}>
               {deleteCategory.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showResetDialog} onOpenChange={(open) => { if (!open) { setShowResetDialog(false); setResetConfirmText(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="w-5 h-5" /> Reset All Data
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              This will permanently delete all transactions, goals, surplus allocations, budget goals, and monthly configs. Account balances will be reset to zero. Categories and settings will be preserved.
+            </p>
+            <p className="text-sm font-medium">
+              Type <span className="font-mono text-destructive">RESET</span> to confirm:
+            </p>
+            <Input
+              value={resetConfirmText}
+              onChange={(e) => setResetConfirmText(e.target.value)}
+              placeholder="Type RESET to confirm"
+              className="font-mono"
+            />
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <Button
+              variant="destructive"
+              onClick={handleResetData}
+              disabled={resetConfirmText !== "RESET" || resetData.isPending}
+            >
+              {resetData.isPending ? "Resetting..." : "Reset All Data"}
             </Button>
           </DialogFooter>
         </DialogContent>

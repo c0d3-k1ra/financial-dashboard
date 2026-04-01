@@ -3,6 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { db, transactionsTable, budgetGoalsTable, categoriesTable, accountsTable } from "@workspace/db";
 import { GetBudgetAnalysisQueryParams } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
+import { getAppSettings } from "../lib/settings-helper";
 
 const FIXED_CATEGORY_PATTERNS = [/emi/i, /sip/i, /insurance/i];
 
@@ -35,7 +36,8 @@ router.get("/budget-analysis", async (req, res) => {
       return;
     }
 
-    const { startDate, endDate } = getCycleDates(month);
+    const settings = await getAppSettings();
+    const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const start = new Date(startDate + "T00:00:00");
     const end = new Date(endDate + "T00:00:00");

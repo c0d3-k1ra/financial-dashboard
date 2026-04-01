@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, goalsTable, surplusAllocationsTable, accountsTable } from "@workspace/db";
 import { DistributeSurplusBody } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
+import { getAppSettings } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
@@ -27,7 +28,8 @@ router.get("/surplus/monthly", async (req, res) => {
       return;
     }
 
-    const { startDate, endDate } = getCycleDates(month);
+    const settings = await getAppSettings();
+    const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const incomeResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
@@ -92,7 +94,8 @@ router.post("/surplus/distribute", async (req, res) => {
       return;
     }
 
-    const { startDate, endDate } = getCycleDates(month);
+    const settings = await getAppSettings();
+    const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const incomeResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })

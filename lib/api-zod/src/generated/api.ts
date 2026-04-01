@@ -650,3 +650,32 @@ export const GetCcDuesResponseItem = zod.object({
   creditLimit: zod.string().nullish(),
 });
 export const GetCcDuesResponse = zod.array(GetCcDuesResponseItem);
+
+/**
+ * @summary Get application settings
+ */
+export const GetSettingsResponse = zod.object({
+  billingCycleDay: zod.number(),
+  currencyCode: zod.string(),
+});
+
+/**
+ * @summary Update application settings
+ */
+export const UpdateSettingsBody = zod.object({
+  billingCycleDay: zod.number().optional(),
+  currencyCode: zod.string().optional(),
+});
+
+export const UpdateSettingsResponse = zod.object({
+  billingCycleDay: zod.number(),
+  currencyCode: zod.string(),
+});
+
+/**
+ * @summary Reset all transaction data (keeps categories and settings)
+ */
+export const ResetDataResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});

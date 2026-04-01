@@ -2,10 +2,11 @@ import { Router, type IRouter } from "express";
 import { sql, eq } from "drizzle-orm";
 import { db, transactionsTable, accountsTable } from "@workspace/db";
 import { getCycleDates } from "../lib/billing-cycle";
+import { getAppSettings } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
-function buildLast6Cycles(month: string): { label: string; startDate: string; endDate: string }[] {
+function buildLast6Cycles(month: string, cycleDay: number = 25): { label: string; startDate: string; endDate: string }[] {
   const [yearStr, monthStr] = month.split("-");
   const year = parseInt(yearStr);
   const mo = parseInt(monthStr);
@@ -19,7 +20,7 @@ function buildLast6Cycles(month: string): { label: string; startDate: string; en
       cYear--;
     }
     const cMonthStr = `${cYear}-${String(cMonth).padStart(2, "0")}`;
-    const { startDate, endDate } = getCycleDates(cMonthStr);
+    const { startDate, endDate } = getCycleDates(cMonthStr, cycleDay);
 
     const startLabel = new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const endLabel = new Date(endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -37,7 +38,8 @@ router.get("/trends/cc-spend", async (req, res) => {
       return;
     }
 
-    const cycles = buildLast6Cycles(month);
+    const settings = await getAppSettings();
+    const cycles = buildLast6Cycles(month, settings.billingCycleDay);
     const results: { cycle: string; total: string }[] = [];
 
     for (const cycle of cycles) {
@@ -72,7 +74,8 @@ router.get("/trends/living-expenses", async (req, res) => {
       return;
     }
 
-    const cycles = buildLast6Cycles(month);
+    const settings = await getAppSettings();
+    const cycles = buildLast6Cycles(month, settings.billingCycleDay);
     const results: { cycle: string; total: string }[] = [];
 
     for (const cycle of cycles) {

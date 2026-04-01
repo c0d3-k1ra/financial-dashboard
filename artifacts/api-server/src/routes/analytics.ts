@@ -2,12 +2,13 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, accountsTable } from "@workspace/db";
 import { getCycleDates } from "../lib/billing-cycle";
+import { getAppSettings } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
 const EXCLUDED_CATEGORIES = ["Adjustment", "Transfer"];
 
-function buildLast6Cycles(month: string): { label: string; startDate: string; endDate: string }[] {
+function buildLast6Cycles(month: string, cycleDay: number = 25): { label: string; startDate: string; endDate: string }[] {
   const [yearStr, monthStr] = month.split("-");
   const year = parseInt(yearStr);
   const mo = parseInt(monthStr);
@@ -21,7 +22,7 @@ function buildLast6Cycles(month: string): { label: string; startDate: string; en
       cYear--;
     }
     const cMonthStr = `${cYear}-${String(cMonth).padStart(2, "0")}`;
-    const { startDate, endDate } = getCycleDates(cMonthStr);
+    const { startDate, endDate } = getCycleDates(cMonthStr, cycleDay);
 
     const startLabel = new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
     const endLabel = new Date(endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
@@ -44,7 +45,8 @@ router.get("/analytics/spend-by-category", async (req, res) => {
       res.status(400).json({ error: "Invalid accountType. Expected one of: all, cc, non_cc." });
       return;
     }
-    const { startDate, endDate } = getCycleDates(month);
+    const settings = await getAppSettings();
+    const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     let accountFilter = sql`1=1`;
     if (accountType === "cc") {
@@ -91,7 +93,8 @@ router.get("/analytics/category-trend", async (req, res) => {
       return;
     }
 
-    const cycles = buildLast6Cycles(month);
+    const settings = await getAppSettings();
+    const cycles = buildLast6Cycles(month, settings.billingCycleDay);
 
     const allCategories = await db
       .selectDistinct({ category: transactionsTable.category })

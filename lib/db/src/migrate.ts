@@ -97,6 +97,20 @@ export async function runStartupMigrations() {
   `);
 
   await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "app_settings" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "billing_cycle_day" integer NOT NULL DEFAULT 25,
+      "currency_code" text NOT NULL DEFAULT 'INR'
+    )
+  `);
+
+  await db.execute(sql`
+    INSERT INTO "app_settings" ("id", "billing_cycle_day", "currency_code")
+    VALUES (1, 25, 'INR')
+    ON CONFLICT ("id") DO NOTHING
+  `);
+
+  await db.execute(sql`
     DO $$
     BEGIN
       IF EXISTS (

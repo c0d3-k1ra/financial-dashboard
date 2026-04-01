@@ -24,11 +24,29 @@ export const INCOME_CATEGORIES = [
   "Other"
 ] as const;
 
+const CURRENCY_LOCALE_MAP: Record<string, string> = {
+  INR: "en-IN",
+  USD: "en-US",
+  EUR: "de-DE",
+  GBP: "en-GB",
+};
+
+let activeCurrencyCode = "INR";
+
+export function setActiveCurrency(code: string) {
+  activeCurrencyCode = code;
+}
+
+export function getActiveCurrency(): string {
+  return activeCurrencyCode;
+}
+
 export const formatCurrency = (amount: number | string) => {
   const num = typeof amount === "string" ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat("en-IN", {
+  const locale = CURRENCY_LOCALE_MAP[activeCurrencyCode] || "en-US";
+  return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "INR",
+    currency: activeCurrencyCode,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(num || 0);

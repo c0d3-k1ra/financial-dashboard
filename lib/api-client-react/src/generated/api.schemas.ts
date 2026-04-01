@@ -294,6 +294,21 @@ export interface CategoryTrendItem {
   data: CategoryTrendItemDataItem[];
 }
 
+export interface AppSettings {
+  billingCycleDay: number;
+  currencyCode: string;
+}
+
+export interface UpdateSettings {
+  billingCycleDay?: number;
+  currencyCode?: string;
+}
+
+export interface ResetDataResult {
+  success: boolean;
+  message: string;
+}
+
 export interface CcDueItem {
   id: number;
   name: string;

@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable, accountsTable, categoriesTable } from "@workspace/db";
 import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { getCycleDates, generateCycleOptions } from "../lib/billing-cycle";
+import { getAppSettings } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
@@ -14,7 +15,8 @@ router.get("/dashboard/summary", async (req, res) => {
       return;
     }
 
-    const { startDate, endDate } = getCycleDates(month);
+    const settings = await getAppSettings();
+    const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const config = await db
       .select()
@@ -119,13 +121,14 @@ router.get("/dashboard/summary", async (req, res) => {
 
 router.get("/dashboard/monthly-trend", async (req, res) => {
   try {
+    const settings = await getAppSettings();
     const now = new Date();
     const trendData = [];
 
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const { startDate, endDate } = getCycleDates(month);
+      const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
       const incomeResult = await db
         .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
@@ -153,7 +156,8 @@ router.get("/dashboard/monthly-trend", async (req, res) => {
 
 router.get("/billing-cycles", async (_req, res) => {
   try {
-    const cycles = generateCycleOptions(12);
+    const settings = await getAppSettings();
+    const cycles = generateCycleOptions(12, settings.billingCycleDay);
     res.json(cycles.map((c) => ({ label: c.label, startDate: c.startDate, endDate: c.endDate })));
   } catch (e) {
     res.status(500).json({ error: "Internal error" });

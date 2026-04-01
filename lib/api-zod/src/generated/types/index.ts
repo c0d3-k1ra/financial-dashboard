@@ -7,6 +7,7 @@
  */
 
 export * from "./accountItem";
+export * from "./appSettings";
 export * from "./billingCycle";
 export * from "./budgetAnalysisResponse";
 export * from "./budgetAnalysisRow";
@@ -54,8 +55,10 @@ export * from "./projectionPoint";
 export * from "./reconcileRequest";
 export * from "./reconcileResult";
 export * from "./renameCategory";
+export * from "./resetDataResult";
 export * from "./surplusAllocation";
 export * from "./transaction";
 export * from "./updateGoal";
+export * from "./updateSettings";
 export * from "./waterfallData";
 export * from "./waterfallDataGoalAllocationsItem";

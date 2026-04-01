@@ -16,7 +16,7 @@ SurplusEngine — a personal finance web application that tracks bank balances, 
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (API server), Vite (frontend)
 - **Frontend**: React + Vite + Tailwind CSS + shadcn/ui + Recharts
-- **Currency**: Indian Rupee (INR) with `en-IN` locale formatting
+- **Currency**: Configurable (INR/USD/EUR/GBP) via app_settings table, with locale-aware formatting
 
 ## Structure
 

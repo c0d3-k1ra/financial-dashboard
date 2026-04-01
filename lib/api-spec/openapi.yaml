@@ -34,6 +34,8 @@ tags:
     description: Trend analytics
   - name: analytics
     description: Category analytics and CC dues
+  - name: settings
+    description: Application settings
 
 paths:
   /healthz:
@@ -832,6 +834,49 @@ paths:
                 items:
                   $ref: "#/components/schemas/CcDueItem"
 
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get application settings
+      responses:
+        "200":
+          description: Application settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+    put:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update application settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettings"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppSettings"
+
+  /settings/reset-data:
+    post:
+      operationId: resetData
+      tags: [settings]
+      summary: Reset all transaction data (keeps categories and settings)
+      responses:
+        "200":
+          description: Reset result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResetDataResult"
+
 components:
   schemas:
     HealthStatus:
@@ -1498,6 +1543,36 @@ components:
       required:
         - category
         - data
+
+    AppSettings:
+      type: object
+      properties:
+        billingCycleDay:
+          type: integer
+        currencyCode:
+          type: string
+      required:
+        - billingCycleDay
+        - currencyCode
+
+    UpdateSettings:
+      type: object
+      properties:
+        billingCycleDay:
+          type: integer
+        currencyCode:
+          type: string
+
+    ResetDataResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
 
     CcDueItem:
       type: object
