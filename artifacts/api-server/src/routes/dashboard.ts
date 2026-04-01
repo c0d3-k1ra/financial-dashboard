@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable } from "@workspace/db";
+import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable, accountsTable } from "@workspace/db";
 import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { getCycleDates, generateCycleOptions } from "../lib/billing-cycle";
 
@@ -38,13 +38,14 @@ router.get("/dashboard/summary", async (req, res) => {
     const endBalance = startingBalance + totalIncome - totalExpenses;
     const monthlySurplus = totalIncome - totalExpenses;
 
-    const ccResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.category} = 'Credit Card (CC)' AND ${transactionsTable.type} != 'Transfer' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
-
-    const unpaidCcDues = Number(ccResult[0]?.total ?? 0);
-    const netLiquidity = endBalance - unpaidCcDues;
+    const allAccounts = await db.select().from(accountsTable);
+    const totalBankBalance = allAccounts
+      .filter(a => a.type === "bank")
+      .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+    const totalCcOutstanding = allAccounts
+      .filter(a => a.type === "credit_card")
+      .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
+    const netLiquidity = totalBankBalance - totalCcOutstanding;
 
     const livingResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
@@ -62,8 +63,8 @@ router.get("/dashboard/summary", async (req, res) => {
     const burnRate = plannedLivingExpenses > 0 ? (actualLivingExpenses / plannedLivingExpenses) * 100 : 0;
 
     res.json({
-      bankBalance: endBalance.toFixed(2),
-      unpaidCcDues: unpaidCcDues.toFixed(2),
+      bankBalance: totalBankBalance.toFixed(2),
+      unpaidCcDues: totalCcOutstanding.toFixed(2),
       netLiquidity: netLiquidity.toFixed(2),
       totalIncome: totalIncome.toFixed(2),
       totalExpenses: totalExpenses.toFixed(2),
