@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable, accountsTable } from "@workspace/db";
+import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable, accountsTable, categoriesTable } from "@workspace/db";
 import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { getCycleDates, generateCycleOptions } from "../lib/billing-cycle";
 
@@ -53,8 +53,16 @@ router.get("/dashboard/summary", async (req, res) => {
       .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
     const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
 
+    const expenseCategories = await db
+      .select()
+      .from(categoriesTable)
+      .where(eq(categoriesTable.type, "Expense"));
+    const expenseCatNames = new Set(expenseCategories.map(c => c.name));
+
     const allBudgetGoals = await db.select().from(budgetGoalsTable);
-    const plannedExpenses = allBudgetGoals.reduce((sum, g) => sum + Number(g.plannedAmount ?? 0), 0);
+    const plannedExpenses = allBudgetGoals
+      .filter(g => expenseCatNames.has(g.category))
+      .reduce((sum, g) => sum + Number(g.plannedAmount ?? 0), 0);
     const actualExpenses = totalExpenses;
     const burnRate = plannedExpenses > 0 ? (actualExpenses / plannedExpenses) * 100 : 0;
 
