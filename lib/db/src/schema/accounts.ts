@@ -1,4 +1,4 @@
-import { pgTable, serial, text, numeric, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, numeric, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,7 @@ export const accountsTable = pgTable("accounts", {
   loanTenure: integer("loan_tenure"),
   interestRate: numeric("interest_rate", { precision: 5, scale: 2 }),
   linkedAccountId: integer("linked_account_id"),
+  useInSurplus: boolean("use_in_surplus").notNull().default(false),
 });
 
 export const insertAccountSchema = createInsertSchema(accountsTable).omit({ id: true });

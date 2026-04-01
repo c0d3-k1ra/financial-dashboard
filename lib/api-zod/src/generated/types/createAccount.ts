@@ -16,4 +16,5 @@ export interface CreateAccount {
   emiDay?: number | null;
   loanTenure?: number | null;
   interestRate?: string | null;
+  useInSurplus?: boolean;
 }

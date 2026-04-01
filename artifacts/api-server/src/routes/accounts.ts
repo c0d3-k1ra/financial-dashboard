@@ -57,6 +57,7 @@ router.post("/accounts", async (req, res) => {
         loanTenure: data.type === "loan" ? (data.loanTenure ?? null) : null,
         interestRate: data.type === "loan" ? (data.interestRate || null) : null,
         linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
+        useInSurplus: data.useInSurplus ?? false,
       })
       .returning();
     res.status(201).json(created);
@@ -109,6 +110,7 @@ router.put("/accounts/:id", async (req, res) => {
         loanTenure: data.type === "loan" ? (data.loanTenure ?? null) : null,
         interestRate: data.type === "loan" ? (data.interestRate || null) : null,
         linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
+        useInSurplus: data.useInSurplus ?? false,
       })
       .where(eq(accountsTable.id, id))
       .returning();

@@ -957,6 +957,12 @@ components:
           type: string
         totalExpenses:
           type: string
+        ccExpenses:
+          type: string
+        nonCcExpenses:
+          type: string
+        ccTransfers:
+          type: string
         monthlySurplus:
           type: string
         burnRate:
@@ -979,6 +985,9 @@ components:
         - netLiquidity
         - totalIncome
         - totalExpenses
+        - ccExpenses
+        - nonCcExpenses
+        - ccTransfers
         - monthlySurplus
         - burnRate
         - plannedExpenses
@@ -1068,6 +1077,8 @@ components:
         interestRate:
           type: string
           nullable: true
+        useInSurplus:
+          type: boolean
       required:
         - id
         - name
@@ -1101,6 +1112,8 @@ components:
         interestRate:
           type: string
           nullable: true
+        useInSurplus:
+          type: boolean
       required:
         - name
         - type

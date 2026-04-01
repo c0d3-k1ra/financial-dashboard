@@ -17,4 +17,5 @@ export interface AccountItem {
   emiDay?: number | null;
   loanTenure?: number | null;
   interestRate?: string | null;
+  useInSurplus?: boolean;
 }

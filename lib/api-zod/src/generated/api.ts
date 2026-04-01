@@ -163,6 +163,9 @@ export const GetDashboardSummaryResponse = zod.object({
   netLiquidity: zod.string(),
   totalIncome: zod.string(),
   totalExpenses: zod.string(),
+  ccExpenses: zod.string(),
+  nonCcExpenses: zod.string(),
+  ccTransfers: zod.string(),
   monthlySurplus: zod.string(),
   burnRate: zod.number(),
   plannedExpenses: zod.string(),
@@ -412,6 +415,7 @@ export const ListAccountsResponseItem = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  useInSurplus: zod.boolean().optional(),
 });
 export const ListAccountsResponse = zod.array(ListAccountsResponseItem);
 
@@ -428,6 +432,7 @@ export const CreateAccountBody = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  useInSurplus: zod.boolean().optional(),
 });
 
 /**
@@ -447,6 +452,7 @@ export const UpdateAccountBody = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  useInSurplus: zod.boolean().optional(),
 });
 
 export const UpdateAccountResponse = zod.object({
@@ -460,6 +466,7 @@ export const UpdateAccountResponse = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  useInSurplus: zod.boolean().optional(),
 });
 
 /**

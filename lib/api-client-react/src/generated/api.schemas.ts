@@ -58,6 +58,9 @@ export interface DashboardSummary {
   netLiquidity: string;
   totalIncome: string;
   totalExpenses: string;
+  ccExpenses: string;
+  nonCcExpenses: string;
+  ccTransfers: string;
   monthlySurplus: string;
   burnRate: number;
   plannedExpenses: string;
@@ -100,6 +103,7 @@ export interface AccountItem {
   emiDay?: number | null;
   loanTenure?: number | null;
   interestRate?: string | null;
+  useInSurplus?: boolean;
 }
 
 export interface CreateAccount {
@@ -112,6 +116,7 @@ export interface CreateAccount {
   emiDay?: number | null;
   loanTenure?: number | null;
   interestRate?: string | null;
+  useInSurplus?: boolean;
 }
 
 export interface CategoryItem {
