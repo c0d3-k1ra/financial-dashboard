@@ -202,7 +202,7 @@ router.post("/surplus/distribute", async (req, res) => {
       const config = await tx.select().from(monthlyConfigTable).where(eq(monthlyConfigTable.month, month));
       const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
       const totalIncome = Number(incomeResult[0]?.total ?? 0);
-      const totalExpenses = Number(expenseResult[0]?.total ?? 0);
+      const totalExpenses = extractTotal(bankExpResult) + extractTotal(ccTrResult);
       const endBalance = startingBalance + totalIncome - totalExpenses;
       const nextMonth = getNextMonth(month);
 
