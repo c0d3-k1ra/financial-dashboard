@@ -957,9 +957,7 @@ components:
           type: string
         totalExpenses:
           type: string
-        ccExpenses:
-          type: string
-        nonCcExpenses:
+        bankExpenses:
           type: string
         ccTransfers:
           type: string
@@ -985,8 +983,7 @@ components:
         - netLiquidity
         - totalIncome
         - totalExpenses
-        - ccExpenses
-        - nonCcExpenses
+        - bankExpenses
         - ccTransfers
         - monthlySurplus
         - burnRate

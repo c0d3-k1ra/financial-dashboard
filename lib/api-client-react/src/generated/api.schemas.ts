@@ -58,8 +58,7 @@ export interface DashboardSummary {
   netLiquidity: string;
   totalIncome: string;
   totalExpenses: string;
-  ccExpenses: string;
-  nonCcExpenses: string;
+  bankExpenses: string;
   ccTransfers: string;
   monthlySurplus: string;
   burnRate: number;

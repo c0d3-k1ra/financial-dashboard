@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, goalsTable, surplusAllocationsTable, accountsTable } from "@workspace/db";
 import { DistributeSurplusBody } from "@workspace/api-zod";
+import { getCycleDates } from "../lib/billing-cycle";
 
 const router: IRouter = Router();
 
@@ -13,6 +14,11 @@ function getNextMonth(month: string): string {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
+function extractTotal(result: unknown): number {
+  const rows = (result as { rows: { total: string }[] }).rows;
+  return Number(rows?.[0]?.total ?? 0);
+}
+
 router.get("/surplus/monthly", async (req, res) => {
   try {
     const month = req.query.month as string;
@@ -21,32 +27,32 @@ router.get("/surplus/monthly", async (req, res) => {
       return;
     }
 
+    const { startDate, endDate } = getCycleDates(month);
+
     const incomeResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Income' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
-    const bankExpenseResult = await db.execute<{ total: string }>(sql`
+    const bankExpenseResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
       INNER JOIN ${accountsTable} a ON a.id = t.account_id
       WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank'
-        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
-    const ccTransferResult = await db.execute<{ total: string }>(sql`
+    const ccTransferResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
       INNER JOIN ${accountsTable} a ON a.id = t.to_account_id
       WHERE t.type = 'Transfer' AND a.type = 'credit_card'
-        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
     const income = Number(incomeResult[0]?.total ?? 0);
-    const beRows = (bankExpenseResult as unknown as { rows: { total: string }[] }).rows;
-    const ctRows = (ccTransferResult as unknown as { rows: { total: string }[] }).rows;
-    const bankExpenses = Number(beRows?.[0]?.total ?? 0);
-    const ccTransfers = Number(ctRows?.[0]?.total ?? 0);
+    const bankExpenses = extractTotal(bankExpenseResult);
+    const ccTransfers = extractTotal(ccTransferResult);
     const expenses = bankExpenses + ccTransfers;
     const surplus = income - expenses;
 
@@ -86,30 +92,30 @@ router.post("/surplus/distribute", async (req, res) => {
       return;
     }
 
+    const { startDate, endDate } = getCycleDates(month);
+
     const incomeResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Income' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
-    const bankExpResult = await db.execute<{ total: string }>(sql`
+    const bankExpResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
       INNER JOIN ${accountsTable} a ON a.id = t.account_id
       WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank'
-        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
-    const ccTrResult = await db.execute<{ total: string }>(sql`
+    const ccTrResult = await db.execute(sql`
       SELECT COALESCE(SUM(t.amount::numeric), 0) as total
       FROM ${transactionsTable} t
       INNER JOIN ${accountsTable} a ON a.id = t.to_account_id
       WHERE t.type = 'Transfer' AND a.type = 'credit_card'
-        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
     `);
 
-    const beRows2 = (bankExpResult as unknown as { rows: { total: string }[] }).rows;
-    const ctRows2 = (ccTrResult as unknown as { rows: { total: string }[] }).rows;
-    const surplus = Number(incomeResult[0]?.total ?? 0) - Number(beRows2?.[0]?.total ?? 0) - Number(ctRows2?.[0]?.total ?? 0);
+    const surplus = Number(incomeResult[0]?.total ?? 0) - extractTotal(bankExpResult) - extractTotal(ccTrResult);
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });
