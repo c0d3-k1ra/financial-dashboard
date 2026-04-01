@@ -258,6 +258,23 @@ export default function Transactions() {
       ),
     },
     {
+      header: "Account",
+      cardLabel: "Account",
+      accessorKey: "accountId" as const,
+      cell: (tx: Transaction) => {
+        const acct = accounts?.find((a) => a.id === tx.accountId);
+        const toAcct = tx.toAccountId ? accounts?.find((a) => a.id === tx.toAccountId) : null;
+        if (tx.type === "Transfer" && acct && toAcct) {
+          return (
+            <span className="text-xs font-mono text-muted-foreground">
+              {acct.name} → {toAcct.name}
+            </span>
+          );
+        }
+        return <span className="text-xs font-mono text-muted-foreground">{acct?.name ?? "—"}</span>;
+      },
+    },
+    {
       header: (
         <button onClick={() => toggleSort("amount")} className="flex items-center justify-end w-full hover:text-foreground transition-colors">
           Amount <SortIcon field="amount" />
