@@ -26,19 +26,29 @@ router.get("/surplus/monthly", async (req, res) => {
       .from(transactionsTable)
       .where(sql`${transactionsTable.type} = 'Income' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
 
-    const expenseResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+    const bankExpenseResult = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
+      FROM ${transactionsTable} t
+      INNER JOIN ${accountsTable} a ON a.id = t.account_id
+      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank'
+        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+    `);
+
+    const ccTransferResult = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
+      FROM ${transactionsTable} t
+      INNER JOIN ${accountsTable} a ON a.id = t.to_account_id
+      WHERE t.type = 'Transfer' AND a.type = 'credit_card'
+        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+    `);
 
     const income = Number(incomeResult[0]?.total ?? 0);
-    const expenses = Number(expenseResult[0]?.total ?? 0);
-
-    const surplusAccounts = await db
-      .select({ currentBalance: accountsTable.currentBalance })
-      .from(accountsTable)
-      .where(eq(accountsTable.useInSurplus, true));
-    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+    const beRows = (bankExpenseResult as unknown as { rows: { total: string }[] }).rows;
+    const ctRows = (ccTransferResult as unknown as { rows: { total: string }[] }).rows;
+    const bankExpenses = Number(beRows?.[0]?.total ?? 0);
+    const ccTransfers = Number(ctRows?.[0]?.total ?? 0);
+    const expenses = bankExpenses + ccTransfers;
+    const surplus = income - expenses;
 
     res.json({
       month,
@@ -81,16 +91,25 @@ router.post("/surplus/distribute", async (req, res) => {
       .from(transactionsTable)
       .where(sql`${transactionsTable.type} = 'Income' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
 
-    const expenseResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND to_char(${transactionsTable.date}::date, 'YYYY-MM') = ${month}`);
+    const bankExpResult = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
+      FROM ${transactionsTable} t
+      INNER JOIN ${accountsTable} a ON a.id = t.account_id
+      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank'
+        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+    `);
 
-    const surplusAccounts = await db
-      .select({ currentBalance: accountsTable.currentBalance })
-      .from(accountsTable)
-      .where(eq(accountsTable.useInSurplus, true));
-    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+    const ccTrResult = await db.execute<{ total: string }>(sql`
+      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
+      FROM ${transactionsTable} t
+      INNER JOIN ${accountsTable} a ON a.id = t.to_account_id
+      WHERE t.type = 'Transfer' AND a.type = 'credit_card'
+        AND to_char(t.date::date, 'YYYY-MM') = ${month}
+    `);
+
+    const beRows2 = (bankExpResult as unknown as { rows: { total: string }[] }).rows;
+    const ctRows2 = (ccTrResult as unknown as { rows: { total: string }[] }).rows;
+    const surplus = Number(incomeResult[0]?.total ?? 0) - Number(beRows2?.[0]?.total ?? 0) - Number(ctRows2?.[0]?.total ?? 0);
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });
