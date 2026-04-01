@@ -49,7 +49,8 @@ router.get("/trends/cc-spend", async (req, res) => {
         .innerJoin(accountsTable, eq(transactionsTable.accountId, accountsTable.id))
         .where(
           sql`${accountsTable.type} = 'credit_card'
-              AND ${transactionsTable.type} != 'Transfer'
+              AND ${transactionsTable.type} = 'Expense'
+              AND ${transactionsTable.category} != 'Adjustment'
               AND ${transactionsTable.date}::date >= ${cycle.startDate}::date
               AND ${transactionsTable.date}::date <= ${cycle.endDate}::date`
         );
