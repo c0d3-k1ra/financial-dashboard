@@ -19,6 +19,7 @@ import {
   useGetGoalsWaterfall,
   getGetGoalsWaterfallQueryKey,
   useListAccounts,
+  getListAccountsQueryKey,
   useGetMonthlySurplus,
   getGetMonthlySurplusQueryKey,
   useDistributeSurplus,
@@ -873,6 +874,8 @@ export default function Dashboard() {
                       queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
                       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
                       queryClient.invalidateQueries({ queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) });
+                      queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+                      queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
                     }
                   },
                   onError: (err) => {
@@ -938,6 +941,8 @@ export default function Dashboard() {
                         queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
                         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
                         queryClient.invalidateQueries({ queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) });
+                        queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+                        queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
                       }
                     },
                     onError: (err) => {

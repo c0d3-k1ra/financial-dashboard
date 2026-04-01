@@ -1,4 +1,4 @@
-import { useListAccounts, getListAccountsQueryKey, useCreateTransfer } from "@workspace/api-client-react";
+import { useListAccounts, getListAccountsQueryKey, useCreateTransfer, getGetDashboardSummaryQueryKey, getGetMonthlySurplusQueryKey } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -67,6 +67,8 @@ export default function TransferModal({ open, onOpenChange }: TransferModalProps
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
           queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Transfer failed", description: String(err), variant: "destructive" });

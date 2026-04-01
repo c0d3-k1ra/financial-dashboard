@@ -7,6 +7,8 @@ import {
   useReconcileAccount,
   useUpdateAccount,
   useProcessEmis,
+  getGetDashboardSummaryQueryKey,
+  getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -116,6 +118,8 @@ export default function Accounts() {
           toast({ title: "Account updated" });
           setEditId(null);
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to update account", description: getApiErrorMessage(err), variant: "destructive" });
@@ -137,6 +141,8 @@ export default function Accounts() {
           setReconcileId(null);
           setReconcileBalance("");
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Reconciliation Failed", description: getApiErrorMessage(err), variant: "destructive" });
@@ -183,6 +189,8 @@ export default function Accounts() {
           setIsDialogOpen(false);
           form.reset();
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to create account", description: getApiErrorMessage(err), variant: "destructive" });
@@ -200,6 +208,8 @@ export default function Accounts() {
           toast({ title: "Account deleted" });
           setDeleteAccountId(null);
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to delete account", description: getApiErrorMessage(err), variant: "destructive" });
@@ -224,6 +234,8 @@ export default function Accounts() {
             });
           }
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to process EMIs", description: getApiErrorMessage(err), variant: "destructive" });

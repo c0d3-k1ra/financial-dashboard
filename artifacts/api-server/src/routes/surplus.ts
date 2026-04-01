@@ -38,19 +38,28 @@ router.get("/surplus/monthly", async (req, res) => {
 
     const grossBalance = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
 
-    const surplusAccountIds = surplusAccounts.map(a => a.id);
-    const activeGoals = surplusAccountIds.length > 0
+    const allAccounts = await db.select().from(accountsTable);
+    const totalCcOutstanding = allAccounts
+      .filter(a => a.type === "credit_card")
+      .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
+    const activeLoanAccounts = allAccounts.filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0);
+    const activeLoanIds = activeLoanAccounts.map(a => a.id);
+    const emiPaidResult = activeLoanIds.length > 0
       ? await db
-          .select({ currentAmount: goalsTable.currentAmount })
-          .from(goalsTable)
-          .where(and(
-            sql`${goalsTable.accountId} IN (${sql.join(surplusAccountIds.map(id => sql`${id}`), sql`, `)})`,
-            ne(goalsTable.status, "Achieved"),
-          ))
+          .select({ toAccountId: transactionsTable.toAccountId, accountId: transactionsTable.accountId })
+          .from(transactionsTable)
+          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.date}::text LIKE ${month + '%'}`)
       : [];
+    const emiPaidLoanIds = new Set<number>();
+    for (const r of emiPaidResult) {
+      if (r.toAccountId && activeLoanIds.includes(r.toAccountId)) emiPaidLoanIds.add(r.toAccountId);
+      else if (r.accountId && activeLoanIds.includes(r.accountId)) emiPaidLoanIds.add(r.accountId);
+    }
+    const totalEmiDue = activeLoanAccounts
+      .filter(a => !emiPaidLoanIds.has(a.id))
+      .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
 
-    const goalCommitments = activeGoals.reduce((sum, g) => sum + Number(g.currentAmount ?? 0), 0);
-    const surplus = grossBalance - goalCommitments;
+    const surplus = grossBalance - totalEmiDue - totalCcOutstanding;
 
     res.json({
       month,
@@ -96,19 +105,28 @@ router.post("/surplus/distribute", async (req, res) => {
 
     const grossBalance = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
 
-    const surplusAccountIds = surplusAccounts.map(a => a.id);
-    const activeGoalsForSurplus = surplusAccountIds.length > 0
+    const allAccountsForSurplus = await db.select().from(accountsTable);
+    const totalCcOutstandingForSurplus = allAccountsForSurplus
+      .filter(a => a.type === "credit_card")
+      .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
+    const activeLoanAccountsForSurplus = allAccountsForSurplus.filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0);
+    const activeLoanIdsForSurplus = activeLoanAccountsForSurplus.map(a => a.id);
+    const emiPaidResultForSurplus = activeLoanIdsForSurplus.length > 0
       ? await db
-          .select({ currentAmount: goalsTable.currentAmount })
-          .from(goalsTable)
-          .where(and(
-            sql`${goalsTable.accountId} IN (${sql.join(surplusAccountIds.map(id => sql`${id}`), sql`, `)})`,
-            ne(goalsTable.status, "Achieved"),
-          ))
+          .select({ toAccountId: transactionsTable.toAccountId, accountId: transactionsTable.accountId })
+          .from(transactionsTable)
+          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.date}::text LIKE ${month + '%'}`)
       : [];
+    const emiPaidLoanIdsForSurplus = new Set<number>();
+    for (const r of emiPaidResultForSurplus) {
+      if (r.toAccountId && activeLoanIdsForSurplus.includes(r.toAccountId)) emiPaidLoanIdsForSurplus.add(r.toAccountId);
+      else if (r.accountId && activeLoanIdsForSurplus.includes(r.accountId)) emiPaidLoanIdsForSurplus.add(r.accountId);
+    }
+    const totalEmiDueForSurplus = activeLoanAccountsForSurplus
+      .filter(a => !emiPaidLoanIdsForSurplus.has(a.id))
+      .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
 
-    const goalCommitments = activeGoalsForSurplus.reduce((sum, g) => sum + Number(g.currentAmount ?? 0), 0);
-    const surplus = grossBalance - goalCommitments;
+    const surplus = grossBalance - totalEmiDueForSurplus - totalCcOutstandingForSurplus;
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });

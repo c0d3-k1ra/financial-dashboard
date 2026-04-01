@@ -21,7 +21,7 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { getGetDashboardSummaryQueryKey } from "@workspace/api-client-react";
+import { getGetDashboardSummaryQueryKey, getGetMonthlySurplusQueryKey } from "@workspace/api-client-react";
 
 const formSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -114,6 +114,7 @@ export default function CreateTransactionDialog({ open, onOpenChange }: CreateTr
           queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
           queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to add transaction", description: getApiErrorMessage(err), variant: "destructive" });

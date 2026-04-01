@@ -60,7 +60,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const endBalance = startingBalance + totalIncome - totalExpenses;
 
     const allAccounts = await db.select().from(accountsTable);
-    const monthlySurplus = allAccounts
+    const grossSurplusBalance = allAccounts
       .filter(a => a.useInSurplus)
       .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
     const totalBankBalance = allAccounts
@@ -94,6 +94,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalEmiDue = activeLoanAccounts
       .filter(a => !emiPaidLoanIds.has(a.id))
       .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
+    const monthlySurplus = grossSurplusBalance - totalEmiDue - totalCcOutstanding;
     const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
 
     const expenseCategories = await db

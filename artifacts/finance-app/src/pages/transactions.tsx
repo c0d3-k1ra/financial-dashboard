@@ -9,6 +9,8 @@ import {
   useCreateCategory,
   useListAccounts,
   getListAccountsQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
 import type { Transaction } from "@workspace/api-client-react";
 
@@ -199,6 +201,8 @@ export default function Transactions() {
           queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(queryParams) });
           queryClient.invalidateQueries({ queryKey: ["/api/transactions"] });
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to add transaction", description: getApiErrorMessage(err), variant: "destructive" });
@@ -217,6 +221,8 @@ export default function Transactions() {
           setDeleteId(null);
           queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey(queryParams) });
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
         },
         onError: (err) => {
           toast({ title: "Failed to delete transaction", description: getApiErrorMessage(err), variant: "destructive" });
