@@ -45,7 +45,13 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalCcOutstanding = allAccounts
       .filter(a => a.type === "credit_card")
       .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
-    const netLiquidity = totalBankBalance - totalCcOutstanding;
+    const totalLoanOutstanding = allAccounts
+      .filter(a => a.type === "loan")
+      .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
+    const totalEmiDue = allAccounts
+      .filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0)
+      .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
+    const netLiquidity = totalBankBalance - totalCcOutstanding - totalLoanOutstanding;
 
     const livingResult = await db
       .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
@@ -74,6 +80,8 @@ router.get("/dashboard/summary", async (req, res) => {
       actualLivingExpenses: actualLivingExpenses.toFixed(2),
       startingBalance: startingBalance.toFixed(2),
       endBalance: endBalance.toFixed(2),
+      totalLoanOutstanding: totalLoanOutstanding.toFixed(2),
+      totalEmiDue: totalEmiDue.toFixed(2),
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to get dashboard summary");

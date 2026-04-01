@@ -21,16 +21,20 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw, Pencil } from "lucide-react";
+import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw, Pencil, Landmark } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  type: z.enum(["bank", "credit_card"]),
+  type: z.enum(["bank", "credit_card", "loan"]),
   currentBalance: z.string().optional(),
   creditLimit: z.string().optional(),
   billingDueDay: z.string().optional(),
+  emiAmount: z.string().optional(),
+  emiDay: z.string().optional(),
+  loanTenure: z.string().optional(),
+  interestRate: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -46,6 +50,10 @@ export default function Accounts() {
   const [editName, setEditName] = useState("");
   const [editCreditLimit, setEditCreditLimit] = useState("");
   const [editBillingDueDay, setEditBillingDueDay] = useState("");
+  const [editEmiAmount, setEditEmiAmount] = useState("");
+  const [editEmiDay, setEditEmiDay] = useState("");
+  const [editLoanTenure, setEditLoanTenure] = useState("");
+  const [editInterestRate, setEditInterestRate] = useState("");
   const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useListAccounts({
@@ -70,6 +78,10 @@ export default function Accounts() {
     setEditName(acct.name);
     setEditCreditLimit(acct.creditLimit ? String(acct.creditLimit) : "");
     setEditBillingDueDay(acct.billingDueDay ? String(acct.billingDueDay) : "");
+    setEditEmiAmount(acct.emiAmount ? String(acct.emiAmount) : "");
+    setEditEmiDay(acct.emiDay ? String(acct.emiDay) : "");
+    setEditLoanTenure(acct.loanTenure ? String(acct.loanTenure) : "");
+    setEditInterestRate(acct.interestRate ? String(acct.interestRate) : "");
   };
 
   const handleEdit = () => {
@@ -83,6 +95,10 @@ export default function Accounts() {
           currentBalance: String(editTarget.currentBalance),
           creditLimit: editTarget.type === "credit_card" ? editCreditLimit || null : null,
           billingDueDay: editTarget.type === "credit_card" && editBillingDueDay ? Number(editBillingDueDay) : null,
+          emiAmount: editTarget.type === "loan" ? editEmiAmount || null : null,
+          emiDay: editTarget.type === "loan" && editEmiDay ? Number(editEmiDay) : null,
+          loanTenure: editTarget.type === "loan" && editLoanTenure ? Number(editLoanTenure) : null,
+          interestRate: editTarget.type === "loan" ? editInterestRate || null : null,
         },
       },
       {
@@ -121,16 +137,18 @@ export default function Accounts() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "" },
+    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "" },
   });
 
   const watchType = form.watch("type");
 
   const bankAccounts = accounts?.filter((a) => a.type === "bank") ?? [];
   const ccAccounts = accounts?.filter((a) => a.type === "credit_card") ?? [];
+  const loanAccounts = accounts?.filter((a) => a.type === "loan") ?? [];
   const totalBank = bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0);
   const totalCcOutstanding = ccAccounts.reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
-  const netWorth = totalBank - totalCcOutstanding;
+  const totalLoanOutstanding = loanAccounts.reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
+  const netWorth = totalBank - totalCcOutstanding - totalLoanOutstanding;
 
   const onSubmit = (data: FormValues) => {
     createAccount.mutate(
@@ -141,6 +159,10 @@ export default function Accounts() {
           currentBalance: data.currentBalance || "0",
           creditLimit: data.type === "credit_card" ? data.creditLimit || null : null,
           billingDueDay: data.type === "credit_card" && data.billingDueDay ? Number(data.billingDueDay) : null,
+          emiAmount: data.type === "loan" ? data.emiAmount || null : null,
+          emiDay: data.type === "loan" && data.emiDay ? Number(data.emiDay) : null,
+          loanTenure: data.type === "loan" && data.loanTenure ? Number(data.loanTenure) : null,
+          interestRate: data.type === "loan" ? data.interestRate || null : null,
         },
       },
       {
@@ -174,14 +196,26 @@ export default function Accounts() {
     );
   };
 
-  const allAccounts = [...bankAccounts, ...ccAccounts];
+  const allAccounts = [...bankAccounts, ...ccAccounts, ...loanAccounts];
+
+  const getAccountIcon = (type: string) => {
+    if (type === "bank") return <Wallet className="w-4 h-4 text-emerald-500" />;
+    if (type === "credit_card") return <CreditCard className="w-4 h-4 text-destructive" />;
+    return <Landmark className="w-4 h-4 text-amber-500" />;
+  };
+
+  const getAccountLabel = (type: string) => {
+    if (type === "bank") return "Bank";
+    if (type === "credit_card") return "Credit Card";
+    return "Loan";
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Manage Accounts</h1>
-          <p className="text-muted-foreground text-sm mt-1">Track your bank accounts and credit cards.</p>
+          <p className="text-muted-foreground text-sm mt-1">Track your bank accounts, credit cards, and loans.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsTransferOpen(true)} className="font-mono text-xs uppercase tracking-wider">
@@ -227,6 +261,7 @@ export default function Accounts() {
                           <SelectContent>
                             <SelectItem value="bank">Bank Account</SelectItem>
                             <SelectItem value="credit_card">Credit Card</SelectItem>
+                            <SelectItem value="loan">Loan</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -238,7 +273,7 @@ export default function Accounts() {
                     name="currentBalance"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Current Balance</FormLabel>
+                        <FormLabel>{watchType === "loan" ? "Outstanding Principal" : "Current Balance"}</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
@@ -282,6 +317,65 @@ export default function Accounts() {
                       />
                     </>
                   )}
+                  {watchType === "loan" && (
+                    <>
+                      <FormField
+                        control={form.control}
+                        name="emiAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Monthly EMI</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                                <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="emiDay"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>EMI Debit Day (1-31)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="interestRate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Interest Rate (%)</FormLabel>
+                            <FormControl>
+                              <Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="loanTenure"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tenure (months)</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </>
+                  )}
                   <DialogFooter className="pt-4">
                     <Button type="submit" disabled={createAccount.isPending} className="w-full">
                       {createAccount.isPending ? "Creating..." : "Create Account"}
@@ -308,9 +402,10 @@ export default function Accounts() {
               {formatCurrency(netWorth)}
             </div>
           )}
-          <div className="flex gap-6 mt-2 text-sm font-mono text-muted-foreground">
+          <div className="flex flex-wrap gap-4 mt-2 text-sm font-mono text-muted-foreground">
             <span>Banks: {formatCurrency(totalBank)}</span>
             <span>CC Outstanding: {formatCurrency(totalCcOutstanding)}</span>
+            {totalLoanOutstanding > 0 && <span>Loans: {formatCurrency(totalLoanOutstanding)}</span>}
           </div>
         </CardContent>
       </Card>
@@ -334,8 +429,7 @@ export default function Accounts() {
                   <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Name</TableHead>
                   <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Type</TableHead>
                   <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Balance</TableHead>
-                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Credit Limit</TableHead>
-                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Due Day</TableHead>
+                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Details</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -344,27 +438,32 @@ export default function Accounts() {
                   <TableRow key={account.id} className="border-border/30">
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
-                        {account.type === "bank" ? (
-                          <Wallet className="w-4 h-4 text-emerald-500" />
-                        ) : (
-                          <CreditCard className="w-4 h-4 text-destructive" />
-                        )}
+                        {getAccountIcon(account.type)}
                         {account.name}
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground border border-border/50">
-                        {account.type === "bank" ? "Bank" : "Credit Card"}
+                        {getAccountLabel(account.type)}
                       </span>
                     </TableCell>
-                    <TableCell className={`text-right font-mono font-bold ${account.type === "bank" ? "text-emerald-500" : ""}`}>
+                    <TableCell className={`text-right font-mono font-bold ${account.type === "bank" ? "text-emerald-500" : account.type === "loan" ? "text-amber-500" : ""}`}>
                       {formatCurrency(account.currentBalance)}
                     </TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {account.creditLimit ? formatCurrency(account.creditLimit) : "—"}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground">
-                      {account.billingDueDay ? `${account.billingDueDay}th` : "—"}
+                    <TableCell className="text-right font-mono text-muted-foreground text-xs">
+                      {account.type === "credit_card" && account.creditLimit && (
+                        <span>Limit: {formatCurrency(account.creditLimit)}</span>
+                      )}
+                      {account.type === "credit_card" && account.billingDueDay && (
+                        <span className="ml-2">Due: {account.billingDueDay}th</span>
+                      )}
+                      {account.type === "loan" && account.emiAmount && (
+                        <span>EMI: {formatCurrency(account.emiAmount)}</span>
+                      )}
+                      {account.type === "loan" && account.interestRate && (
+                        <span className="ml-2">@ {account.interestRate}%</span>
+                      )}
+                      {account.type === "bank" && "—"}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -511,6 +610,71 @@ export default function Accounts() {
                 </div>
               </div>
             )}
+
+            {loanAccounts.length > 0 && (
+              <div>
+                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                  <Landmark className="w-5 h-5 text-amber-500" /> Loans
+                </h2>
+                <div className="space-y-3">
+                  {loanAccounts.map((account) => (
+                    <Card key={account.id} className="bg-card/50 backdrop-blur border-border/60">
+                      <CardContent className="pt-4 pb-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="font-medium text-sm">{account.name}</p>
+                            <p className="text-xl font-bold font-mono mt-0.5 text-amber-500">{formatCurrency(account.currentBalance)}</p>
+                            {account.emiAmount && (
+                              <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                                EMI: {formatCurrency(account.emiAmount)}/mo
+                              </p>
+                            )}
+                            <div className="flex gap-3 mt-0.5">
+                              {account.interestRate && (
+                                <p className="text-xs font-mono text-muted-foreground">
+                                  Rate: {account.interestRate}%
+                                </p>
+                              )}
+                              {account.emiDay && (
+                                <p className="text-xs font-mono text-muted-foreground">
+                                  Debit: {account.emiDay}th
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary"
+                              onClick={() => openEdit(account.id)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              onClick={() => setDeleteAccountId(account.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -578,6 +742,29 @@ export default function Accounts() {
                 <div>
                   <Label>Billing Due Day (1-31)</Label>
                   <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 15" value={editBillingDueDay} onChange={(e) => setEditBillingDueDay(e.target.value)} />
+                </div>
+              </>
+            )}
+            {editTarget?.type === "loan" && (
+              <>
+                <div>
+                  <Label>Monthly EMI</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                    <Input type="number" step="0.01" className="pl-7 font-mono" value={editEmiAmount} onChange={(e) => setEditEmiAmount(e.target.value)} />
+                  </div>
+                </div>
+                <div>
+                  <Label>EMI Debit Day (1-31)</Label>
+                  <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 5" value={editEmiDay} onChange={(e) => setEditEmiDay(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Interest Rate (%)</Label>
+                  <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="e.g. 10.5" value={editInterestRate} onChange={(e) => setEditInterestRate(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Tenure (months)</Label>
+                  <Input type="number" min="1" step="1" className="mt-1 font-mono" placeholder="e.g. 36" value={editLoanTenure} onChange={(e) => setEditLoanTenure(e.target.value)} />
                 </div>
               </>
             )}

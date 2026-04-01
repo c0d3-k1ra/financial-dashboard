@@ -9,6 +9,10 @@ export const accountsTable = pgTable("accounts", {
   currentBalance: numeric("current_balance", { precision: 12, scale: 2 }).notNull().default("0"),
   creditLimit: numeric("credit_limit", { precision: 12, scale: 2 }),
   billingDueDay: integer("billing_due_day"),
+  emiAmount: numeric("emi_amount", { precision: 12, scale: 2 }),
+  emiDay: integer("emi_day"),
+  loanTenure: integer("loan_tenure"),
+  interestRate: numeric("interest_rate", { precision: 5, scale: 2 }),
 });
 
 export const insertAccountSchema = createInsertSchema(accountsTable).omit({ id: true });

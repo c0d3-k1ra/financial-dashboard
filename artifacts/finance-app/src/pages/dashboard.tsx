@@ -25,7 +25,7 @@ import { getCategoryIcon } from "@/lib/category-icons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
@@ -249,7 +249,7 @@ export default function Dashboard() {
                 {formatCurrency(summary?.netLiquidity || 0)}
               </div>
             )}
-            <div className="flex gap-6 mt-3 text-sm font-mono text-muted-foreground">
+            <div className="flex flex-wrap gap-4 mt-3 text-sm font-mono text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Wallet className="w-3.5 h-3.5 text-emerald-500" />
                 {formatCurrency(summary?.bankBalance || 0)}
@@ -258,6 +258,12 @@ export default function Dashboard() {
                 <CreditCard className="w-3.5 h-3.5 text-destructive" />
                 -{formatCurrency(summary?.unpaidCcDues || 0)}
               </span>
+              {Number(summary?.totalLoanOutstanding || 0) > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Landmark className="w-3.5 h-3.5 text-amber-500" />
+                  -{formatCurrency(summary?.totalLoanOutstanding || 0)}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>

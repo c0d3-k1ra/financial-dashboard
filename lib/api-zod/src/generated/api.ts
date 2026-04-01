@@ -169,6 +169,8 @@ export const GetDashboardSummaryResponse = zod.object({
   actualLivingExpenses: zod.string(),
   startingBalance: zod.string(),
   endBalance: zod.string(),
+  totalLoanOutstanding: zod.string().optional(),
+  totalEmiDue: zod.string().optional(),
 });
 
 /**
@@ -406,6 +408,10 @@ export const ListAccountsResponseItem = zod.object({
   currentBalance: zod.string(),
   creditLimit: zod.string().nullish(),
   billingDueDay: zod.number().nullish(),
+  emiAmount: zod.string().nullish(),
+  emiDay: zod.number().nullish(),
+  loanTenure: zod.number().nullish(),
+  interestRate: zod.string().nullish(),
 });
 export const ListAccountsResponse = zod.array(ListAccountsResponseItem);
 
@@ -418,6 +424,10 @@ export const CreateAccountBody = zod.object({
   currentBalance: zod.string().optional(),
   creditLimit: zod.string().nullish(),
   billingDueDay: zod.number().nullish(),
+  emiAmount: zod.string().nullish(),
+  emiDay: zod.number().nullish(),
+  loanTenure: zod.number().nullish(),
+  interestRate: zod.string().nullish(),
 });
 
 /**
@@ -433,6 +443,10 @@ export const UpdateAccountBody = zod.object({
   currentBalance: zod.string().optional(),
   creditLimit: zod.string().nullish(),
   billingDueDay: zod.number().nullish(),
+  emiAmount: zod.string().nullish(),
+  emiDay: zod.number().nullish(),
+  loanTenure: zod.number().nullish(),
+  interestRate: zod.string().nullish(),
 });
 
 export const UpdateAccountResponse = zod.object({
@@ -442,6 +456,17 @@ export const UpdateAccountResponse = zod.object({
   currentBalance: zod.string(),
   creditLimit: zod.string().nullish(),
   billingDueDay: zod.number().nullish(),
+  emiAmount: zod.string().nullish(),
+  emiDay: zod.number().nullish(),
+  loanTenure: zod.number().nullish(),
+  interestRate: zod.string().nullish(),
+});
+
+/**
+ * @summary Process monthly EMIs for loan accounts
+ */
+export const ProcessEmisBody = zod.object({
+  month: zod.string(),
 });
 
 /**

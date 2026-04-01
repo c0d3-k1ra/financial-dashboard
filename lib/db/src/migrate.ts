@@ -59,6 +59,19 @@ export async function runStartupMigrations() {
   `);
 
   await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "emi_amount" numeric(12, 2)
+  `);
+  await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "emi_day" integer
+  `);
+  await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "loan_tenure" integer
+  `);
+  await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "interest_rate" numeric(5, 2)
+  `);
+
+  await db.execute(sql`
     CREATE TABLE IF NOT EXISTS "goals" (
       "id" serial PRIMARY KEY NOT NULL,
       "name" text NOT NULL,

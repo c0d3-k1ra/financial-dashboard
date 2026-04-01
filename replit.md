@@ -89,7 +89,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `dashboard.ts` — `GET /api/dashboard/summary` + `GET /api/dashboard/monthly-trend` + `GET /api/billing-cycles`
   - `budget-analysis.ts` — `GET /api/budget-analysis` (planned vs actual per category)
   - `surplus.ts` — `POST /api/surplus/consolidate` (legacy) + `POST /api/surplus/distribute` (distribute surplus across goals) + `GET /api/surplus/allocations`
-  - `accounts.ts` — CRUD for bank accounts and credit cards + `POST /api/accounts/:id/reconcile` (balance reconciliation)
+  - `accounts.ts` — CRUD for bank accounts, credit cards, and loans + `POST /api/accounts/:id/reconcile` (balance reconciliation) + `POST /api/accounts/process-emis` (process monthly EMI payments for loan accounts)
   - `categories.ts` — CRUD for expense/income categories
   - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
   - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`

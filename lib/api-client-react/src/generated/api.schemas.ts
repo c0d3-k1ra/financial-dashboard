@@ -64,6 +64,8 @@ export interface DashboardSummary {
   actualLivingExpenses: string;
   startingBalance: string;
   endBalance: string;
+  totalLoanOutstanding?: string;
+  totalEmiDue?: string;
 }
 
 export interface BudgetAnalysisRow {
@@ -94,6 +96,10 @@ export interface AccountItem {
   currentBalance: string;
   creditLimit?: string | null;
   billingDueDay?: number | null;
+  emiAmount?: string | null;
+  emiDay?: number | null;
+  loanTenure?: number | null;
+  interestRate?: string | null;
 }
 
 export interface CreateAccount {
@@ -102,6 +108,10 @@ export interface CreateAccount {
   currentBalance?: string;
   creditLimit?: string | null;
   billingDueDay?: number | null;
+  emiAmount?: string | null;
+  emiDay?: number | null;
+  loanTenure?: number | null;
+  interestRate?: string | null;
 }
 
 export interface CategoryItem {

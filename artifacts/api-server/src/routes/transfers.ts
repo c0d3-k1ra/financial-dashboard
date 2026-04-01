@@ -28,11 +28,11 @@ router.post("/transfers", async (req, res) => {
       return;
     }
 
-    const fromIsCc = fromAccount[0].type === "credit_card";
-    const toIsCc = toAccount[0].type === "credit_card";
+    const fromIsDebt = fromAccount[0].type === "credit_card" || fromAccount[0].type === "loan";
+    const toIsDebt = toAccount[0].type === "credit_card" || toAccount[0].type === "loan";
 
     const transfer = await db.transaction(async (tx) => {
-      if (fromIsCc) {
+      if (fromIsDebt) {
         await tx
           .update(accountsTable)
           .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${data.amount}::numeric` })
@@ -44,7 +44,7 @@ router.post("/transfers", async (req, res) => {
           .where(eq(accountsTable.id, data.fromAccountId));
       }
 
-      if (toIsCc) {
+      if (toIsDebt) {
         await tx
           .update(accountsTable)
           .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${data.amount}::numeric` })

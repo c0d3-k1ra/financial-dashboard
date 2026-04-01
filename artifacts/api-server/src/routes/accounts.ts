@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, accountsTable, transactionsTable, goalsTable, surplusAllocationsTable } from "@workspace/db";
-import { CreateAccountBody, ReconcileAccountBody } from "@workspace/api-zod";
+import { CreateAccountBody, ReconcileAccountBody, ProcessEmisBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
@@ -26,6 +26,24 @@ router.post("/accounts", async (req, res) => {
       res.status(400).json({ error: "creditLimit must be non-negative." });
       return;
     }
+    if (data.emiDay != null && (data.emiDay < 1 || data.emiDay > 31)) {
+      res.status(400).json({ error: "emiDay must be between 1 and 31" });
+      return;
+    }
+    if (data.type === "loan") {
+      if (data.emiAmount != null && Number(data.emiAmount) < 0) {
+        res.status(400).json({ error: "EMI amount must be non-negative." });
+        return;
+      }
+      if (data.interestRate != null && Number(data.interestRate) < 0) {
+        res.status(400).json({ error: "Interest rate must be non-negative." });
+        return;
+      }
+      if (data.loanTenure != null && data.loanTenure < 1) {
+        res.status(400).json({ error: "Loan tenure must be at least 1 month." });
+        return;
+      }
+    }
     const [created] = await db
       .insert(accountsTable)
       .values({
@@ -34,6 +52,10 @@ router.post("/accounts", async (req, res) => {
         currentBalance: data.currentBalance || "0",
         creditLimit: data.creditLimit || null,
         billingDueDay: data.billingDueDay ?? null,
+        emiAmount: data.type === "loan" ? (data.emiAmount || null) : null,
+        emiDay: data.type === "loan" ? (data.emiDay ?? null) : null,
+        loanTenure: data.type === "loan" ? (data.loanTenure ?? null) : null,
+        interestRate: data.type === "loan" ? (data.interestRate || null) : null,
       })
       .returning();
     res.status(201).json(created);
@@ -55,6 +77,24 @@ router.put("/accounts/:id", async (req, res) => {
       res.status(400).json({ error: "creditLimit must be non-negative." });
       return;
     }
+    if (data.emiDay != null && (data.emiDay < 1 || data.emiDay > 31)) {
+      res.status(400).json({ error: "emiDay must be between 1 and 31" });
+      return;
+    }
+    if (data.type === "loan") {
+      if (data.emiAmount != null && Number(data.emiAmount) < 0) {
+        res.status(400).json({ error: "EMI amount must be non-negative." });
+        return;
+      }
+      if (data.interestRate != null && Number(data.interestRate) < 0) {
+        res.status(400).json({ error: "Interest rate must be non-negative." });
+        return;
+      }
+      if (data.loanTenure != null && data.loanTenure < 1) {
+        res.status(400).json({ error: "Loan tenure must be at least 1 month." });
+        return;
+      }
+    }
     const [updated] = await db
       .update(accountsTable)
       .set({
@@ -63,6 +103,10 @@ router.put("/accounts/:id", async (req, res) => {
         currentBalance: data.currentBalance || "0",
         creditLimit: data.creditLimit || null,
         billingDueDay: data.billingDueDay ?? null,
+        emiAmount: data.type === "loan" ? (data.emiAmount || null) : null,
+        emiDay: data.type === "loan" ? (data.emiDay ?? null) : null,
+        loanTenure: data.type === "loan" ? (data.loanTenure ?? null) : null,
+        interestRate: data.type === "loan" ? (data.interestRate || null) : null,
       })
       .where(eq(accountsTable.id, id))
       .returning();
@@ -168,6 +212,81 @@ router.post("/accounts/:id/reconcile", async (req, res) => {
   } catch (e) {
     req.log.error({ err: e }, "Failed to reconcile account");
     res.status(400).json({ error: "Invalid request" });
+  }
+});
+
+router.post("/accounts/process-emis", async (req, res) => {
+  try {
+    const { month } = ProcessEmisBody.parse(req.body);
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      res.status(400).json({ error: "Invalid month format. Expected YYYY-MM." });
+      return;
+    }
+
+    const loanAccounts = await db
+      .select()
+      .from(accountsTable)
+      .where(eq(accountsTable.type, "loan"));
+
+    const activeLoanAccounts = loanAccounts.filter(
+      (a) => Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0
+    );
+
+    if (activeLoanAccounts.length === 0) {
+      res.json({ processed: 0, message: "No active loans with EMI to process." });
+      return;
+    }
+
+    let processed = 0;
+    const results: Array<{ accountName: string; emiAmount: string; newBalance: string }> = [];
+
+    await db.transaction(async (tx) => {
+      for (const loan of activeLoanAccounts) {
+        const emiAmount = Number(loan.emiAmount);
+        const currentBalance = Number(loan.currentBalance ?? 0);
+        const principalReduction = Math.min(emiAmount, currentBalance);
+        const newBalance = currentBalance - principalReduction;
+        const [yearStr, monthStr] = month.split("-");
+        const year = Number(yearStr);
+        const mon = Number(monthStr);
+        const daysInMonth = new Date(year, mon, 0).getDate();
+        const emiDay = Math.min(loan.emiDay || 1, daysInMonth);
+        const emiDate = `${month}-${String(emiDay).padStart(2, "0")}`;
+
+        const existing = await tx
+          .select({ count: sql<number>`count(*)` })
+          .from(transactionsTable)
+          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.accountId} = ${loan.id} AND ${transactionsTable.date}::text LIKE ${month + '%'}`);
+
+        if (Number(existing[0].count) > 0) continue;
+
+        await tx
+          .update(accountsTable)
+          .set({ currentBalance: newBalance.toFixed(2) })
+          .where(eq(accountsTable.id, loan.id));
+
+        await tx.insert(transactionsTable).values({
+          date: emiDate,
+          amount: principalReduction.toFixed(2),
+          description: `EMI Payment — ${loan.name}${principalReduction < emiAmount ? " (final)" : ""}`,
+          category: "EMI",
+          type: "Expense",
+          accountId: loan.id,
+        });
+
+        processed++;
+        results.push({
+          accountName: loan.name,
+          emiAmount: principalReduction.toFixed(2),
+          newBalance: newBalance.toFixed(2),
+        });
+      }
+    });
+
+    res.json({ processed, results });
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to process EMIs");
+    res.status(500).json({ error: "Internal error" });
   }
 });
 

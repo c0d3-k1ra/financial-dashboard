@@ -18,6 +18,7 @@ import {
   Award,
   Percent,
   HelpCircle,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 
@@ -25,6 +26,7 @@ const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
   "food": Utensils,
   "transportation": Car,
   "emi (pl)": Banknote,
+  "emi": Landmark,
   "sip (investment)": TrendingUp,
   "medical": Stethoscope,
   "term insurance": ShieldCheck,
