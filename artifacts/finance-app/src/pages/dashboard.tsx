@@ -101,23 +101,6 @@ function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | num
   );
 }
 
-function CustomPieLegend({ payload }: { payload?: Array<{ value: string; color: string }> }) {
-  if (!payload) return null;
-  return (
-    <div className="flex flex-wrap gap-2 justify-center mt-2">
-      {payload.map((entry, i) => {
-        const Icon = getCategoryIcon(entry.value);
-        return (
-          <span key={i} className="inline-flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
-            <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: entry.color }} />
-            <Icon className="w-3 h-3" />
-            {entry.value}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function Dashboard() {
   const [currentMonth] = useState(() => {
@@ -178,6 +161,8 @@ export default function Dashboard() {
     value: Number(item.total),
     fill: CHART_COLORS[i % CHART_COLORS.length],
   }));
+
+  const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
 
   const categoryNames = useMemo(() => (categoryTrend ?? []).map((c) => c.category), [categoryTrend]);
 
@@ -388,37 +373,83 @@ export default function Dashboard() {
             <CardTitle className="text-lg">Spend by Category</CardTitle>
             <CardDescription>Expense breakdown for this billing cycle</CardDescription>
           </CardHeader>
-          <CardContent className="h-[320px] w-full pt-4">
+          <CardContent className="pt-4">
             {isLoadingCatSpend ? (
-              <Skeleton className="w-full h-full" />
+              <Skeleton className="w-full h-[280px]" />
             ) : pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="45%"
-                    innerRadius={60}
-                    outerRadius={110}
-                    paddingAngle={2}
-                    dataKey="value"
-                    nameKey="name"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip
-                    contentStyle={TOOLTIP_STYLE}
-                    labelStyle={TOOLTIP_LABEL_STYLE}
-                    itemStyle={TOOLTIP_ITEM_STYLE}
-                    formatter={(value: number) => formatCurrency(value)}
-                  />
-                  <Legend content={<CustomPieLegend />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="w-full md:w-[220px] h-[220px] flex-shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={pieData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={95}
+                        paddingAngle={2}
+                        dataKey="value"
+                        nameKey="name"
+                      >
+                        {pieData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        contentStyle={TOOLTIP_STYLE}
+                        labelStyle={TOOLTIP_LABEL_STYLE}
+                        itemStyle={TOOLTIP_ITEM_STYLE}
+                        formatter={(value: number) => formatCurrency(value)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1 w-full overflow-auto max-h-[280px]">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-muted-foreground text-xs font-mono uppercase tracking-wider border-b border-border/50">
+                        <th className="text-left py-2 pr-2">Category</th>
+                        <th className="text-right py-2 px-2">Amount</th>
+                        <th className="text-right py-2 pl-2">%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pieData.map((entry, i) => {
+                        const Icon = getCategoryIcon(entry.name);
+                        const pct = pieTotal > 0 ? ((entry.value / pieTotal) * 100).toFixed(1) : "0.0";
+                        return (
+                          <tr key={i} className="border-b border-border/30 last:border-0">
+                            <td className="py-2 pr-2">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
+                                <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">{entry.name}</span>
+                              </div>
+                            </td>
+                            <td className="text-right py-2 px-2 font-mono text-xs whitespace-nowrap">
+                              {formatCurrency(entry.value)}
+                            </td>
+                            <td className="text-right py-2 pl-2 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                              {pct}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t border-border/50">
+                        <td className="py-2 pr-2 font-medium">Total</td>
+                        <td className="text-right py-2 px-2 font-mono text-xs font-bold whitespace-nowrap">
+                          {formatCurrency(pieTotal)}
+                        </td>
+                        <td className="text-right py-2 pl-2 font-mono text-xs text-muted-foreground">100%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+              <div className="w-full h-[220px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
                 No expense data for this cycle
               </div>
             )}
