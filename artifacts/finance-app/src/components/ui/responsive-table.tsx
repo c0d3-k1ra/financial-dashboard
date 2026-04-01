@@ -17,6 +17,7 @@ interface ResponsiveTableProps<T> {
   keyExtractor: (item: T, index: number) => string | number;
   className?: string;
   emptyState?: React.ReactNode;
+  renderMobileCard?: (item: T, index: number) => React.ReactNode;
 }
 
 export function ResponsiveTable<T>({ 
@@ -24,7 +25,8 @@ export function ResponsiveTable<T>({
   columns, 
   keyExtractor, 
   className,
-  emptyState 
+  emptyState,
+  renderMobileCard
 }: ResponsiveTableProps<T>) {
   if (data.length === 0 && emptyState) {
     return <div className={className}>{emptyState}</div>;
@@ -60,28 +62,34 @@ export function ResponsiveTable<T>({
 
       {/* Mobile Stacked Cards */}
       <div className="md:hidden flex flex-col gap-3">
-        {data.map((row, rowIndex) => (
-          <Card key={keyExtractor(row, rowIndex)} className="overflow-hidden border-border/60">
-            <CardContent className="p-4 flex flex-col gap-2">
-              {columns.map((col, colIndex) => {
-                const content = col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? "") : null);
-                const label = col.cardLabel !== undefined ? col.cardLabel : col.header;
-                
-                // Skip if no content
-                if (content === null || content === undefined || content === "") return null;
+        {renderMobileCard
+          ? data.map((row, rowIndex) => (
+              <React.Fragment key={keyExtractor(row, rowIndex)}>
+                {renderMobileCard(row, rowIndex)}
+              </React.Fragment>
+            ))
+          : data.map((row, rowIndex) => (
+              <Card key={keyExtractor(row, rowIndex)} className="overflow-hidden border-border/60">
+                <CardContent className="p-4 flex flex-col gap-2">
+                  {columns.map((col, colIndex) => {
+                    const content = col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? "") : null);
+                    const label = col.cardLabel !== undefined ? col.cardLabel : col.header;
+                    
+                    if (content === null || content === undefined || content === "") return null;
 
-                return (
-                  <div key={colIndex} className={cn("flex justify-between items-start gap-4", col.className)}>
-                    <span className="text-xs font-mono text-muted-foreground uppercase">{label}</span>
-                    <div className="text-right text-sm">
-                      {content}
-                    </div>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        ))}
+                    return (
+                      <div key={colIndex} className={cn("flex justify-between items-start gap-4", col.className)}>
+                        <span className="text-xs font-mono text-muted-foreground uppercase">{label}</span>
+                        <div className="text-right text-sm">
+                          {content}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            ))
+        }
       </div>
     </div>
   );

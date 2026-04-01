@@ -418,6 +418,59 @@ export default function Transactions() {
             data={sortedTransactions}
             columns={columns}
             keyExtractor={(tx) => tx.id}
+            renderMobileCard={(tx) => {
+              const acct = accounts?.find((a) => a.id === tx.accountId);
+              const toAcct = tx.toAccountId ? accounts?.find((a) => a.id === tx.toAccountId) : null;
+              const isIncome = tx.type === "Income";
+              const isTransfer = tx.type === "Transfer";
+
+              return (
+                <div className={`relative rounded-xl border bg-card text-card-foreground shadow overflow-hidden ${
+                  isIncome
+                    ? "border-emerald-500/30"
+                    : isTransfer
+                    ? "border-blue-400/30"
+                    : "border-rose-500/30"
+                }`}>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <CategoryBadge category={tx.category} type={tx.type as "Income" | "Expense"} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0 -mr-1"
+                        onClick={() => setDeleteId(tx.id)}
+                        data-testid={`btn-delete-tx-${tx.id}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-medium text-sm text-foreground truncate flex-1 min-w-0">{tx.description}</p>
+                      <span className={`font-mono font-bold text-sm flex items-center gap-1 shrink-0 ${
+                        isIncome
+                          ? "text-emerald-500"
+                          : isTransfer
+                          ? "text-blue-400"
+                          : "text-rose-400"
+                      }`}>
+                        {isIncome && <ArrowDownRight className="w-3.5 h-3.5" />}
+                        {isTransfer && <ArrowLeftRight className="w-3.5 h-3.5" />}
+                        {formatCurrency(tx.amount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-1.5">
+                      <p className="text-xs font-mono text-muted-foreground">{formatDate(tx.date)}</p>
+                      <span className="text-xs font-mono text-muted-foreground text-right truncate max-w-[50%]">
+                        {isTransfer && acct && toAcct
+                          ? `${acct.name} → ${toAcct.name}`
+                          : acct?.name ?? "—"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
             emptyState={
               <div className="text-center py-12 px-4 border border-dashed border-border/50 rounded-lg bg-background/30">
                 <p className="text-muted-foreground font-mono text-sm">No transactions found.</p>
