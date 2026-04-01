@@ -60,7 +60,14 @@ export async function seedBudgetCategories() {
     let inserted = 0;
     for (const cat of expenseCats) {
       if (!existingCategoryIds.has(cat.id)) {
-        const defaultAmount = cat.name === "EMI (PL)" ? 0 : (BUDGET_DEFAULTS[cat.name] ?? DEFAULT_PLANNED);
+        let defaultAmount: number;
+        if (cat.name === "EMI (PL)") {
+          const loans = await db.select().from(accountsTable);
+          const loan = loans.find(a => a.type === "loan" && Number(a.emiAmount ?? 0) > 0);
+          defaultAmount = loan ? Number(loan.emiAmount) : 0;
+        } else {
+          defaultAmount = BUDGET_DEFAULTS[cat.name] ?? DEFAULT_PLANNED;
+        }
         await db.insert(budgetGoalsTable).values({
           categoryId: cat.id,
           plannedAmount: defaultAmount.toFixed(2),

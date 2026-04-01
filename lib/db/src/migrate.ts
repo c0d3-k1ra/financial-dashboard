@@ -164,4 +164,16 @@ export async function runStartupMigrations() {
       END IF;
     END $$
   `);
+
+  await db.execute(sql`
+    UPDATE "budget_goals" bg
+    SET "planned_amount" = a."emi_amount"
+    FROM "categories" c, "accounts" a
+    WHERE bg."category_id" = c."id"
+      AND c."name" = 'EMI (PL)'
+      AND a."type" = 'loan'
+      AND a."emi_amount" IS NOT NULL
+      AND a."emi_amount" > 0
+      AND (bg."planned_amount" = 0 OR bg."planned_amount" IS NULL)
+  `);
 }
