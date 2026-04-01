@@ -247,8 +247,22 @@ router.post("/surplus/distribute", async (req, res) => {
 
       const config = await tx.select().from(monthlyConfigTable).where(eq(monthlyConfigTable.month, month));
       const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
-      const totalIncome = Number(incomeResult[0]?.total ?? 0);
-      const totalExpenses = extractTotal(bankExpResult) + extractTotal(ccTrResult);
+
+      const incResult = await tx
+        .select({ total: sql<string>`COALESCE(SUM(amount::numeric), 0)` })
+        .from(transactionsTable)
+        .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
+      const bankExpResult = await tx
+        .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
+        .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
+        .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
+      const ccTrResult = await tx
+        .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
+        .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.to_account_id = a.id`)
+        .where(sql`t.type = 'Transfer' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
+
+      const totalIncome = Number(incResult[0]?.total ?? 0);
+      const totalExpenses = Number(bankExpResult[0]?.total ?? 0) + Number(ccTrResult[0]?.total ?? 0);
       const endBalance = startingBalance + totalIncome - totalExpenses;
       const nextMonth = getNextMonth(month);
 
