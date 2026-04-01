@@ -17,6 +17,8 @@ import {
   getListSurplusAllocationsQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
+import { DatePicker } from "@/components/ui/date-picker";
+import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -262,10 +264,11 @@ export default function Goals() {
                 </div>
                 <div>
                   <Label>Target Date (optional)</Label>
-                  <Input
-                    type="date"
-                    value={newGoal.targetDate}
-                    onChange={(e) => setNewGoal({ ...newGoal, targetDate: e.target.value })}
+                  <DatePicker
+                    date={newGoal.targetDate ? new Date(newGoal.targetDate + "T00:00:00") : undefined}
+                    onSelect={(d) => setNewGoal({ ...newGoal, targetDate: d ? format(d, "yyyy-MM-dd") : "" })}
+                    placeholder="Pick a date"
+                    className="w-full"
                   />
                 </div>
                 <div>
@@ -539,10 +542,11 @@ export default function Goals() {
               </div>
               <div>
                 <Label>Target Date (optional)</Label>
-                <Input
-                  type="date"
-                  value={editGoal.targetDate}
-                  onChange={(e) => setEditGoal({ ...editGoal, targetDate: e.target.value })}
+                <DatePicker
+                  date={editGoal.targetDate ? new Date(editGoal.targetDate + "T00:00:00") : undefined}
+                  onSelect={(d) => setEditGoal({ ...editGoal, targetDate: d ? format(d, "yyyy-MM-dd") : "" })}
+                  placeholder="Pick a date"
+                  className="w-full"
                 />
               </div>
               <div>

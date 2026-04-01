@@ -490,9 +490,12 @@ function TransactionFormFields({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Date</FormLabel>
-                <FormControl>
-                  <Input type="date" {...field} />
-                </FormControl>
+                <DatePicker
+                  date={field.value ? new Date(field.value + "T00:00:00") : undefined}
+                  onSelect={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                  placeholder="Pick a date"
+                  className="w-full"
+                />
                 <FormMessage />
               </FormItem>
             )}

@@ -4,9 +4,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -151,9 +153,12 @@ export default function TransferModal({ open, onOpenChange }: TransferModalProps
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" className="min-h-[44px]" {...field} />
-                  </FormControl>
+                  <DatePicker
+                    date={field.value ? new Date(field.value + "T00:00:00") : undefined}
+                    onSelect={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                    placeholder="Pick a date"
+                    className="w-full"
+                  />
                   <FormMessage />
                 </FormItem>
               )}
