@@ -218,8 +218,8 @@ router.post("/accounts/:id/reconcile", async (req, res) => {
 router.post("/accounts/process-emis", async (req, res) => {
   try {
     const { month } = ProcessEmisBody.parse(req.body);
-    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
-      res.status(400).json({ error: "Invalid month format. Expected YYYY-MM." });
+    if (!month || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+      res.status(400).json({ error: "Invalid month format. Expected YYYY-MM with valid month (01-12)." });
       return;
     }
 
@@ -229,7 +229,7 @@ router.post("/accounts/process-emis", async (req, res) => {
       .where(eq(accountsTable.type, "loan"));
 
     const activeLoanAccounts = loanAccounts.filter(
-      (a) => Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0
+      (a) => Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0 && a.emiDay != null
     );
 
     if (activeLoanAccounts.length === 0) {
