@@ -9,6 +9,8 @@ import type { BudgetAnalysisRowCategoryType } from "./budgetAnalysisRowCategoryT
 import type { BudgetAnalysisRowPaceStatus } from "./budgetAnalysisRowPaceStatus";
 
 export interface BudgetAnalysisRow {
+  categoryId: number;
+  budgetGoalId?: number | null;
   category: string;
   planned: string;
   actual: string;

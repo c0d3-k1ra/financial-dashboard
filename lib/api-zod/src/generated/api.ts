@@ -191,6 +191,8 @@ export const GetBudgetAnalysisResponse = zod.object({
   totalCycleDays: zod.number(),
   rows: zod.array(
     zod.object({
+      categoryId: zod.number(),
+      budgetGoalId: zod.number().nullish(),
       category: zod.string(),
       planned: zod.string(),
       actual: zod.string(),

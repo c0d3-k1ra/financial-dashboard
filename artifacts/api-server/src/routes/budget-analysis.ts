@@ -57,11 +57,13 @@ router.get("/budget-analysis", async (req, res) => {
 
     const goals = await db
       .select({
+        id: budgetGoalsTable.id,
         categoryId: budgetGoalsTable.categoryId,
         plannedAmount: budgetGoalsTable.plannedAmount,
       })
       .from(budgetGoalsTable);
     const goalMap = new Map(goals.map((g) => [g.categoryId, Number(g.plannedAmount)]));
+    const goalIdMap = new Map(goals.map((g) => [g.categoryId, g.id]));
 
     const loanAccounts = await db
       .select()
@@ -143,6 +145,8 @@ router.get("/budget-analysis", async (req, res) => {
       }
 
       return {
+        categoryId: cat.id,
+        budgetGoalId: goalIdMap.get(cat.id) ?? null,
         category: cat.name,
         planned: planned.toFixed(2),
         actual: actual.toFixed(2),

@@ -91,6 +91,8 @@ export const BudgetAnalysisRowCategoryType = {
 } as const;
 
 export interface BudgetAnalysisRow {
+  categoryId: number;
+  budgetGoalId?: number | null;
   category: string;
   planned: string;
   actual: string;

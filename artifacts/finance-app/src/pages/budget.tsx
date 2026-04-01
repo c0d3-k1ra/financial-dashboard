@@ -4,7 +4,10 @@ import {
   getGetBudgetAnalysisQueryKey,
   useListBudgetGoals,
   getListBudgetGoalsQueryKey,
-  useUpsertBudgetGoal
+  useUpsertBudgetGoal,
+  useDeleteBudgetGoal,
+  useListCategories,
+  getListCategoriesQueryKey,
 } from "@workspace/api-client-react";
 import type { BudgetAnalysisRow } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/constants";
@@ -13,15 +16,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, Save, TrendingUp, TrendingDown, CheckCircle2, Clock, Minus } from "lucide-react";
+import { AlertCircle, Save, TrendingUp, TrendingDown, CheckCircle2, Clock, Minus, Trash2, Plus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CategoryBadge } from "@/components/category-badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 function ProgressBar({ row, isFixed }: { row: BudgetAnalysisRow; isFixed: boolean }) {
   const planned = Number(row.planned);
   const actual = Number(row.actual);
   const percent = planned > 0 ? Math.min((actual / planned) * 100, 100) : (actual > 0 ? 100 : 0);
-  const overflowPercent = planned > 0 && actual > planned ? Math.min(((actual - planned) / planned) * 100, 50) : 0;
 
   const colorClass = row.paceStatus === "over_budget"
     ? "bg-destructive"
@@ -121,13 +130,17 @@ function CategoryRow({
   editingGoals,
   onGoalChange,
   onSaveGoal,
+  onRemove,
   isSaving,
+  isRemoving,
 }: {
   row: BudgetAnalysisRow;
   editingGoals: Record<string, string>;
   onGoalChange: (category: string, value: string) => void;
-  onSaveGoal: (category: string) => void;
+  onSaveGoal: (row: BudgetAnalysisRow) => void;
+  onRemove: (row: BudgetAnalysisRow) => void;
   isSaving: boolean;
+  isRemoving: boolean;
 }) {
   const val = editingGoals[row.category] !== undefined
     ? editingGoals[row.category]
@@ -138,7 +151,19 @@ function CategoryRow({
     <div className="border border-border/40 rounded-lg p-3 md:p-4 space-y-2">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <CategoryBadge category={row.category} type="Expense" />
-        <PaceIndicator row={row} />
+        <div className="flex items-center gap-2">
+          <PaceIndicator row={row} />
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+            onClick={() => onRemove(row)}
+            disabled={isRemoving}
+            title="Remove from budget"
+          >
+            <Trash2 className="w-3 h-3" />
+          </Button>
+        </div>
       </div>
 
       <ProgressBar row={row} isFixed={isFixed} />
@@ -162,7 +187,7 @@ function CategoryRow({
                 size="icon"
                 variant="secondary"
                 className="h-7 w-7"
-                onClick={() => onSaveGoal(row.category)}
+                onClick={() => onSaveGoal(row)}
                 disabled={isSaving}
               >
                 <Save className="w-3 h-3" />
@@ -186,6 +211,68 @@ function CategoryRow({
   );
 }
 
+function AddCategoryButton({
+  availableCategories,
+  onAdd,
+  isAdding,
+}: {
+  availableCategories: { id: number; name: string }[];
+  onAdd: (categoryId: number, categoryName: string) => void;
+  isAdding: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (availableCategories.length === 0 && !isOpen) return null;
+
+  if (!isOpen) {
+    return (
+      <Button
+        variant="outline"
+        size="sm"
+        className="mt-3 border-dashed"
+        onClick={() => setIsOpen(true)}
+        disabled={isAdding}
+      >
+        <Plus className="w-3.5 h-3.5 mr-1.5" />
+        Add category
+      </Button>
+    );
+  }
+
+  return (
+    <div className="mt-3 flex items-center gap-2">
+      <Select
+        onValueChange={(value) => {
+          const cat = availableCategories.find(c => c.id === Number(value));
+          if (cat) {
+            onAdd(cat.id, cat.name);
+            setIsOpen(false);
+          }
+        }}
+      >
+        <SelectTrigger className="w-[200px] h-8 text-xs">
+          <SelectValue placeholder="Select category..." />
+        </SelectTrigger>
+        <SelectContent>
+          {availableCategories.map(cat => (
+            <SelectItem key={cat.id} value={String(cat.id)}>
+              {cat.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 text-xs"
+        onClick={() => setIsOpen(false)}
+      >
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
 export default function Budget() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -203,42 +290,84 @@ export default function Budget() {
     { query: { enabled: true, queryKey: getListBudgetGoalsQueryKey() } }
   );
 
+  const { data: categories } = useListCategories(
+    { type: "Expense" },
+    { query: { queryKey: getListCategoriesQueryKey({ type: "Expense" }) } }
+  );
+
   const upsertGoal = useUpsertBudgetGoal();
+  const deleteGoal = useDeleteBudgetGoal();
 
   const [editingGoals, setEditingGoals] = useState<Record<string, string>>({});
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getListBudgetGoalsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetBudgetAnalysisQueryKey({ month: currentMonth }) });
+  };
 
   const handleGoalChange = (category: string, value: string) => {
     setEditingGoals(prev => ({ ...prev, [category]: value }));
   };
 
-  const handleSaveGoal = (category: string) => {
-    const plannedAmount = editingGoals[category];
+  const handleSaveGoal = (row: BudgetAnalysisRow) => {
+    const plannedAmount = editingGoals[row.category];
     if (!plannedAmount) return;
 
-    upsertGoal.mutate({ data: { category, plannedAmount } }, {
+    upsertGoal.mutate({ data: { categoryId: row.categoryId, plannedAmount } }, {
       onSuccess: () => {
-        toast({ title: "Budget updated", description: `${category} budget set to ${formatCurrency(plannedAmount)}` });
+        toast({ title: "Budget updated", description: `${row.category} budget set to ${formatCurrency(plannedAmount)}` });
         setEditingGoals(prev => {
           const next = { ...prev };
-          delete next[category];
+          delete next[row.category];
           return next;
         });
-        queryClient.invalidateQueries({ queryKey: getListBudgetGoalsQueryKey() });
-        queryClient.invalidateQueries({ queryKey: getGetBudgetAnalysisQueryKey({ month: currentMonth }) });
-      }
+        invalidateAll();
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to update budget goal", variant: "destructive" });
+      },
     });
   };
 
-  const rows = analysisData?.rows ?? [];
+  const handleRemoveCategory = (row: BudgetAnalysisRow) => {
+    if (!row.budgetGoalId) {
+      toast({ title: "No budget goal", description: "This category has no budget goal to remove", variant: "destructive" });
+      return;
+    }
+    deleteGoal.mutate({ id: row.budgetGoalId }, {
+      onSuccess: () => {
+        toast({ title: "Category removed", description: `${row.category} removed from budget` });
+        invalidateAll();
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to remove category", variant: "destructive" });
+      },
+    });
+  };
+
+  const handleAddCategory = (categoryId: number, categoryName: string) => {
+    upsertGoal.mutate({ data: { categoryId, plannedAmount: "0" } }, {
+      onSuccess: () => {
+        toast({ title: "Category added", description: `${categoryName} added to budget` });
+        invalidateAll();
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to add category", variant: "destructive" });
+      },
+    });
+  };
+
+  const rows: BudgetAnalysisRow[] = analysisData?.rows ?? [];
+  const budgetedRows = useMemo<BudgetAnalysisRow[]>(() => rows.filter(r => r.budgetGoalId != null), [rows]);
   const daysElapsed = analysisData?.daysElapsed ?? 0;
   const totalCycleDays = analysisData?.totalCycleDays ?? 0;
   const cycleProgress = totalCycleDays > 0 ? Math.round((daysElapsed / totalCycleDays) * 100) : 0;
 
-  const fixedRows = useMemo(() => rows.filter(r => r.categoryType === "fixed"), [rows]);
-  const discretionaryRows = useMemo(() => rows.filter(r => r.categoryType === "discretionary"), [rows]);
+  const fixedRows = useMemo<BudgetAnalysisRow[]>(() => budgetedRows.filter(r => r.categoryType === "fixed"), [budgetedRows]);
+  const discretionaryRows = useMemo<BudgetAnalysisRow[]>(() => budgetedRows.filter(r => r.categoryType === "discretionary"), [budgetedRows]);
 
-  const totalPlanned = useMemo(() => rows.reduce((acc, r) => acc + Number(r.planned), 0), [rows]);
-  const totalActual = useMemo(() => rows.reduce((acc, r) => acc + Number(r.actual), 0), [rows]);
+  const totalPlanned = useMemo(() => budgetedRows.reduce((acc, r) => acc + Number(r.planned), 0), [budgetedRows]);
+  const totalActual = useMemo(() => budgetedRows.reduce((acc, r) => acc + Number(r.actual), 0), [budgetedRows]);
   const isOverTotal = totalActual > totalPlanned;
 
   const fixedPlanned = useMemo(() => fixedRows.reduce((acc, r) => acc + Number(r.planned), 0), [fixedRows]);
@@ -246,6 +375,15 @@ export default function Budget() {
 
   const discPlanned = useMemo(() => discretionaryRows.reduce((acc, r) => acc + Number(r.planned), 0), [discretionaryRows]);
   const discActual = useMemo(() => discretionaryRows.reduce((acc, r) => acc + Number(r.actual), 0), [discretionaryRows]);
+
+  const budgetedCategoryIds = useMemo(() => new Set(budgetedRows.map(r => r.categoryId)), [budgetedRows]);
+  const availableCategories = useMemo(() => {
+    if (!categories) return [];
+    return categories
+      .filter(c => !budgetedCategoryIds.has(c.id))
+      .map(c => ({ id: c.id, name: c.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [categories, budgetedCategoryIds]);
 
   const isLoading = isLoadingAnalysis || isLoadingGoals;
 
@@ -350,17 +488,17 @@ export default function Budget() {
         </div>
       ) : (
         <>
-          {fixedRows.length > 0 && (
-            <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold tracking-tight">Fixed Commitments</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">EMIs, SIPs, insurance & recurring obligations</p>
-                </div>
-                <div className="text-sm font-mono text-muted-foreground">
-                  {formatCurrency(fixedActual)} / {formatCurrency(fixedPlanned)}
-                </div>
+          <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Fixed Commitments</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">EMIs, SIPs, insurance & recurring obligations</p>
               </div>
+              <div className="text-sm font-mono text-muted-foreground">
+                {formatCurrency(fixedActual)} / {formatCurrency(fixedPlanned)}
+              </div>
+            </div>
+            {fixedRows.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {fixedRows.map(row => (
                   <CategoryRow
@@ -369,24 +507,33 @@ export default function Budget() {
                     editingGoals={editingGoals}
                     onGoalChange={handleGoalChange}
                     onSaveGoal={handleSaveGoal}
+                    onRemove={handleRemoveCategory}
                     isSaving={upsertGoal.isPending}
+                    isRemoving={deleteGoal.isPending}
                   />
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">No fixed categories in budget yet.</p>
+            )}
+            <AddCategoryButton
+              availableCategories={availableCategories}
+              onAdd={handleAddCategory}
+              isAdding={upsertGoal.isPending}
+            />
+          </div>
 
-          {discretionaryRows.length > 0 && (
-            <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-lg font-semibold tracking-tight">Discretionary</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Variable spending you can control</p>
-                </div>
-                <div className="text-sm font-mono text-muted-foreground">
-                  {formatCurrency(discActual)} / {formatCurrency(discPlanned)}
-                </div>
+          <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Discretionary</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">Variable spending you can control</p>
               </div>
+              <div className="text-sm font-mono text-muted-foreground">
+                {formatCurrency(discActual)} / {formatCurrency(discPlanned)}
+              </div>
+            </div>
+            {discretionaryRows.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {discretionaryRows.map(row => (
                   <CategoryRow
@@ -395,15 +542,24 @@ export default function Budget() {
                     editingGoals={editingGoals}
                     onGoalChange={handleGoalChange}
                     onSaveGoal={handleSaveGoal}
+                    onRemove={handleRemoveCategory}
                     isSaving={upsertGoal.isPending}
+                    isRemoving={deleteGoal.isPending}
                   />
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-muted-foreground">No discretionary categories in budget yet.</p>
+            )}
+            <AddCategoryButton
+              availableCategories={availableCategories}
+              onAdd={handleAddCategory}
+              isAdding={upsertGoal.isPending}
+            />
+          </div>
 
-          {rows.length === 0 && (
-            <div className="text-center py-12 text-muted-foreground">No budget data found.</div>
+          {budgetedRows.length === 0 && (
+            <div className="text-center py-12 text-muted-foreground">No budget categories configured. Use the "Add category" buttons above to get started.</div>
           )}
         </>
       )}

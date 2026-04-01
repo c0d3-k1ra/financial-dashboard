@@ -1109,6 +1109,11 @@ components:
     BudgetAnalysisRow:
       type: object
       properties:
+        categoryId:
+          type: integer
+        budgetGoalId:
+          type: integer
+          nullable: true
         category:
           type: string
         planned:
@@ -1130,6 +1135,7 @@ components:
         paceMessage:
           type: string
       required:
+        - categoryId
         - category
         - planned
         - actual
