@@ -5,6 +5,8 @@ import { getCycleDates } from "../lib/billing-cycle";
 
 const router: IRouter = Router();
 
+const EXCLUDED_CATEGORIES = ["Adjustment", "Transfer"];
+
 function buildLast6Cycles(month: string): { label: string; startDate: string; endDate: string }[] {
   const [yearStr, monthStr] = month.split("-");
   const year = parseInt(yearStr);
@@ -47,6 +49,7 @@ router.get("/analytics/spend-by-category", async (req, res) => {
       .from(transactionsTable)
       .where(
         sql`${transactionsTable.type} = 'Expense'
+            AND ${transactionsTable.category} NOT IN (${sql.join(EXCLUDED_CATEGORIES.map(c => sql`${c}`), sql`, `)})
             AND ${transactionsTable.date}::date >= ${startDate}::date
             AND ${transactionsTable.date}::date <= ${endDate}::date`
       )
@@ -80,7 +83,8 @@ router.get("/analytics/category-trend", async (req, res) => {
     const allCategories = await db
       .selectDistinct({ category: transactionsTable.category })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense'`);
+      .where(sql`${transactionsTable.type} = 'Expense'
+          AND ${transactionsTable.category} NOT IN (${sql.join(EXCLUDED_CATEGORIES.map(c => sql`${c}`), sql`, `)})`);
 
     const categoryNames = allCategories.map((c) => c.category);
 

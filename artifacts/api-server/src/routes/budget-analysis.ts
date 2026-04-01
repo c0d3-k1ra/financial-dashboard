@@ -24,7 +24,7 @@ router.get("/budget-analysis", async (req, res) => {
         total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
       })
       .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`)
+      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} NOT IN ('Adjustment', 'Transfer') AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`)
       .groupBy(transactionsTable.category);
 
     const actualMap = new Map(actuals.map((a) => [a.category, Number(a.total)]));
