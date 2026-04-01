@@ -31,41 +31,15 @@ router.get("/surplus/monthly", async (req, res) => {
     const settings = await getAppSettings();
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
-    const incomeResult = await db.execute(sql`
-      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
-      FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a ON a.id = t.account_id
-      WHERE t.type = 'Income' AND a.use_in_surplus = true
-        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
-    `);
+    const surplusAccounts = await db
+      .select({ currentBalance: accountsTable.currentBalance })
+      .from(accountsTable)
+      .where(sql`${accountsTable.useInSurplus} = true`);
 
-    const bankExpenseResult = await db.execute(sql`
-      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
-      FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a ON a.id = t.account_id
-      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND a.use_in_surplus = true
-        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
-    `);
-
-    const ccTransferResult = await db.execute(sql`
-      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
-      FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a_from ON a_from.id = t.account_id
-      INNER JOIN ${accountsTable} a_to ON a_to.id = t.to_account_id
-      WHERE t.type = 'Transfer' AND a_to.type = 'credit_card' AND a_from.use_in_surplus = true
-        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
-    `);
-
-    const income = extractTotal(incomeResult);
-    const bankExpenses = extractTotal(bankExpenseResult);
-    const ccTransfers = extractTotal(ccTransferResult);
-    const expenses = bankExpenses + ccTransfers;
-    const surplus = income - expenses;
+    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
 
     res.json({
       month,
-      income: income.toFixed(2),
-      expenses: expenses.toFixed(2),
       surplus: surplus.toFixed(2),
     });
   } catch (e) {
@@ -101,32 +75,12 @@ router.post("/surplus/distribute", async (req, res) => {
     const settings = await getAppSettings();
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
-    const incomeResult = await db.execute(sql`
-      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
-      FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a ON a.id = t.account_id
-      WHERE t.type = 'Income' AND a.use_in_surplus = true
-        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
-    `);
+    const surplusAccounts = await db
+      .select({ currentBalance: accountsTable.currentBalance })
+      .from(accountsTable)
+      .where(sql`${accountsTable.useInSurplus} = true`);
 
-    const bankExpResult = await db.execute(sql`
-      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
-      FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a ON a.id = t.account_id
-      WHERE t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND a.use_in_surplus = true
-        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
-    `);
-
-    const ccTrResult = await db.execute(sql`
-      SELECT COALESCE(SUM(t.amount::numeric), 0) as total
-      FROM ${transactionsTable} t
-      INNER JOIN ${accountsTable} a_from ON a_from.id = t.account_id
-      INNER JOIN ${accountsTable} a_to ON a_to.id = t.to_account_id
-      WHERE t.type = 'Transfer' AND a_to.type = 'credit_card' AND a_from.use_in_surplus = true
-        AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date
-    `);
-
-    const surplus = extractTotal(incomeResult) - extractTotal(bankExpResult) - extractTotal(ccTrResult);
+    const surplus = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
 
     if (surplus <= 0) {
       res.status(400).json({ error: "No surplus available for this month." });

@@ -318,16 +318,10 @@ paths:
                 properties:
                   month:
                     type: string
-                  income:
-                    type: string
-                  expenses:
-                    type: string
                   surplus:
                     type: string
                 required:
                   - month
-                  - income
-                  - expenses
                   - surplus
 
   /surplus/undo:

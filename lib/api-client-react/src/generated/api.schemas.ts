@@ -367,8 +367,6 @@ export type GetMonthlySurplusParams = {
 
 export type GetMonthlySurplus200 = {
   month: string;
-  income: string;
-  expenses: string;
   surplus: string;
 };
 

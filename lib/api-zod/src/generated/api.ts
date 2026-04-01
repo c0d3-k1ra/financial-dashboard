@@ -236,8 +236,6 @@ export const GetMonthlySurplusQueryParams = zod.object({
 
 export const GetMonthlySurplusResponse = zod.object({
   month: zod.string(),
-  income: zod.string(),
-  expenses: zod.string(),
   surplus: zod.string(),
 });
 

@@ -26,19 +26,19 @@ router.get("/dashboard/summary", async (req, res) => {
     const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
 
     const incomeResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
-      .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
-      .where(sql`t.type = 'Income' AND a.use_in_surplus = true AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
+      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
+      .from(transactionsTable)
+      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
 
     const bankExpenseResult = await db
       .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
       .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
-      .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND a.use_in_surplus = true AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
+      .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
 
     const ccTransferResult = await db
       .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
-      .from(sql`${transactionsTable} t JOIN ${accountsTable} a_from ON t.account_id = a_from.id JOIN ${accountsTable} a_to ON t.to_account_id = a_to.id`)
-      .where(sql`t.type = 'Transfer' AND a_to.type = 'credit_card' AND a_from.use_in_surplus = true AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
+      .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.to_account_id = a.id`)
+      .where(sql`t.type = 'Transfer' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
 
     const ccExpenseResult = await db
       .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
@@ -58,9 +58,11 @@ router.get("/dashboard/summary", async (req, res) => {
     const nonCcExpenses = allExpenses - ccExpenses;
     const totalExpenses = bankExpenses + ccTransfers;
     const endBalance = startingBalance + totalIncome - totalExpenses;
-    const monthlySurplus = totalIncome - totalExpenses;
 
     const allAccounts = await db.select().from(accountsTable);
+    const monthlySurplus = allAccounts
+      .filter(a => a.useInSurplus)
+      .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
     const totalBankBalance = allAccounts
       .filter(a => a.type === "bank")
       .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
