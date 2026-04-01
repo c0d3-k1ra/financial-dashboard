@@ -22,6 +22,8 @@ import type {
   BillingCycle,
   BudgetAnalysisResponse,
   BudgetGoal,
+  CanUndoSurplusParams,
+  CanUndoSurplusResult,
   CategoryItem,
   CategorySpendItem,
   CategoryTrendItem,
@@ -62,6 +64,8 @@ import type {
   ResetDataResult,
   SurplusAllocation,
   Transaction,
+  UndoSurplusRequest,
+  UndoSurplusResult,
   UpdateGoal,
   UpdateSettings,
   WaterfallData,
@@ -1367,6 +1371,186 @@ export function useGetMonthlySurplus<
   },
 ): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetMonthlySurplusQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Undo the most recent surplus distribution
+ */
+export const getUndoSurplusDistributionUrl = () => {
+  return `/api/surplus/undo`;
+};
+
+export const undoSurplusDistribution = async (
+  undoSurplusRequest: UndoSurplusRequest,
+  options?: RequestInit,
+): Promise<UndoSurplusResult> => {
+  return customFetch<UndoSurplusResult>(getUndoSurplusDistributionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(undoSurplusRequest),
+  });
+};
+
+export const getUndoSurplusDistributionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoSurplusDistribution>>,
+    TError,
+    { data: BodyType<UndoSurplusRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof undoSurplusDistribution>>,
+  TError,
+  { data: BodyType<UndoSurplusRequest> },
+  TContext
+> => {
+  const mutationKey = ["undoSurplusDistribution"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof undoSurplusDistribution>>,
+    { data: BodyType<UndoSurplusRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return undoSurplusDistribution(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UndoSurplusDistributionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof undoSurplusDistribution>>
+>;
+export type UndoSurplusDistributionMutationBody = BodyType<UndoSurplusRequest>;
+export type UndoSurplusDistributionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Undo the most recent surplus distribution
+ */
+export const useUndoSurplusDistribution = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof undoSurplusDistribution>>,
+    TError,
+    { data: BodyType<UndoSurplusRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof undoSurplusDistribution>>,
+  TError,
+  { data: BodyType<UndoSurplusRequest> },
+  TContext
+> => {
+  return useMutation(getUndoSurplusDistributionMutationOptions(options));
+};
+
+/**
+ * @summary Check if the most recent distribution can be undone
+ */
+export const getCanUndoSurplusUrl = (params: CanUndoSurplusParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/surplus/can-undo?${stringifiedParams}`
+    : `/api/surplus/can-undo`;
+};
+
+export const canUndoSurplus = async (
+  params: CanUndoSurplusParams,
+  options?: RequestInit,
+): Promise<CanUndoSurplusResult> => {
+  return customFetch<CanUndoSurplusResult>(getCanUndoSurplusUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getCanUndoSurplusQueryKey = (params?: CanUndoSurplusParams) => {
+  return [`/api/surplus/can-undo`, ...(params ? [params] : [])] as const;
+};
+
+export const getCanUndoSurplusQueryOptions = <
+  TData = Awaited<ReturnType<typeof canUndoSurplus>>,
+  TError = ErrorType<unknown>,
+>(
+  params: CanUndoSurplusParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof canUndoSurplus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getCanUndoSurplusQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof canUndoSurplus>>> = ({
+    signal,
+  }) => canUndoSurplus(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof canUndoSurplus>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type CanUndoSurplusQueryResult = NonNullable<
+  Awaited<ReturnType<typeof canUndoSurplus>>
+>;
+export type CanUndoSurplusQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Check if the most recent distribution can be undone
+ */
+
+export function useCanUndoSurplus<
+  TData = Awaited<ReturnType<typeof canUndoSurplus>>,
+  TError = ErrorType<unknown>,
+>(
+  params: CanUndoSurplusParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof canUndoSurplus>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getCanUndoSurplusQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

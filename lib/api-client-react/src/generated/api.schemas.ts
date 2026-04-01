@@ -318,6 +318,30 @@ export interface CcDueItem {
   creditLimit?: string | null;
 }
 
+export interface UndoSurplusRequest {
+  month: string;
+}
+
+export interface UndoSurplusResult {
+  success: boolean;
+  deletedAllocations: number;
+  deletedTransfers: number;
+  revertedGoals: number;
+}
+
+export type CanUndoSurplusResultAllocationsItem = {
+  goalId: number;
+  goalName: string;
+  amount: string;
+};
+
+export interface CanUndoSurplusResult {
+  canUndo: boolean;
+  month: string;
+  allocations?: CanUndoSurplusResultAllocationsItem[];
+  transferCount?: number;
+}
+
 export type ListTransactionsParams = {
   month?: string;
   search?: string;
@@ -344,6 +368,10 @@ export type GetMonthlySurplus200 = {
   income: string;
   expenses: string;
   surplus: string;
+};
+
+export type CanUndoSurplusParams = {
+  month: string;
 };
 
 export type GetRecentTransactionsParams = {

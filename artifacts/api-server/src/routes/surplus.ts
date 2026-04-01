@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, goalsTable, surplusAllocationsTable, accountsTable } from "@workspace/db";
-import { DistributeSurplusBody } from "@workspace/api-zod";
+import { DistributeSurplusBody, UndoSurplusDistributionBody } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
 
@@ -249,6 +249,202 @@ router.get("/surplus/allocations", async (req, res) => {
   } catch (e) {
     req.log.error({ err: e }, "Failed to list allocations");
     res.status(500).json({ error: "Internal error" });
+  }
+});
+
+router.get("/surplus/can-undo", async (req, res) => {
+  try {
+    const month = req.query.month as string;
+    if (!month || !/^\d{4}-\d{2}$/.test(month)) {
+      res.status(400).json({ error: "Invalid month format. Use YYYY-MM." });
+      return;
+    }
+
+    const allocations = await db
+      .select()
+      .from(surplusAllocationsTable)
+      .where(eq(surplusAllocationsTable.month, month));
+
+    if (allocations.length === 0) {
+      res.json({ canUndo: false, month });
+      return;
+    }
+
+    const newerAllocations = await db
+      .select()
+      .from(surplusAllocationsTable)
+      .where(sql`${surplusAllocationsTable.month} > ${month}`);
+
+    if (newerAllocations.length > 0) {
+      res.json({ canUndo: false, month });
+      return;
+    }
+
+    const nextMonth = getNextMonth(month);
+    const { startDate: nextStart, endDate: nextEnd } = getCycleDates(nextMonth);
+    const nextMonthTxs = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(transactionsTable)
+      .where(sql`${transactionsTable.date}::date >= ${nextStart}::date AND ${transactionsTable.date}::date <= ${nextEnd}::date AND ${transactionsTable.description} NOT LIKE 'Goal Transfer:%'`);
+
+    if (Number(nextMonthTxs[0]?.count ?? 0) > 0) {
+      res.json({ canUndo: false, month });
+      return;
+    }
+
+    const goals = await db.select().from(goalsTable);
+    const goalMap = new Map(goals.map(g => [g.id, g.name]));
+
+    let transferCount = 0;
+    for (const alloc of allocations) {
+      const goal = goals.find(g => g.id === alloc.goalId);
+      if (goal && alloc.sourceAccountId && goal.accountId !== alloc.sourceAccountId) {
+        transferCount++;
+      }
+    }
+
+    res.json({
+      canUndo: true,
+      month,
+      allocations: allocations.map(a => ({
+        goalId: a.goalId,
+        goalName: goalMap.get(a.goalId) ?? "Unknown",
+        amount: Number(a.amount).toFixed(2),
+      })),
+      transferCount,
+    });
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to check undo availability");
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
+router.post("/surplus/undo", async (req, res) => {
+  try {
+    const data = UndoSurplusDistributionBody.parse(req.body);
+    const { month } = data;
+
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      res.status(400).json({ error: "Invalid month format. Use YYYY-MM." });
+      return;
+    }
+
+    const allocations = await db
+      .select()
+      .from(surplusAllocationsTable)
+      .where(eq(surplusAllocationsTable.month, month));
+
+    if (allocations.length === 0) {
+      res.status(400).json({ error: "No distribution found for this month." });
+      return;
+    }
+
+    const newerAllocations = await db
+      .select()
+      .from(surplusAllocationsTable)
+      .where(sql`${surplusAllocationsTable.month} > ${month}`);
+
+    if (newerAllocations.length > 0) {
+      res.status(400).json({ error: "Can only undo the most recent distribution." });
+      return;
+    }
+
+    const nextMonth = getNextMonth(month);
+    const { startDate: nextStart, endDate: nextEnd } = getCycleDates(nextMonth);
+    const nextMonthTxs = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(transactionsTable)
+      .where(sql`${transactionsTable.date}::date >= ${nextStart}::date AND ${transactionsTable.date}::date <= ${nextEnd}::date AND ${transactionsTable.description} NOT LIKE 'Goal Transfer:%'`);
+
+    if (Number(nextMonthTxs[0]?.count ?? 0) > 0) {
+      res.status(400).json({ error: "Cannot undo — new transactions exist in the next cycle." });
+      return;
+    }
+
+    let deletedTransfers = 0;
+    let revertedGoals = 0;
+
+    const allocDates = allocations.map(a => a.allocatedAt.toISOString().split("T")[0]);
+    const earliestAllocDate = allocDates.sort()[0];
+    const latestAllocDate = allocDates.sort()[allocDates.length - 1];
+
+    const otherAllocMonths = await db.execute(sql`
+      SELECT DISTINCT month FROM ${surplusAllocationsTable} WHERE month != ${month}
+    `);
+    const hasOtherMonthsWithNextConfig = (otherAllocMonths as { rows: { month: string }[] }).rows?.some(
+      (r) => getNextMonth(r.month) === nextMonth
+    );
+
+    await db.transaction(async (tx) => {
+      for (const alloc of allocations) {
+        const amount = Number(alloc.amount);
+        const goal = await tx.select().from(goalsTable).where(eq(goalsTable.id, alloc.goalId));
+        if (!goal.length) continue;
+
+        await tx
+          .update(goalsTable)
+          .set({ currentAmount: sql`${goalsTable.currentAmount}::numeric - ${amount}` })
+          .where(eq(goalsTable.id, alloc.goalId));
+
+        const updatedGoal = await tx.select().from(goalsTable).where(eq(goalsTable.id, alloc.goalId));
+        if (updatedGoal.length > 0) {
+          const current = Number(updatedGoal[0].currentAmount ?? 0);
+          const target = Number(updatedGoal[0].targetAmount ?? 0);
+          if (target > 0 && current < target && updatedGoal[0].status === "Achieved") {
+            await tx.update(goalsTable).set({ status: "Active" }).where(eq(goalsTable.id, alloc.goalId));
+          }
+        }
+        revertedGoals++;
+
+        if (alloc.sourceAccountId && goal[0].accountId !== alloc.sourceAccountId) {
+          await tx
+            .update(accountsTable)
+            .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric + ${amount}` })
+            .where(eq(accountsTable.id, alloc.sourceAccountId));
+
+          await tx
+            .update(accountsTable)
+            .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${amount}` })
+            .where(eq(accountsTable.id, goal[0].accountId));
+
+          const matchingTxs = await tx
+            .select({ id: transactionsTable.id })
+            .from(transactionsTable)
+            .where(
+              and(
+                eq(transactionsTable.type, "Transfer"),
+                eq(transactionsTable.accountId, alloc.sourceAccountId!),
+                eq(transactionsTable.toAccountId, goal[0].accountId),
+                sql`${transactionsTable.description} = ${"Goal Transfer: " + goal[0].name}`,
+                sql`${transactionsTable.amount}::numeric = ${amount}`,
+                sql`${transactionsTable.date}::date >= ${earliestAllocDate}::date AND ${transactionsTable.date}::date <= ${latestAllocDate}::date`
+              )
+            )
+            .limit(1);
+
+          if (matchingTxs.length > 0) {
+            await tx.delete(transactionsTable).where(eq(transactionsTable.id, matchingTxs[0].id));
+            deletedTransfers++;
+          }
+        }
+      }
+
+      await tx.delete(surplusAllocationsTable).where(eq(surplusAllocationsTable.month, month));
+
+      if (!hasOtherMonthsWithNextConfig) {
+        await tx.delete(monthlyConfigTable).where(eq(monthlyConfigTable.month, nextMonth));
+      }
+    });
+
+    res.json({
+      success: true,
+      deletedAllocations: allocations.length,
+      deletedTransfers,
+      revertedGoals,
+    });
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to undo surplus distribution");
+    res.status(400).json({ error: String(e instanceof Error ? e.message : "Invalid request") });
   }
 });
 

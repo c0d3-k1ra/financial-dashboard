@@ -24,6 +24,9 @@ import {
   useDistributeSurplus,
   useListSurplusAllocations,
   getListSurplusAllocationsQueryKey,
+  useCanUndoSurplus,
+  getCanUndoSurplusQueryKey,
+  useUndoSurplusDistribution,
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/category-icons";
@@ -32,11 +35,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark, ArrowLeftRight, CheckCircle2, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2, Undo2, TrendingUp } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TransferModal from "@/components/transfer-modal";
 import SurplusDistributeModal from "@/components/surplus-distribute-modal";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/lib/constants";
@@ -126,6 +129,7 @@ export default function Dashboard() {
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [spendAccountFilter, setSpendAccountFilter] = useState<"all" | "cc" | "non_cc">("all");
   const [distributeOpen, setDistributeOpen] = useState(false);
+  const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
     { month: currentMonth },
@@ -169,9 +173,15 @@ export default function Dashboard() {
   );
   const { data: allAllocations } = useListSurplusAllocations();
   const distribute = useDistributeSurplus();
+  const { data: canUndoData } = useCanUndoSurplus(
+    { month: currentMonth },
+    { query: { enabled: true, queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) } }
+  );
+  const undoSurplus = useUndoSurplusDistribution();
 
   const activeGoals = goals?.filter((g) => g.status === "Active") || [];
   const cycleAlreadyEnded = allAllocations?.some((a) => a.month === currentMonth) ?? false;
+  const canUndo = canUndoData?.canUndo === true;
 
   const handleEndCycle = async () => {
     const result = await refetchSurplus();
@@ -259,9 +269,16 @@ export default function Dashboard() {
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
           </Button>
           {cycleAlreadyEnded ? (
-            <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider opacity-60" disabled>
-              <CheckCircle2 className="w-4 h-4 mr-1.5" /> Cycle Ended
-            </Button>
+            <>
+              <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider opacity-60" disabled>
+                <CheckCircle2 className="w-4 h-4 mr-1.5" /> Cycle Ended
+              </Button>
+              {canUndo && (
+                <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setUndoConfirmOpen(true)}>
+                  <Undo2 className="w-4 h-4 mr-1.5" /> Undo Distribution
+                </Button>
+              )}
+            </>
           ) : (
             <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={handleEndCycle}>
               <CheckCircle2 className="w-4 h-4 mr-1.5" /> End Cycle
@@ -855,6 +872,7 @@ export default function Dashboard() {
                       queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
                       queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
                       queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
+                      queryClient.invalidateQueries({ queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) });
                     }
                   },
                   onError: (err) => {
@@ -865,6 +883,73 @@ export default function Dashboard() {
             }}
             isPending={distribute.isPending}
           />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={undoConfirmOpen} onOpenChange={setUndoConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Undo Last Distribution</DialogTitle>
+            <DialogDescription>
+              This will reverse the surplus distribution for {new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}. The following changes will be reverted:
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            {canUndoData?.allocations && canUndoData.allocations.length > 0 && (
+              <div className="space-y-1.5">
+                <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Goal Allocations to Remove</div>
+                {canUndoData.allocations.map((a, i) => (
+                  <div key={i} className="flex justify-between items-center p-2 rounded-md bg-secondary/30 text-sm font-mono">
+                    <span>{a.goalName}</span>
+                    <span className="text-destructive">-{formatCurrency(a.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {(canUndoData?.transferCount ?? 0) > 0 && (
+              <div className="text-xs font-mono p-2 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                {canUndoData!.transferCount} auto-transfer transaction(s) will be deleted and account balances reversed.
+              </div>
+            )}
+            <div className="text-xs font-mono p-2 rounded-md bg-secondary/30 text-muted-foreground">
+              The next month's starting balance entry will also be removed.
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setUndoConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={undoSurplus.isPending}
+              onClick={() => {
+                undoSurplus.mutate(
+                  { data: { month: currentMonth } },
+                  {
+                    onSuccess: (res) => {
+                      if (res.success) {
+                        toast({
+                          title: "Distribution Undone",
+                          description: `Reverted ${res.deletedAllocations} allocation(s) and ${res.deletedTransfers} transfer(s).`,
+                        });
+                        setUndoConfirmOpen(false);
+                        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+                        queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
+                        queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
+                        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
+                        queryClient.invalidateQueries({ queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) });
+                      }
+                    },
+                    onError: (err) => {
+                      toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
+                    },
+                  }
+                );
+              }}
+            >
+              {undoSurplus.isPending ? "Undoing..." : "Confirm Undo"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

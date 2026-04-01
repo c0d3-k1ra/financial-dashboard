@@ -240,6 +240,42 @@ export const GetMonthlySurplusResponse = zod.object({
 });
 
 /**
+ * @summary Undo the most recent surplus distribution
+ */
+export const UndoSurplusDistributionBody = zod.object({
+  month: zod.string(),
+});
+
+export const UndoSurplusDistributionResponse = zod.object({
+  success: zod.boolean(),
+  deletedAllocations: zod.number(),
+  deletedTransfers: zod.number(),
+  revertedGoals: zod.number(),
+});
+
+/**
+ * @summary Check if the most recent distribution can be undone
+ */
+export const CanUndoSurplusQueryParams = zod.object({
+  month: zod.coerce.string(),
+});
+
+export const CanUndoSurplusResponse = zod.object({
+  canUndo: zod.boolean(),
+  month: zod.string(),
+  allocations: zod
+    .array(
+      zod.object({
+        goalId: zod.number(),
+        goalName: zod.string(),
+        amount: zod.string(),
+      }),
+    )
+    .optional(),
+  transferCount: zod.number().optional(),
+});
+
+/**
  * @summary List surplus allocation history
  */
 export const ListSurplusAllocationsResponseItem = zod.object({

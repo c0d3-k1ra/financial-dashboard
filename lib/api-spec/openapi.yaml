@@ -330,6 +330,44 @@ paths:
                   - expenses
                   - surplus
 
+  /surplus/undo:
+    post:
+      operationId: undoSurplusDistribution
+      tags: [surplus]
+      summary: Undo the most recent surplus distribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UndoSurplusRequest"
+      responses:
+        "200":
+          description: Undo result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UndoSurplusResult"
+
+  /surplus/can-undo:
+    get:
+      operationId: canUndoSurplus
+      tags: [surplus]
+      summary: Check if the most recent distribution can be undone
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Undo availability info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CanUndoSurplusResult"
+
   /surplus/allocations:
     get:
       operationId: listSurplusAllocations
@@ -1596,3 +1634,56 @@ components:
         - id
         - name
         - outstanding
+
+    UndoSurplusRequest:
+      type: object
+      properties:
+        month:
+          type: string
+      required:
+        - month
+
+    UndoSurplusResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        deletedAllocations:
+          type: integer
+        deletedTransfers:
+          type: integer
+        revertedGoals:
+          type: integer
+      required:
+        - success
+        - deletedAllocations
+        - deletedTransfers
+        - revertedGoals
+
+    CanUndoSurplusResult:
+      type: object
+      properties:
+        canUndo:
+          type: boolean
+        month:
+          type: string
+        allocations:
+          type: array
+          items:
+            type: object
+            properties:
+              goalId:
+                type: integer
+              goalName:
+                type: string
+              amount:
+                type: string
+            required:
+              - goalId
+              - goalName
+              - amount
+        transferCount:
+          type: integer
+      required:
+        - canUndo
+        - month

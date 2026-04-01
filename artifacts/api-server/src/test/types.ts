@@ -155,3 +155,17 @@ export interface CategoryResponse {
   type: string;
 }
 
+export interface UndoSurplusResult {
+  success: boolean;
+  deletedAllocations: number;
+  deletedTransfers: number;
+  revertedGoals: number;
+}
+
+export interface CanUndoSurplusResult {
+  canUndo: boolean;
+  month: string;
+  allocations?: { goalId: number; goalName: string; amount: string }[];
+  transferCount?: number;
+}
+
