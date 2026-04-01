@@ -13,6 +13,7 @@ export const accountsTable = pgTable("accounts", {
   emiDay: integer("emi_day"),
   loanTenure: integer("loan_tenure"),
   interestRate: numeric("interest_rate", { precision: 5, scale: 2 }),
+  linkedAccountId: integer("linked_account_id"),
 });
 
 export const insertAccountSchema = createInsertSchema(accountsTable).omit({ id: true });

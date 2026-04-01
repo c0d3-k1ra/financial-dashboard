@@ -56,6 +56,7 @@ router.post("/accounts", async (req, res) => {
         emiDay: data.type === "loan" ? (data.emiDay ?? null) : null,
         loanTenure: data.type === "loan" ? (data.loanTenure ?? null) : null,
         interestRate: data.type === "loan" ? (data.interestRate || null) : null,
+        linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
       })
       .returning();
     res.status(201).json(created);
@@ -107,6 +108,7 @@ router.put("/accounts/:id", async (req, res) => {
         emiDay: data.type === "loan" ? (data.emiDay ?? null) : null,
         loanTenure: data.type === "loan" ? (data.loanTenure ?? null) : null,
         interestRate: data.type === "loan" ? (data.interestRate || null) : null,
+        linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
       })
       .where(eq(accountsTable.id, id))
       .returning();
@@ -237,8 +239,11 @@ router.post("/accounts/process-emis", async (req, res) => {
       return;
     }
 
+    const allAccounts = await db.select().from(accountsTable);
+    const accountMap = new Map(allAccounts.map((a) => [a.id, a]));
+
     let processed = 0;
-    const results: Array<{ accountName: string; emiAmount: string; newBalance: string }> = [];
+    const results: Array<{ accountName: string; emiAmount: string; newBalance: string; fromAccount?: string }> = [];
 
     await db.transaction(async (tx) => {
       for (const loan of activeLoanAccounts) {
@@ -256,7 +261,7 @@ router.post("/accounts/process-emis", async (req, res) => {
         const existing = await tx
           .select({ count: sql<number>`count(*)` })
           .from(transactionsTable)
-          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.accountId} = ${loan.id} AND ${transactionsTable.date}::text LIKE ${month + '%'}`);
+          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.accountId} = ${loan.linkedAccountId ?? loan.id} AND ${transactionsTable.date}::text LIKE ${month + '%'} AND ${transactionsTable.description} LIKE ${'EMI Payment — ' + loan.name + '%'}`);
 
         if (Number(existing[0].count) > 0) continue;
 
@@ -265,20 +270,40 @@ router.post("/accounts/process-emis", async (req, res) => {
           .set({ currentBalance: newBalance.toFixed(2) })
           .where(eq(accountsTable.id, loan.id));
 
-        await tx.insert(transactionsTable).values({
-          date: emiDate,
-          amount: principalReduction.toFixed(2),
-          description: `EMI Payment — ${loan.name}${principalReduction < emiAmount ? " (final)" : ""}`,
-          category: "EMI",
-          type: "Expense",
-          accountId: loan.id,
-        });
+        const linkedAccount = loan.linkedAccountId ? accountMap.get(loan.linkedAccountId) : null;
+
+        if (linkedAccount) {
+          await tx
+            .update(accountsTable)
+            .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${principalReduction.toFixed(2)}::numeric` })
+            .where(eq(accountsTable.id, linkedAccount.id));
+
+          await tx.insert(transactionsTable).values({
+            date: emiDate,
+            amount: principalReduction.toFixed(2),
+            description: `EMI Payment — ${loan.name}${principalReduction < emiAmount ? " (final)" : ""}`,
+            category: "EMI",
+            type: "Transfer",
+            accountId: linkedAccount.id,
+            toAccountId: loan.id,
+          });
+        } else {
+          await tx.insert(transactionsTable).values({
+            date: emiDate,
+            amount: principalReduction.toFixed(2),
+            description: `EMI Payment — ${loan.name}${principalReduction < emiAmount ? " (final)" : ""}`,
+            category: "EMI",
+            type: "Expense",
+            accountId: loan.id,
+          });
+        }
 
         processed++;
         results.push({
           accountName: loan.name,
           emiAmount: principalReduction.toFixed(2),
           newBalance: newBalance.toFixed(2),
+          fromAccount: linkedAccount?.name,
         });
       }
     });

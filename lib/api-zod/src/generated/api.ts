@@ -428,6 +428,7 @@ export const CreateAccountBody = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  linkedAccountId: zod.number().nullish(),
 });
 
 /**
@@ -447,6 +448,7 @@ export const UpdateAccountBody = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  linkedAccountId: zod.number().nullish(),
 });
 
 export const UpdateAccountResponse = zod.object({
@@ -460,6 +462,7 @@ export const UpdateAccountResponse = zod.object({
   emiDay: zod.number().nullish(),
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
+  linkedAccountId: zod.number().nullish(),
 });
 
 /**

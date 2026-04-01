@@ -36,6 +36,7 @@ const formSchema = z.object({
   emiDay: z.string().optional(),
   loanTenure: z.string().optional(),
   interestRate: z.string().optional(),
+  linkedAccountId: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -55,6 +56,7 @@ export default function Accounts() {
   const [editEmiDay, setEditEmiDay] = useState("");
   const [editLoanTenure, setEditLoanTenure] = useState("");
   const [editInterestRate, setEditInterestRate] = useState("");
+  const [editLinkedAccountId, setEditLinkedAccountId] = useState("");
   const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
 
   const { data: accounts, isLoading } = useListAccounts({
@@ -84,6 +86,7 @@ export default function Accounts() {
     setEditEmiDay(acct.emiDay ? String(acct.emiDay) : "");
     setEditLoanTenure(acct.loanTenure ? String(acct.loanTenure) : "");
     setEditInterestRate(acct.interestRate ? String(acct.interestRate) : "");
+    setEditLinkedAccountId(acct.linkedAccountId ? String(acct.linkedAccountId) : "");
   };
 
   const handleEdit = () => {
@@ -101,6 +104,7 @@ export default function Accounts() {
           emiDay: editTarget.type === "loan" && editEmiDay ? Number(editEmiDay) : null,
           loanTenure: editTarget.type === "loan" && editLoanTenure ? Number(editLoanTenure) : null,
           interestRate: editTarget.type === "loan" ? editInterestRate || null : null,
+          linkedAccountId: editTarget.type === "loan" && editLinkedAccountId ? Number(editLinkedAccountId) : null,
         },
       },
       {
@@ -139,7 +143,7 @@ export default function Accounts() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "" },
+    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "" },
   });
 
   const watchType = form.watch("type");
@@ -165,6 +169,7 @@ export default function Accounts() {
           emiDay: data.type === "loan" && data.emiDay ? Number(data.emiDay) : null,
           loanTenure: data.type === "loan" && data.loanTenure ? Number(data.loanTenure) : null,
           interestRate: data.type === "loan" ? data.interestRate || null : null,
+          linkedAccountId: data.type === "loan" && data.linkedAccountId ? Number(data.linkedAccountId) : null,
         },
       },
       {
@@ -401,6 +406,30 @@ export default function Accounts() {
                             <FormControl>
                               <Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="linkedAccountId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>EMI Debit Account</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select bank account" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {bankAccounts.map((a) => (
+                                  <SelectItem key={a.id} value={String(a.id)}>
+                                    {a.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -660,7 +689,7 @@ export default function Accounts() {
                                 EMI: {formatCurrency(account.emiAmount)}/mo
                               </p>
                             )}
-                            <div className="flex gap-3 mt-0.5">
+                            <div className="flex gap-3 mt-0.5 flex-wrap">
                               {account.interestRate && (
                                 <p className="text-xs font-mono text-muted-foreground">
                                   Rate: {account.interestRate}%
@@ -669,6 +698,11 @@ export default function Accounts() {
                               {account.emiDay && (
                                 <p className="text-xs font-mono text-muted-foreground">
                                   Debit: {account.emiDay}th
+                                </p>
+                              )}
+                              {account.linkedAccountId && (
+                                <p className="text-xs font-mono text-muted-foreground">
+                                  From: {accounts?.find((a) => a.id === account.linkedAccountId)?.name ?? "—"}
                                 </p>
                               )}
                             </div>
@@ -796,6 +830,21 @@ export default function Accounts() {
                 <div>
                   <Label>Tenure (months)</Label>
                   <Input type="number" min="1" step="1" className="mt-1 font-mono" placeholder="e.g. 36" value={editLoanTenure} onChange={(e) => setEditLoanTenure(e.target.value)} />
+                </div>
+                <div>
+                  <Label>EMI Debit Account</Label>
+                  <Select value={editLinkedAccountId} onValueChange={setEditLinkedAccountId}>
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select bank account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bankAccounts.map((a) => (
+                        <SelectItem key={a.id} value={String(a.id)}>
+                          {a.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </>
             )}
