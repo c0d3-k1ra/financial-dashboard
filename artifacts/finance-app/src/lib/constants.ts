@@ -41,3 +41,9 @@ export const formatDate = (dateStr: string) => {
     year: "numeric"
   }).format(new Date(dateStr));
 };
+
+export function getApiErrorMessage(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  const match = msg.match(/^HTTP \d{3} [^:]+:\s*(.+)$/);
+  return match ? match[1] : msg;
+}

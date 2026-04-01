@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getApiErrorMessage } from "@/lib/constants";
 import { Plus, Trash2, Tag } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getCategoryIcon } from "@/lib/category-icons";
@@ -50,7 +51,7 @@ export default function Settings() {
           queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
         },
         onError: (err) => {
-          toast({ title: "Failed to add category", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to add category", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -67,7 +68,7 @@ export default function Settings() {
           queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
         },
         onError: (err) => {
-          toast({ title: "Failed to delete category", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to delete category", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );

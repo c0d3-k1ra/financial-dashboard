@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, categoriesTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { db, categoriesTable, transactionsTable, budgetGoalsTable } from "@workspace/db";
 import { CreateCategoryBody, ListCategoriesQueryParams } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -35,6 +35,37 @@ router.post("/categories", async (req, res) => {
 router.delete("/categories/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
+
+    const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id));
+    if (!cat) {
+      res.status(404).json({ error: "Category not found" });
+      return;
+    }
+
+    const [linkedTxns] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(transactionsTable)
+      .where(eq(transactionsTable.category, cat.name));
+
+    if (Number(linkedTxns.count) > 0) {
+      res.status(409).json({
+        error: `Cannot delete category: ${linkedTxns.count} transaction(s) use "${cat.name}". Reassign them first.`,
+      });
+      return;
+    }
+
+    const [linkedBudget] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(budgetGoalsTable)
+      .where(eq(budgetGoalsTable.category, cat.name));
+
+    if (Number(linkedBudget.count) > 0) {
+      res.status(409).json({
+        error: `Cannot delete category: a budget goal is set for "${cat.name}". Remove it first.`,
+      });
+      return;
+    }
+
     await db.delete(categoriesTable).where(eq(categoriesTable.id, id));
     res.status(204).send();
   } catch (e) {

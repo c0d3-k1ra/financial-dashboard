@@ -135,6 +135,19 @@ router.put("/goals/:id", async (req, res) => {
 router.delete("/goals/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
+
+    const [linkedAllocations] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(surplusAllocationsTable)
+      .where(eq(surplusAllocationsTable.goalId, id));
+
+    if (Number(linkedAllocations.count) > 0) {
+      res.status(409).json({
+        error: `Cannot delete goal: ${linkedAllocations.count} surplus allocation(s) are linked to it. Remove them first.`,
+      });
+      return;
+    }
+
     await db.delete(goalsTable).where(eq(goalsTable.id, id));
     res.status(204).send();
   } catch (e) {

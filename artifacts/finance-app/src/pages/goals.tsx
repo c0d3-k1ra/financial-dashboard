@@ -16,7 +16,7 @@ import {
   useListSurplusAllocations,
   getListSurplusAllocationsQueryKey,
 } from "@workspace/api-client-react";
-import { formatCurrency } from "@/lib/constants";
+import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -158,7 +158,7 @@ export default function Goals() {
           invalidateAll();
         },
         onError: (err) => {
-          toast({ title: "Error", description: String(err), variant: "destructive" });
+          toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -169,6 +169,9 @@ export default function Goals() {
       onSuccess: () => {
         toast({ title: "Goal Deleted" });
         invalidateAll();
+      },
+      onError: (err) => {
+        toast({ title: "Cannot delete goal", description: getApiErrorMessage(err), variant: "destructive" });
       },
     });
   };
@@ -212,7 +215,7 @@ export default function Goals() {
           invalidateAll();
         },
         onError: (err) => {
-          toast({ title: "Error", description: String(err), variant: "destructive" });
+          toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -345,7 +348,7 @@ export default function Goals() {
                         }
                       },
                       onError: (err) => {
-                        toast({ title: "Error", description: String(err), variant: "destructive" });
+                        toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
                       },
                     }
                   );

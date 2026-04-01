@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
-import { db, accountsTable, transactionsTable } from "@workspace/db";
+import { db, accountsTable, transactionsTable, goalsTable, surplusAllocationsTable } from "@workspace/db";
 import { CreateAccountBody, ReconcileAccountBody } from "@workspace/api-zod";
 
 const router: IRouter = Router();
@@ -89,6 +89,30 @@ router.delete("/accounts/:id", async (req, res) => {
     if (Number(linked.count) > 0) {
       res.status(409).json({
         error: `Cannot delete account: ${linked.count} transaction(s) are linked to it. Reassign or delete them first.`,
+      });
+      return;
+    }
+
+    const [linkedGoals] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(goalsTable)
+      .where(eq(goalsTable.accountId, id));
+
+    if (Number(linkedGoals.count) > 0) {
+      res.status(409).json({
+        error: `Cannot delete account: ${linkedGoals.count} goal(s) are linked to it. Reassign or delete them first.`,
+      });
+      return;
+    }
+
+    const [linkedAllocations] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(surplusAllocationsTable)
+      .where(eq(surplusAllocationsTable.sourceAccountId, id));
+
+    if (Number(linkedAllocations.count) > 0) {
+      res.status(409).json({
+        error: `Cannot delete account: ${linkedAllocations.count} surplus allocation(s) reference it.`,
       });
       return;
     }

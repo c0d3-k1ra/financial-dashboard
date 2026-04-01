@@ -7,7 +7,7 @@ import {
   useReconcileAccount,
   useUpdateAccount,
 } from "@workspace/api-client-react";
-import { formatCurrency } from "@/lib/constants";
+import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +92,7 @@ export default function Accounts() {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
         onError: (err) => {
-          toast({ title: "Failed to update account", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to update account", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -113,7 +113,7 @@ export default function Accounts() {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
         onError: (err) => {
-          toast({ title: "Reconciliation Failed", description: String(err), variant: "destructive" });
+          toast({ title: "Reconciliation Failed", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -151,7 +151,7 @@ export default function Accounts() {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
         onError: (err) => {
-          toast({ title: "Failed to create account", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to create account", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -168,7 +168,7 @@ export default function Accounts() {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
         onError: (err) => {
-          toast({ title: "Failed to delete account", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to delete account", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );

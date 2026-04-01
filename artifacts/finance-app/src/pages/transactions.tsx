@@ -14,7 +14,7 @@ import {
 } from "@workspace/api-client-react";
 import type { Transaction } from "@workspace/api-client-react";
 
-import { formatCurrency, formatDate } from "@/lib/constants";
+import { formatCurrency, formatDate, getApiErrorMessage } from "@/lib/constants";
 import { ResponsiveTable } from "@/components/ui/responsive-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,7 +107,7 @@ export default function Transactions() {
           toast({ title: "Category created" });
         },
         onError: (err) => {
-          toast({ title: "Failed to create category", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to create category", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -195,7 +195,7 @@ export default function Transactions() {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
         onError: (err) => {
-          toast({ title: "Failed to add transaction", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to add transaction", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
@@ -213,7 +213,7 @@ export default function Transactions() {
           queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
         },
         onError: (err) => {
-          toast({ title: "Failed to delete transaction", description: String(err), variant: "destructive" });
+          toast({ title: "Failed to delete transaction", description: getApiErrorMessage(err), variant: "destructive" });
         },
       }
     );
