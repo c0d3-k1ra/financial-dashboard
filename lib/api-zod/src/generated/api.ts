@@ -186,16 +186,23 @@ export const GetBudgetAnalysisQueryParams = zod.object({
   month: zod.coerce.string(),
 });
 
-export const GetBudgetAnalysisResponseItem = zod.object({
-  category: zod.string(),
-  planned: zod.string(),
-  actual: zod.string(),
-  difference: zod.string(),
-  overBudget: zod.boolean(),
+export const GetBudgetAnalysisResponse = zod.object({
+  daysElapsed: zod.number(),
+  totalCycleDays: zod.number(),
+  rows: zod.array(
+    zod.object({
+      category: zod.string(),
+      planned: zod.string(),
+      actual: zod.string(),
+      difference: zod.string(),
+      overBudget: zod.boolean(),
+      paceStatus: zod.enum(["on_pace", "ahead", "over_budget"]),
+      categoryType: zod.enum(["fixed", "discretionary"]),
+      percentSpent: zod.number(),
+      paceMessage: zod.string(),
+    }),
+  ),
 });
-export const GetBudgetAnalysisResponse = zod.array(
-  GetBudgetAnalysisResponseItem,
-);
 
 /**
  * @summary Distribute monthly surplus across goals

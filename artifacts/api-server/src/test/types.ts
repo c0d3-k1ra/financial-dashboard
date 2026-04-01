@@ -32,6 +32,16 @@ export interface BudgetAnalysisRow {
   actual: string;
   difference: string;
   overBudget: boolean;
+  paceStatus: "on_pace" | "ahead" | "over_budget";
+  categoryType: "fixed" | "discretionary";
+  percentSpent: number;
+  paceMessage: string;
+}
+
+export interface BudgetAnalysisResponse {
+  daysElapsed: number;
+  totalCycleDays: number;
+  rows: BudgetAnalysisRow[];
 }
 
 export interface GoalResponse {

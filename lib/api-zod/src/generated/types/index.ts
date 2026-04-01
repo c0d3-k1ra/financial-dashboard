@@ -8,7 +8,10 @@
 
 export * from "./accountItem";
 export * from "./billingCycle";
+export * from "./budgetAnalysisResponse";
 export * from "./budgetAnalysisRow";
+export * from "./budgetAnalysisRowCategoryType";
+export * from "./budgetAnalysisRowPaceStatus";
 export * from "./budgetGoal";
 export * from "./categoryItem";
 export * from "./categorySpendItem";

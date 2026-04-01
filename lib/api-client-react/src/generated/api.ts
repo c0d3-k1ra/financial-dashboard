@@ -19,7 +19,7 @@ import type {
 import type {
   AccountItem,
   BillingCycle,
-  BudgetAnalysisRow,
+  BudgetAnalysisResponse,
   BudgetGoal,
   CategoryItem,
   CategorySpendItem,
@@ -1114,8 +1114,8 @@ export const getGetBudgetAnalysisUrl = (params: GetBudgetAnalysisParams) => {
 export const getBudgetAnalysis = async (
   params: GetBudgetAnalysisParams,
   options?: RequestInit,
-): Promise<BudgetAnalysisRow[]> => {
-  return customFetch<BudgetAnalysisRow[]>(getGetBudgetAnalysisUrl(params), {
+): Promise<BudgetAnalysisResponse> => {
+  return customFetch<BudgetAnalysisResponse>(getGetBudgetAnalysisUrl(params), {
     ...options,
     method: "GET",
   });

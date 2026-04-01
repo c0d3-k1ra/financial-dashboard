@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../app";
-import type { AccountResponse, BudgetGoalResponse, BudgetAnalysisRow } from "../test/types";
+import type { AccountResponse, BudgetGoalResponse, BudgetAnalysisResponse } from "../test/types";
 
 async function createCategoryAndGetId(name: string, type = "Expense"): Promise<number> {
   const res = await request(app).post("/api/categories").send({ name, type });
@@ -58,11 +58,17 @@ describe("Budget API", () => {
 
     const res = await request(app).get("/api/budget-analysis?month=2025-03");
     expect(res.status).toBe(200);
-    const body = res.body as BudgetAnalysisRow[];
-    const foodRow = body.find(r => r.category === "Food");
+    const body = res.body as BudgetAnalysisResponse;
+    expect(body.daysElapsed).toBeGreaterThanOrEqual(0);
+    expect(body.totalCycleDays).toBeGreaterThan(0);
+    const foodRow = body.rows.find(r => r.category === "Food");
     expect(foodRow).toBeDefined();
     expect(Number(foodRow!.difference)).toBeGreaterThan(0);
     expect(foodRow!.overBudget).toBe(false);
+    expect(foodRow!.categoryType).toBe("discretionary");
+    expect(foodRow!.paceStatus).toBeDefined();
+    expect(foodRow!.paceMessage).toBeDefined();
+    expect(typeof foodRow!.percentSpent).toBe("number");
   });
 
   it("B-06: budget analysis shows over budget", async () => {
@@ -75,10 +81,11 @@ describe("Budget API", () => {
     });
 
     const res = await request(app).get("/api/budget-analysis?month=2025-03");
-    const body = res.body as BudgetAnalysisRow[];
-    const foodRow = body.find(r => r.category === "Food");
+    const body = res.body as BudgetAnalysisResponse;
+    const foodRow = body.rows.find(r => r.category === "Food");
     expect(Number(foodRow!.difference)).toBeLessThan(0);
     expect(foodRow!.overBudget).toBe(true);
+    expect(foodRow!.paceStatus).toBe("over_budget");
   });
 
   it("B-07: budget analysis for month with no transactions", async () => {
@@ -86,9 +93,51 @@ describe("Budget API", () => {
     await request(app).post("/api/budget-goals").send({ categoryId: catId, plannedAmount: "8000" });
 
     const res = await request(app).get("/api/budget-analysis?month=2024-01");
-    const body = res.body as BudgetAnalysisRow[];
-    const foodRow = body.find(r => r.category === "Food");
+    const body = res.body as BudgetAnalysisResponse;
+    const foodRow = body.rows.find(r => r.category === "Food");
     expect(foodRow!.actual).toBe("0.00");
     expect(foodRow!.overBudget).toBe(false);
+  });
+
+  it("B-08: fixed classification by pattern matching (EMI, SIP, Insurance)", async () => {
+    const emiCatId = await createCategoryAndGetId("Home EMI");
+    const sipCatId = await createCategoryAndGetId("SIP Mutual Fund");
+    const insCatId = await createCategoryAndGetId("Life Insurance");
+    const foodCatId = await createCategoryAndGetId("Food");
+    await request(app).post("/api/budget-goals").send({ categoryId: emiCatId, plannedAmount: "15000" });
+    await request(app).post("/api/budget-goals").send({ categoryId: sipCatId, plannedAmount: "10000" });
+    await request(app).post("/api/budget-goals").send({ categoryId: insCatId, plannedAmount: "5000" });
+    await request(app).post("/api/budget-goals").send({ categoryId: foodCatId, plannedAmount: "8000" });
+
+    const res = await request(app).get("/api/budget-analysis?month=2025-03");
+    const body = res.body as BudgetAnalysisResponse;
+    const emiRow = body.rows.find(r => r.category === "Home EMI");
+    const sipRow = body.rows.find(r => r.category === "SIP Mutual Fund");
+    const insRow = body.rows.find(r => r.category === "Life Insurance");
+    const foodRow = body.rows.find(r => r.category === "Food");
+
+    expect(emiRow!.categoryType).toBe("fixed");
+    expect(sipRow!.categoryType).toBe("fixed");
+    expect(insRow!.categoryType).toBe("fixed");
+    expect(foodRow!.categoryType).toBe("discretionary");
+  });
+
+  it("B-09: fixed classification by EMI amount match", async () => {
+    const acc = await request(app).post("/api/accounts").send({
+      name: "HomeLoan",
+      type: "loan",
+      currentBalance: "500000",
+      emiAmount: "12500",
+    });
+    expect(acc.status).toBe(201);
+
+    const catId = await createCategoryAndGetId("Monthly Payment");
+    await request(app).post("/api/budget-goals").send({ categoryId: catId, plannedAmount: "12500" });
+
+    const res = await request(app).get("/api/budget-analysis?month=2025-03");
+    const body = res.body as BudgetAnalysisResponse;
+    const row = body.rows.find(r => r.category === "Monthly Payment");
+
+    expect(row!.categoryType).toBe("fixed");
   });
 });

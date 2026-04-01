@@ -4,6 +4,27 @@ import { db, transactionsTable, budgetGoalsTable, categoriesTable, accountsTable
 import { GetBudgetAnalysisQueryParams } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
 
+const FIXED_CATEGORY_PATTERNS = [/emi/i, /sip/i, /insurance/i];
+
+const FIXED_CATEGORY_NAMES = new Set([
+  "father",
+  "credit card (cc)",
+]);
+
+function isFixedByName(categoryName: string): boolean {
+  const lower = categoryName.toLowerCase();
+  if (FIXED_CATEGORY_NAMES.has(lower)) return true;
+  return FIXED_CATEGORY_PATTERNS.some(pattern => pattern.test(lower));
+}
+
+function isFixedByEmiMatch(planned: number, emiAmounts: Set<number>): boolean {
+  if (planned <= 0) return false;
+  for (const emi of emiAmounts) {
+    if (Math.abs(planned - emi) < 0.01) return true;
+  }
+  return false;
+}
+
 const router: IRouter = Router();
 
 router.get("/budget-analysis", async (req, res) => {
@@ -15,6 +36,17 @@ router.get("/budget-analysis", async (req, res) => {
     }
 
     const { startDate, endDate } = getCycleDates(month);
+
+    const start = new Date(startDate + "T00:00:00");
+    const end = new Date(endDate + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const totalCycleDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const daysElapsed = Math.max(0, Math.min(
+      totalCycleDays,
+      Math.round((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+    ));
 
     const expenseCategories = await db
       .select()
@@ -34,9 +66,17 @@ router.get("/budget-analysis", async (req, res) => {
       .from(accountsTable)
       .where(eq(accountsTable.type, "loan"));
 
-    const totalEmi = loanAccounts
-      .filter((a) => Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0)
-      .reduce((sum, a) => sum + Number(a.emiAmount), 0);
+    const activeLoanAccounts = loanAccounts
+      .filter((a) => Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0);
+    const totalEmi = activeLoanAccounts.reduce((sum, a) => sum + Number(a.emiAmount), 0);
+
+    const emiAmounts = new Set<number>();
+    for (const a of activeLoanAccounts) {
+      emiAmounts.add(Number(a.emiAmount));
+    }
+    if (totalEmi > 0) {
+      emiAmounts.add(totalEmi);
+    }
 
     const actuals = await db
       .select({
@@ -49,7 +89,9 @@ router.get("/budget-analysis", async (req, res) => {
 
     const actualMap = new Map(actuals.map((a) => [a.category, Number(a.total)]));
 
-    const analysis = expenseCategories.map((cat) => {
+    const timeRatio = totalCycleDays > 0 ? daysElapsed / totalCycleDays : 1;
+
+    const rows = expenseCategories.map((cat) => {
       let planned = goalMap.get(cat.id) ?? 0;
 
       if (cat.name === "EMI (PL)") {
@@ -58,16 +100,64 @@ router.get("/budget-analysis", async (req, res) => {
 
       const actual = actualMap.get(cat.name) ?? 0;
       const difference = planned - actual;
+
+      const isFixed = isFixedByName(cat.name) || isFixedByEmiMatch(planned, emiAmounts);
+      const categoryType = isFixed ? "fixed" as const : "discretionary" as const;
+
+      let paceStatus: "on_pace" | "ahead" | "over_budget";
+      let paceMessage: string;
+      const percentSpent = planned > 0 ? (actual / planned) * 100 : (actual > 0 ? 100 : 0);
+
+      if (actual > planned && planned > 0) {
+        paceStatus = "over_budget";
+        paceMessage = `Over by ₹${Math.abs(difference).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+      } else if (isFixed) {
+        if (actual >= planned && planned > 0) {
+          paceStatus = "on_pace";
+          paceMessage = "Paid";
+        } else if (actual > 0 && actual < planned) {
+          paceStatus = "ahead";
+          paceMessage = "Partially paid";
+        } else {
+          paceStatus = "on_pace";
+          paceMessage = "Pending";
+        }
+      } else {
+        const expectedSpent = planned * timeRatio;
+        if (planned === 0) {
+          paceStatus = actual > 0 ? "over_budget" : "on_pace";
+          paceMessage = actual > 0 ? `Over by ₹${actual.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "No budget set";
+        } else if (actual <= expectedSpent * 1.1) {
+          paceStatus = "on_pace";
+          paceMessage = "On pace";
+        } else if (actual <= planned) {
+          paceStatus = "ahead";
+          const aheadBy = actual - expectedSpent;
+          paceMessage = `Ahead by ₹${aheadBy.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+        } else {
+          paceStatus = "over_budget";
+          paceMessage = `Over by ₹${Math.abs(difference).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+        }
+      }
+
       return {
         category: cat.name,
         planned: planned.toFixed(2),
         actual: actual.toFixed(2),
         difference: difference.toFixed(2),
         overBudget: difference < 0,
+        paceStatus,
+        categoryType,
+        percentSpent: Math.round(percentSpent * 100) / 100,
+        paceMessage,
       };
     });
 
-    res.json(analysis);
+    res.json({
+      daysElapsed,
+      totalCycleDays,
+      rows,
+    });
   } catch (e) {
     req.log.error({ err: e }, "Failed to get budget analysis");
     res.status(500).json({ error: "Internal error" });

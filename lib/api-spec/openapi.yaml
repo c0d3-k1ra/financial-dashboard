@@ -274,9 +274,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/BudgetAnalysisRow"
+                $ref: "#/components/schemas/BudgetAnalysisResponse"
 
   /surplus/distribute:
     post:
@@ -1009,6 +1007,22 @@ components:
         - totalLoanOutstanding
         - totalEmiDue
 
+    BudgetAnalysisResponse:
+      type: object
+      properties:
+        daysElapsed:
+          type: integer
+        totalCycleDays:
+          type: integer
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/BudgetAnalysisRow"
+      required:
+        - daysElapsed
+        - totalCycleDays
+        - rows
+
     BudgetAnalysisRow:
       type: object
       properties:
@@ -1022,12 +1036,26 @@ components:
           type: string
         overBudget:
           type: boolean
+        paceStatus:
+          type: string
+          enum: [on_pace, ahead, over_budget]
+        categoryType:
+          type: string
+          enum: [fixed, discretionary]
+        percentSpent:
+          type: number
+        paceMessage:
+          type: string
       required:
         - category
         - planned
         - actual
         - difference
         - overBudget
+        - paceStatus
+        - categoryType
+        - percentSpent
+        - paceMessage
 
     ProjectionPoint:
       type: object

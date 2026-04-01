@@ -5,6 +5,8 @@
  * SurplusEngine Finance API
  * OpenAPI spec version: 0.1.0
  */
+import type { BudgetAnalysisRowCategoryType } from "./budgetAnalysisRowCategoryType";
+import type { BudgetAnalysisRowPaceStatus } from "./budgetAnalysisRowPaceStatus";
 
 export interface BudgetAnalysisRow {
   category: string;
@@ -12,4 +14,8 @@ export interface BudgetAnalysisRow {
   actual: string;
   difference: string;
   overBudget: boolean;
+  paceStatus: BudgetAnalysisRowPaceStatus;
+  categoryType: BudgetAnalysisRowCategoryType;
+  percentSpent: number;
+  paceMessage: string;
 }

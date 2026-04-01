@@ -73,12 +73,39 @@ export interface DashboardSummary {
   totalEmiDue: string;
 }
 
+export type BudgetAnalysisRowPaceStatus =
+  (typeof BudgetAnalysisRowPaceStatus)[keyof typeof BudgetAnalysisRowPaceStatus];
+
+export const BudgetAnalysisRowPaceStatus = {
+  on_pace: "on_pace",
+  ahead: "ahead",
+  over_budget: "over_budget",
+} as const;
+
+export type BudgetAnalysisRowCategoryType =
+  (typeof BudgetAnalysisRowCategoryType)[keyof typeof BudgetAnalysisRowCategoryType];
+
+export const BudgetAnalysisRowCategoryType = {
+  fixed: "fixed",
+  discretionary: "discretionary",
+} as const;
+
 export interface BudgetAnalysisRow {
   category: string;
   planned: string;
   actual: string;
   difference: string;
   overBudget: boolean;
+  paceStatus: BudgetAnalysisRowPaceStatus;
+  categoryType: BudgetAnalysisRowCategoryType;
+  percentSpent: number;
+  paceMessage: string;
+}
+
+export interface BudgetAnalysisResponse {
+  daysElapsed: number;
+  totalCycleDays: number;
+  rows: BudgetAnalysisRow[];
 }
 
 export interface ProjectionPoint {

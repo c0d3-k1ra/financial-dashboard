@@ -86,7 +86,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `budget-goals.ts` — upsert budget planned amounts per category (uses category_id FK to categories)
   - `goals.ts` — Dynamic goal CRUD, `GET /api/goals/waterfall` (Net Worth Waterfall), `GET /api/goals/:id/projection` (per-goal 12-month projection)
   - `dashboard.ts` — `GET /api/dashboard/summary` + `GET /api/dashboard/monthly-trend` + `GET /api/billing-cycles`
-  - `budget-analysis.ts` — `GET /api/budget-analysis` (planned vs actual per category, auto-syncs with all expense categories, EMI (PL) auto-calculated from active loans)
+  - `budget-analysis.ts` — `GET /api/budget-analysis` returns `BudgetAnalysisResponse` with `{ daysElapsed, totalCycleDays, rows }`. Each row includes pace status (on_pace/ahead/over_budget), category type (fixed/discretionary), percentSpent, and paceMessage. Fixed categories: EMI, SIP, Insurance, Father, Credit Card. Pacing compares spending rate vs time elapsed in cycle.
   - `surplus.ts` — `POST /api/surplus/consolidate` (legacy) + `POST /api/surplus/distribute` (distribute surplus across goals) + `GET /api/surplus/allocations`
   - `accounts.ts` — CRUD for bank accounts, credit cards, and loans + `POST /api/accounts/:id/reconcile` (balance reconciliation) + `POST /api/accounts/process-emis` (process monthly EMI payments for loan accounts)
   - `categories.ts` — CRUD for expense/income categories + `PATCH /api/categories/:id` (rename with cascade to transactions). Creating expense categories auto-creates budget_goals with sensible defaults via category_id FK.
