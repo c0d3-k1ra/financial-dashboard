@@ -5,7 +5,9 @@
  * SurplusEngine Finance API
  * OpenAPI spec version: 0.1.0
  */
+import type { GetSpendByCategoryAccountType } from "./getSpendByCategoryAccountType";
 
 export type GetSpendByCategoryParams = {
   month: string;
+  accountType?: GetSpendByCategoryAccountType;
 };

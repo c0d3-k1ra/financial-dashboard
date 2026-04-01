@@ -39,7 +39,19 @@ router.get("/analytics/spend-by-category", async (req, res) => {
       return;
     }
 
+    const accountType = String(req.query.accountType || "all");
+    if (!["all", "cc", "non_cc"].includes(accountType)) {
+      res.status(400).json({ error: "Invalid accountType. Expected one of: all, cc, non_cc." });
+      return;
+    }
     const { startDate, endDate } = getCycleDates(month);
+
+    let accountFilter = sql`1=1`;
+    if (accountType === "cc") {
+      accountFilter = sql`${transactionsTable.accountId} IN (SELECT ${accountsTable.id} FROM ${accountsTable} WHERE ${accountsTable.type} = 'credit_card')`;
+    } else if (accountType === "non_cc") {
+      accountFilter = sql`(${transactionsTable.accountId} IS NULL OR ${transactionsTable.accountId} NOT IN (SELECT ${accountsTable.id} FROM ${accountsTable} WHERE ${accountsTable.type} = 'credit_card'))`;
+    }
 
     const rows = await db
       .select({
@@ -51,7 +63,8 @@ router.get("/analytics/spend-by-category", async (req, res) => {
         sql`${transactionsTable.type} = 'Expense'
             AND ${transactionsTable.category} NOT IN (${sql.join(EXCLUDED_CATEGORIES.map(c => sql`${c}`), sql`, `)})
             AND ${transactionsTable.date}::date >= ${startDate}::date
-            AND ${transactionsTable.date}::date <= ${endDate}::date`
+            AND ${transactionsTable.date}::date <= ${endDate}::date
+            AND ${accountFilter}`
       )
       .groupBy(transactionsTable.category)
       .orderBy(sql`SUM(${transactionsTable.amount}::numeric) DESC`);

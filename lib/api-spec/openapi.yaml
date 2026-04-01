@@ -782,6 +782,12 @@ paths:
           required: true
           schema:
             type: string
+        - name: accountType
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, cc, non_cc]
       responses:
         "200":
           description: Category spend breakdown

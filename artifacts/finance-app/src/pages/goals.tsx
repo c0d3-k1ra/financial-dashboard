@@ -7,19 +7,13 @@ import {
   useUpdateGoal,
   useGetGoalsWaterfall,
   getGetGoalsWaterfallQueryKey,
-  useDistributeSurplus,
   useListAccounts,
   useGetGoalProjectionById,
   getGetGoalProjectionByIdQueryKey,
-  useGetMonthlySurplus,
-  getGetMonthlySurplusQueryKey,
-  useListSurplusAllocations,
-  getListSurplusAllocationsQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
-import SurplusDistributeModal from "@/components/surplus-distribute-modal";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -53,7 +47,7 @@ import {
   Line,
   ReferenceLine,
 } from "recharts";
-import { Plus, CheckCircle2, Target, AlertTriangle, TrendingUp, Trash2, Pencil } from "lucide-react";
+import { Plus, Target, AlertTriangle, TrendingUp, Trash2, Pencil } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const CATEGORY_OPTIONS = ["Emergency", "Debt", "Travel", "Purchase", "General"];
@@ -76,12 +70,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Goals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [currentMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
   const [createOpen, setCreateOpen] = useState(false);
-  const [distributeOpen, setDistributeOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
 
   const [newGoal, setNewGoal] = useState({
@@ -105,37 +94,13 @@ export default function Goals() {
   const { data: goals, isLoading: isLoadingGoals } = useListGoals();
   const { data: waterfall } = useGetGoalsWaterfall();
   const { data: accounts } = useListAccounts();
-  const { refetch: refetchSurplus } = useGetMonthlySurplus(
-    { month: currentMonth },
-    { query: { enabled: false, queryKey: getGetMonthlySurplusQueryKey({ month: currentMonth }) } }
-  );
-  const { data: allAllocations } = useListSurplusAllocations();
-
   const createGoal = useCreateGoal();
   const deleteGoal = useDeleteGoal();
   const updateGoal = useUpdateGoal();
-  const distribute = useDistributeSurplus();
-
-  const cycleAlreadyEnded = allAllocations?.some((a) => a.month === currentMonth) ?? false;
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
     queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
-    queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
-  };
-
-  const handleEndCycle = async () => {
-    const result = await refetchSurplus();
-    const surplus = Number(result.data?.surplus ?? 0);
-    if (surplus <= 0) {
-      toast({
-        title: "No Surplus",
-        description: `No surplus for ${new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}. Income minus expenses is ${formatCurrency(result.data?.surplus ?? "0")}.`,
-        variant: "destructive",
-      });
-      return;
-    }
-    setDistributeOpen(true);
   };
 
   const handleCreateGoal = () => {
@@ -314,53 +279,6 @@ export default function Goals() {
             </DialogContent>
           </Dialog>
 
-          {cycleAlreadyEnded ? (
-            <Button
-              variant="outline"
-              className="font-mono text-xs uppercase tracking-wider text-emerald-400 border-emerald-500/40"
-              disabled
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" /> Cycle Ended
-            </Button>
-          ) : (
-            <Button
-              onClick={handleEndCycle}
-              className="font-mono text-xs uppercase tracking-wider bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" /> End Cycle
-            </Button>
-          )}
-
-          <Dialog open={distributeOpen} onOpenChange={setDistributeOpen}>
-            <DialogContent className="sm:max-w-lg">
-              <SurplusDistributeModal
-                goals={activeGoals}
-                accounts={accounts || []}
-                month={currentMonth}
-                onDistribute={(data) => {
-                  distribute.mutate(
-                    { data },
-                    {
-                      onSuccess: (res) => {
-                        if (res.success) {
-                          toast({
-                            title: "Cycle Ended — Surplus Distributed",
-                            description: `₹${res.allocatedTotal} allocated across goals. ${res.transfers} transfer(s) created.`,
-                          });
-                          setDistributeOpen(false);
-                          invalidateAll();
-                        }
-                      },
-                      onError: (err) => {
-                        toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
-                      },
-                    }
-                  );
-                }}
-                isPending={distribute.isPending}
-              />
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 

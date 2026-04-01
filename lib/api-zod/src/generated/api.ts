@@ -602,6 +602,7 @@ export const ListBillingCyclesResponse = zod.array(
  */
 export const GetSpendByCategoryQueryParams = zod.object({
   month: zod.coerce.string(),
+  accountType: zod.enum(["all", "cc", "non_cc"]).optional(),
 });
 
 export const GetSpendByCategoryResponseItem = zod.object({

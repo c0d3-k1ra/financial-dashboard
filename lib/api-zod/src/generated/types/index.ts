@@ -35,6 +35,7 @@ export * from "./getLivingExpensesTrendParams";
 export * from "./getMonthlySurplus200";
 export * from "./getMonthlySurplusParams";
 export * from "./getRecentTransactionsParams";
+export * from "./getSpendByCategoryAccountType";
 export * from "./getSpendByCategoryParams";
 export * from "./goalItem";
 export * from "./healthStatus";

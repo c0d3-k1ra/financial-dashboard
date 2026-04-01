@@ -334,7 +334,17 @@ export type GetLivingExpensesTrendParams = {
 
 export type GetSpendByCategoryParams = {
   month: string;
+  accountType?: GetSpendByCategoryAccountType;
 };
+
+export type GetSpendByCategoryAccountType =
+  (typeof GetSpendByCategoryAccountType)[keyof typeof GetSpendByCategoryAccountType];
+
+export const GetSpendByCategoryAccountType = {
+  all: "all",
+  cc: "cc",
+  non_cc: "non_cc",
+} as const;
 
 export type GetCategoryTrendParams = {
   month: string;

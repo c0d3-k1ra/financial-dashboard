@@ -8,8 +8,6 @@ import {
   getGetMonthlyTrendQueryKey,
   useGetCcSpendTrend,
   getGetCcSpendTrendQueryKey,
-  useGetLivingExpensesTrend,
-  getGetLivingExpensesTrendQueryKey,
   useGetSpendByCategory,
   getGetSpendByCategoryQueryKey,
   useGetCcDues,
@@ -34,9 +32,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2 } from "lucide-react";
+import { ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark, ArrowLeftRight, CheckCircle2, TrendingUp } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import CreateTransactionDialog from "@/components/create-transaction-dialog";
 import TransferModal from "@/components/transfer-modal";
 import SurplusDistributeModal from "@/components/surplus-distribute-modal";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -126,8 +123,8 @@ export default function Dashboard() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [isTxDialogOpen, setIsTxDialogOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [spendAccountFilter, setSpendAccountFilter] = useState<"all" | "cc" | "non_cc">("all");
   const [distributeOpen, setDistributeOpen] = useState(false);
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
@@ -149,14 +146,9 @@ export default function Dashboard() {
     { query: { enabled: true, queryKey: getGetCcSpendTrendQueryKey({ month: currentMonth }) } }
   );
 
-  const { data: livingExpensesTrend, isLoading: isLoadingLiving } = useGetLivingExpensesTrend(
-    { month: currentMonth },
-    { query: { enabled: true, queryKey: getGetLivingExpensesTrendQueryKey({ month: currentMonth }) } }
-  );
-
   const { data: spendByCategory, isLoading: isLoadingCatSpend } = useGetSpendByCategory(
-    { month: currentMonth },
-    { query: { enabled: true, queryKey: getGetSpendByCategoryQueryKey({ month: currentMonth }) } }
+    { month: currentMonth, accountType: spendAccountFilter },
+    { query: { enabled: true, queryKey: getGetSpendByCategoryQueryKey({ month: currentMonth, accountType: spendAccountFilter }) } }
   );
 
   const { data: ccDues, isLoading: isLoadingCcDues } = useGetCcDues({
@@ -250,14 +242,19 @@ export default function Dashboard() {
   const liquidityRatio = monthlyExpenses > 0 ? liquidCash / monthlyExpenses : 1;
   const liquidityHealthy = liquidityRatio >= 1;
 
+  const { totalBank, totalCcOutstanding, totalLoanOutstanding, netWorth } = useMemo(() => {
+    const accounts = allAccounts ?? [];
+    const tBank = accounts.filter(a => a.type === "bank").reduce((s, a) => s + Number(a.currentBalance ?? 0), 0);
+    const tCc = accounts.filter(a => a.type === "credit_card").reduce((s, a) => s + Math.abs(Number(a.currentBalance ?? 0)), 0);
+    const tLoan = accounts.filter(a => a.type === "loan").reduce((s, a) => s + Math.abs(Number(a.currentBalance ?? 0)), 0);
+    return { totalBank: tBank, totalCcOutstanding: tCc, totalLoanOutstanding: tLoan, netWorth: tBank - tCc - tLoan };
+  }, [allAccounts]);
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financial Cockpit</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" className="font-mono text-xs uppercase tracking-wider bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => setIsTxDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-1.5" /> Log Transaction
-          </Button>
           <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => setIsTransferOpen(true)}>
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
           </Button>
@@ -270,16 +267,6 @@ export default function Dashboard() {
               <CheckCircle2 className="w-4 h-4 mr-1.5" /> End Cycle
             </Button>
           )}
-          {!isLoadingSummary && (
-            <div className={`flex items-center gap-1.5 text-xs font-mono px-3 py-1.5 rounded-lg border ${
-              liquidityHealthy
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-            }`}>
-              <Droplets className="w-3.5 h-3.5" />
-              {liquidityHealthy ? "Liquid" : "Low Cash"}
-            </div>
-          )}
           <div className="text-sm font-mono text-muted-foreground bg-secondary/50 px-3 py-1 rounded-md border border-border/50">
             {new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </div>
@@ -287,7 +274,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="md:col-span-2 glass-card rounded-xl shadow-lg">
+        <Card className="glass-card rounded-xl shadow-lg">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Liquidity</CardTitle>
             <Activity className="w-4 h-4 text-primary" />
@@ -296,9 +283,15 @@ export default function Dashboard() {
             {isLoadingSummary ? (
               <Skeleton className="h-12 w-48" />
             ) : (
-              <div className="text-4xl md:text-5xl font-extrabold font-mono tracking-tight text-foreground">
-                {formatCurrency(summary?.netLiquidity || 0)}
-              </div>
+              <>
+                <div className="text-4xl font-extrabold font-mono tracking-tight text-foreground">
+                  {formatCurrency(summary?.netLiquidity || 0)}
+                </div>
+                <div className={`flex items-center gap-1.5 mt-2 text-sm font-mono ${liquidityHealthy ? "text-emerald-400" : "text-amber-400"}`}>
+                  <Droplets className="w-3.5 h-3.5" />
+                  Covers {liquidityRatio.toFixed(1)}x monthly expenses
+                </div>
+              </>
             )}
             <div className="flex flex-wrap gap-4 mt-3 text-sm font-mono text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -315,6 +308,28 @@ export default function Dashboard() {
                   -{formatCurrency(summary?.totalEmiDue || 0)}
                 </span>
               )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card rounded-xl shadow-lg">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-2">
+              <TrendingUp className="w-4 h-4" /> Net Worth
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!allAccounts ? (
+              <Skeleton className="h-10 w-40" />
+            ) : (
+              <div className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                {formatCurrency(netWorth)}
+              </div>
+            )}
+            <div className="flex flex-wrap gap-4 mt-2 text-sm font-mono text-muted-foreground">
+              <span>Banks: {formatCurrency(totalBank)}</span>
+              <span>CC: -{formatCurrency(totalCcOutstanding)}</span>
+              {totalLoanOutstanding > 0 && <span>Loans: -{formatCurrency(totalLoanOutstanding)}</span>}
             </div>
           </CardContent>
         </Card>
@@ -363,7 +378,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Monthly Burn Rate</CardTitle>
@@ -392,45 +407,32 @@ export default function Dashboard() {
             )}
           </CardContent>
         </Card>
-
-        <Card className="glass-card rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-lg">Monthly Overview</CardTitle>
-            <CardDescription>Income & Surplus</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoadingSummary ? (
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <div className="flex justify-between items-center p-3 rounded-md bg-secondary/30 border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <ArrowDownRight className="w-4 h-4 text-emerald-500" />
-                    <span className="font-mono text-sm text-muted-foreground uppercase">Total Income</span>
-                  </div>
-                  <span className="font-mono font-bold text-emerald-500">{formatCurrency(summary?.totalIncome || 0)}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 rounded-md bg-secondary/30 border border-border/50">
-                  <div className="flex items-center gap-2">
-                    <ArrowUpRight className="w-4 h-4 text-primary" />
-                    <span className="font-mono text-sm text-muted-foreground uppercase">Est. Surplus</span>
-                  </div>
-                  <span className="font-mono font-bold text-primary">{formatCurrency(summary?.monthlySurplus || 0)}</span>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2 glass-card rounded-xl">
           <CardHeader>
-            <CardTitle className="text-lg">Spend by Category</CardTitle>
-            <CardDescription>Expense breakdown for this billing cycle</CardDescription>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <CardTitle className="text-lg">Spend by Category</CardTitle>
+                <CardDescription>Expense breakdown for this billing cycle</CardDescription>
+              </div>
+              <div className="flex rounded-lg border border-border/50 overflow-hidden">
+                {([["all", "All"], ["cc", "CC"], ["non_cc", "Non-CC"]] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => setSpendAccountFilter(value)}
+                    className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
+                      spendAccountFilter === value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="pt-4">
             {isLoadingCatSpend ? (
@@ -529,7 +531,7 @@ export default function Dashboard() {
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : ccDues && ccDues.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                 {ccDues.map((cc) => {
                   const urgency = cc.daysUntilDue !== null && cc.daysUntilDue !== undefined
                     ? cc.daysUntilDue <= 5 ? "urgent" : cc.daysUntilDue <= 10 ? "warning" : "ok"
@@ -798,73 +800,38 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="glass-card rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-lg">CC Spend Trend</CardTitle>
-            <CardDescription>Credit card spending per billing cycle</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[280px] w-full pt-4">
-            {isLoadingCcSpend ? (
-              <Skeleton className="w-full h-full" />
-            ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={ccSpendTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="gradCcSpend" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(43 100% 60%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
-                  <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradCcSpend)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
-                No CC spending data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <Card className="glass-card rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-lg">CC Spend Trend</CardTitle>
+          <CardDescription>Credit card spending per billing cycle</CardDescription>
+        </CardHeader>
+        <CardContent className="h-[280px] w-full pt-4">
+          {isLoadingCcSpend ? (
+            <Skeleton className="w-full h-full" />
+          ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={ccSpendTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                <defs>
+                  <linearGradient id="gradCcSpend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(43 100% 60%)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
+                <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradCcSpend)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+              No CC spending data available
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card className="glass-card rounded-xl">
-          <CardHeader>
-            <CardTitle className="text-lg">Living Expenses Trend</CardTitle>
-            <CardDescription>Last 6 billing cycles</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[280px] w-full pt-4">
-            {isLoadingLiving ? (
-              <Skeleton className="w-full h-full" />
-            ) : livingExpensesTrend && livingExpensesTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={livingExpensesTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                  <defs>
-                    <linearGradient id="gradLiving" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(210 100% 50%)" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="hsl(210 100% 50%)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
-                  <Area type="monotone" dataKey="total" name="Living Expenses" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradLiving)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
-                No living expense data available
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <CreateTransactionDialog open={isTxDialogOpen} onOpenChange={setIsTxDialogOpen} />
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
 
       <Dialog open={distributeOpen} onOpenChange={setDistributeOpen}>
