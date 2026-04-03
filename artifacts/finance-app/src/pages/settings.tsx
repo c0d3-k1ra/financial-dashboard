@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useListCategories,
   useCreateCategory,
@@ -17,8 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage, setActiveCurrency } from "@/lib/constants";
-import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2 } from "lucide-react";
 import { getCategoryIcon } from "@/lib/category-icons";
 
 const CYCLE_DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
@@ -37,8 +36,12 @@ export default function Settings() {
   const [deleteCatId, setDeleteCatId] = useState<number | null>(null);
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [editingType, setEditingType] = useState<string>("Expense");
   const [showResetDialog, setShowResetDialog] = useState(false);
   const [resetConfirmText, setResetConfirmText] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [billingSaved, setBillingSaved] = useState(false);
+  const [currencySaved, setCurrencySaved] = useState(false);
 
   const { data: categories, isLoading } = useListCategories(
     {},
@@ -55,12 +58,34 @@ export default function Settings() {
   const updateSettings = useUpdateSettings();
   const resetData = useResetData();
 
-  const expenseCategories = categories?.filter((c) => c.type === "Expense") ?? [];
-  const incomeCategories = categories?.filter((c) => c.type === "Income") ?? [];
+  const allCategories = categories ?? [];
+
+  const expenseCategories = useMemo(() => {
+    const filtered = allCategories.filter((c) => c.type === "Expense");
+    if (!searchQuery.trim()) return filtered;
+    return filtered.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allCategories, searchQuery]);
+
+  const incomeCategories = useMemo(() => {
+    const filtered = allCategories.filter((c) => c.type === "Income");
+    if (!searchQuery.trim()) return filtered;
+    return filtered.filter((c) => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  }, [allCategories, searchQuery]);
+
+  const duplicateError = useMemo(() => {
+    const trimmed = newCategoryName.trim().toLowerCase();
+    if (!trimmed) return "";
+    const exists = allCategories.some((c) => c.name.toLowerCase() === trimmed);
+    return exists ? `"${newCategoryName.trim()}" already exists` : "";
+  }, [newCategoryName, allCategories]);
 
   const handleAdd = () => {
     if (!newCategoryName.trim()) {
       toast({ title: "Category name is required", variant: "destructive" });
+      return;
+    }
+    if (duplicateError) {
+      toast({ title: duplicateError, variant: "destructive" });
       return;
     }
 
@@ -96,14 +121,16 @@ export default function Settings() {
     );
   };
 
-  const startEditing = (cat: { id: number; name: string }) => {
+  const startEditing = (cat: { id: number; name: string; type: string }) => {
     setEditingCatId(cat.id);
     setEditingName(cat.name);
+    setEditingType(cat.type);
   };
 
   const cancelEditing = () => {
     setEditingCatId(null);
     setEditingName("");
+    setEditingType("Expense");
   };
 
   const saveRename = () => {
@@ -130,7 +157,8 @@ export default function Settings() {
       { data: { billingCycleDay: day } },
       {
         onSuccess: () => {
-          toast({ title: `Billing cycle start day updated to ${day}` });
+          setBillingSaved(true);
+          setTimeout(() => setBillingSaved(false), 2000);
           queryClient.invalidateQueries();
         },
         onError: (err) => {
@@ -146,7 +174,8 @@ export default function Settings() {
       {
         onSuccess: () => {
           setActiveCurrency(value);
-          toast({ title: `Currency updated to ${value}` });
+          setCurrencySaved(true);
+          setTimeout(() => setCurrencySaved(false), 2000);
           queryClient.invalidateQueries();
         },
         onError: (err) => {
@@ -173,7 +202,92 @@ export default function Settings() {
     );
   };
 
-  const allCategories = [...expenseCategories, ...incomeCategories];
+  const totalExpense = expenseCategories.length;
+  const totalIncome = incomeCategories.length;
+
+  const renderCategoryRow = (cat: { id: number; name: string; type: string }) => {
+    const Icon = getCategoryIcon(cat.name);
+    const isEditing = editingCatId === cat.id;
+
+    return (
+      <div
+        key={cat.id}
+        className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-colors group"
+      >
+        {isEditing ? (
+          <div className="flex items-center gap-2 flex-1 mr-3">
+            <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <Input
+              value={editingName}
+              onChange={(e) => setEditingName(e.target.value)}
+              className="h-8 text-sm bg-background/50 border-border/50 flex-1 max-w-[200px]"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveRename();
+                if (e.key === "Escape") cancelEditing();
+              }}
+            />
+            <Select value={editingType} onValueChange={setEditingType} disabled>
+              <SelectTrigger className="h-8 w-[100px] text-xs bg-background/50 border-border/50">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Expense">Expense</SelectItem>
+                <SelectItem value="Income">Income</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <span className="text-sm font-medium inline-flex items-center gap-2">
+            <Icon className="w-4 h-4 text-muted-foreground" />
+            {cat.name}
+          </span>
+        )}
+        <div className="flex items-center gap-3">
+          {isEditing ? (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                onClick={saveRename}
+                disabled={renameCategory.isPending}
+              >
+                <Check className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                onClick={cancelEditing}
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                onClick={() => startEditing(cat)}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setDeleteCatId(cat.id)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -183,13 +297,13 @@ export default function Settings() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="bg-white/[0.04] backdrop-blur-xl border-white/[0.08] shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="w-5 h-5" /> Billing Cycle
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col justify-center flex-1">
             {settingsLoading ? (
               <Skeleton className="h-10 w-full" />
             ) : (
@@ -204,7 +318,7 @@ export default function Settings() {
                     onValueChange={handleBillingCycleDayChange}
                     disabled={updateSettings.isPending}
                   >
-                    <SelectTrigger className="w-[100px]">
+                    <SelectTrigger className="w-[100px] bg-white/[0.04] border-white/[0.08]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -215,19 +329,24 @@ export default function Settings() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {billingSaved && (
+                    <span className="inline-flex items-center gap-1 text-emerald-500 text-xs font-medium animate-in fade-in duration-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                    </span>
+                  )}
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="bg-card/50 backdrop-blur border-border/60">
+        <Card className="bg-white/[0.04] backdrop-blur-xl border-white/[0.08] shadow-lg">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <DollarSign className="w-5 h-5" /> Currency
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col justify-center flex-1">
             {settingsLoading ? (
               <Skeleton className="h-10 w-full" />
             ) : (
@@ -242,7 +361,7 @@ export default function Settings() {
                     onValueChange={handleCurrencyChange}
                     disabled={updateSettings.isPending}
                   >
-                    <SelectTrigger className="w-[220px]">
+                    <SelectTrigger className="w-[220px] bg-white/[0.04] border-white/[0.08]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -253,6 +372,11 @@ export default function Settings() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {currencySaved && (
+                    <span className="inline-flex items-center gap-1 text-emerald-500 text-xs font-medium animate-in fade-in duration-300">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Saved
+                    </span>
+                  )}
                 </div>
               </div>
             )}
@@ -260,7 +384,7 @@ export default function Settings() {
         </Card>
       </div>
 
-      <Card className="bg-card/50 backdrop-blur border-border/60">
+      <Card className="bg-white/[0.04] backdrop-blur-xl border-white/[0.08] shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Tag className="w-5 h-5" /> Category Manager
@@ -268,15 +392,20 @@ export default function Settings() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Input
-              placeholder="New category name"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              className="flex-1"
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            />
+            <div className="flex-[3] relative">
+              <Input
+                placeholder="New category name"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+                className={`bg-white/[0.04] border-white/[0.08] ${duplicateError ? "border-destructive/60 focus-visible:ring-destructive/40" : ""}`}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              />
+              {duplicateError && (
+                <p className="text-destructive text-xs mt-1 absolute -bottom-5 left-0">{duplicateError}</p>
+              )}
+            </div>
             <Select value={newCategoryType} onValueChange={setNewCategoryType}>
-              <SelectTrigger className="w-full sm:w-[140px]">
+              <SelectTrigger className="w-full sm:w-[130px] flex-[1] bg-white/[0.04] border-white/[0.08]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -284,9 +413,25 @@ export default function Settings() {
                 <SelectItem value="Income">Income</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleAdd} disabled={createCategory.isPending} className="font-mono text-xs uppercase tracking-wider">
+            <Button
+              onClick={handleAdd}
+              disabled={createCategory.isPending || !!duplicateError}
+              className="font-mono text-xs uppercase tracking-wider flex-[1]"
+            >
               <Plus className="w-4 h-4 mr-2" /> Add
             </Button>
+          </div>
+
+          {duplicateError && <div className="h-1" />}
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search categories..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-white/[0.04] border-white/[0.08]"
+            />
           </div>
 
           {isLoading ? (
@@ -296,231 +441,42 @@ export default function Settings() {
               ))}
             </div>
           ) : (
-            <>
-              <div className="hidden md:block overflow-hidden rounded-lg border border-border/50">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/50 hover:bg-transparent">
-                      <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Name</TableHead>
-                      <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Type</TableHead>
-                      <TableHead className="w-24"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allCategories.map((cat) => {
-                      const Icon = getCategoryIcon(cat.name);
-                      const isEditing = editingCatId === cat.id;
-                      return (
-                      <TableRow key={cat.id} className="border-border/30 zebra-row">
-                        <TableCell className="font-medium">
-                          {isEditing ? (
-                            <div className="flex items-center gap-2">
-                              <Icon className="w-4 h-4 text-muted-foreground" />
-                              <Input
-                                value={editingName}
-                                onChange={(e) => setEditingName(e.target.value)}
-                                className="h-7 text-sm max-w-[200px]"
-                                autoFocus
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") saveRename();
-                                  if (e.key === "Escape") cancelEditing();
-                                }}
-                              />
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center gap-2">
-                              <Icon className="w-4 h-4 text-muted-foreground" />
-                              {cat.name}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono border border-border/50 ${
-                            cat.type === "Expense" ? "bg-destructive/10 text-destructive" : "bg-emerald-500/10 text-emerald-500"
-                          }`}>
-                            {cat.type}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {isEditing ? (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-emerald-500 hover:text-emerald-600"
-                                  onClick={saveRename}
-                                  disabled={renameCategory.isPending}
-                                >
-                                  <Check className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                  onClick={cancelEditing}
-                                >
-                                  <X className="w-3 h-3" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                  onClick={() => startEditing(cat)}
-                                >
-                                  <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                  onClick={() => setDeleteCatId(cat.id)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                    })}
-                    {allCategories.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-8 text-muted-foreground font-mono text-sm">
-                          No categories yet.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Expense Categories ({totalExpense})
+                </h3>
+                <div className="space-y-1.5">
+                  {expenseCategories.map(renderCategoryRow)}
+                  {expenseCategories.length === 0 && (
+                    <p className="text-muted-foreground text-sm font-mono py-4 text-center">
+                      {searchQuery ? "No matching expense categories." : "No expense categories."}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="md:hidden grid grid-cols-1 gap-6">
-                <div>
-                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Expense Categories</h3>
-                  <div className="space-y-2">
-                    {expenseCategories.map((cat) => {
-                      const CatIcon = getCategoryIcon(cat.name);
-                      const isEditing = editingCatId === cat.id;
-                      return (
-                      <div key={cat.id} className="flex items-center justify-between p-3 rounded-md bg-secondary/30 border border-border/50">
-                        {isEditing ? (
-                          <div className="flex items-center gap-2 flex-1 mr-2">
-                            <CatIcon className="w-4 h-4 text-muted-foreground" />
-                            <Input
-                              value={editingName}
-                              onChange={(e) => setEditingName(e.target.value)}
-                              className="h-7 text-sm"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveRename();
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-sm font-medium inline-flex items-center gap-2">
-                            <CatIcon className="w-4 h-4 text-muted-foreground" />
-                            {cat.name}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1">
-                          {isEditing ? (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-500" onClick={saveRename} disabled={renameCategory.isPending}>
-                                <Check className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={cancelEditing}>
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEditing(cat)}>
-                                <Pencil className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteCatId(cat.id)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                    })}
-                    {!expenseCategories.length && (
-                      <p className="text-muted-foreground text-sm font-mono">No expense categories.</p>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground mb-3">Income Categories</h3>
-                  <div className="space-y-2">
-                    {incomeCategories.map((cat) => {
-                      const CatIcon = getCategoryIcon(cat.name);
-                      const isEditing = editingCatId === cat.id;
-                      return (
-                      <div key={cat.id} className="flex items-center justify-between p-3 rounded-md bg-secondary/30 border border-border/50">
-                        {isEditing ? (
-                          <div className="flex items-center gap-2 flex-1 mr-2">
-                            <CatIcon className="w-4 h-4 text-muted-foreground" />
-                            <Input
-                              value={editingName}
-                              onChange={(e) => setEditingName(e.target.value)}
-                              className="h-7 text-sm"
-                              autoFocus
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") saveRename();
-                                if (e.key === "Escape") cancelEditing();
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <span className="text-sm font-medium inline-flex items-center gap-2">
-                            <CatIcon className="w-4 h-4 text-muted-foreground" />
-                            {cat.name}
-                          </span>
-                        )}
-                        <div className="flex items-center gap-1">
-                          {isEditing ? (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-500" onClick={saveRename} disabled={renameCategory.isPending}>
-                                <Check className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={cancelEditing}>
-                                <X className="w-3 h-3" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => startEditing(cat)}>
-                                <Pencil className="w-3 h-3" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteCatId(cat.id)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    );
-                    })}
-                    {!incomeCategories.length && (
-                      <p className="text-muted-foreground text-sm font-mono">No income categories.</p>
-                    )}
-                  </div>
+              <div className="border-t border-white/[0.06]" />
+
+              <div>
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                  Income Categories ({totalIncome})
+                </h3>
+                <div className="space-y-1.5">
+                  {incomeCategories.map(renderCategoryRow)}
+                  {incomeCategories.length === 0 && (
+                    <p className="text-muted-foreground text-sm font-mono py-4 text-center">
+                      {searchQuery ? "No matching income categories." : "No income categories."}
+                    </p>
+                  )}
                 </div>
               </div>
-            </>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Card className="bg-card/50 backdrop-blur border-destructive/30">
+      <Card className="bg-white/[0.04] backdrop-blur-xl border-destructive/20 shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2 text-destructive">
             <AlertTriangle className="w-5 h-5" /> Data Management
