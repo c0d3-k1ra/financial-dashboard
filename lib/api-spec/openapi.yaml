@@ -81,6 +81,18 @@ paths:
           in: query
           schema:
             type: string
+        - name: accountId
+          in: query
+          schema:
+            type: string
+        - name: amountMin
+          in: query
+          schema:
+            type: string
+        - name: amountMax
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: List of transactions

@@ -43,6 +43,15 @@ router.get("/transactions", async (req, res) => {
     if (params.search) {
       conditions.push(ilike(transactionsTable.description, `%${params.search}%`));
     }
+    if (params.accountId) {
+      conditions.push(eq(transactionsTable.accountId, Number(params.accountId)));
+    }
+    if (params.amountMin) {
+      conditions.push(sql`${transactionsTable.amount}::numeric >= ${params.amountMin}::numeric`);
+    }
+    if (params.amountMax) {
+      conditions.push(sql`${transactionsTable.amount}::numeric <= ${params.amountMax}::numeric`);
+    }
 
     const where = conditions.length > 0 ? and(...conditions) : undefined;
     const results = await db

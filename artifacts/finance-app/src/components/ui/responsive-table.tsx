@@ -8,7 +8,7 @@ export interface Column<T> {
   accessorKey?: keyof T;
   cell?: (item: T) => React.ReactNode;
   className?: string;
-  cardLabel?: React.ReactNode; // Optional alternative label for mobile cards
+  cardLabel?: React.ReactNode;
 }
 
 interface ResponsiveTableProps<T> {
@@ -18,6 +18,7 @@ interface ResponsiveTableProps<T> {
   className?: string;
   emptyState?: React.ReactNode;
   renderMobileCard?: (item: T, index: number) => React.ReactNode;
+  rowClassName?: (item: T) => string;
 }
 
 export function ResponsiveTable<T>({ 
@@ -26,7 +27,8 @@ export function ResponsiveTable<T>({
   keyExtractor, 
   className,
   emptyState,
-  renderMobileCard
+  renderMobileCard,
+  rowClassName
 }: ResponsiveTableProps<T>) {
   if (data.length === 0 && emptyState) {
     return <div className={className}>{emptyState}</div>;
@@ -34,33 +36,39 @@ export function ResponsiveTable<T>({
 
   return (
     <div className={className}>
-      {/* Desktop Table */}
-      <div className="hidden md:block rounded-md border border-border bg-card overflow-hidden">
-        <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              {columns.map((col, i) => (
-                <TableHead key={i} className={cn("text-muted-foreground font-mono text-xs uppercase tracking-wider", col.className)}>
-                  {col.header}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((row, rowIndex) => (
-              <TableRow key={keyExtractor(row, rowIndex)} className="transition-colors hover:bg-muted/30 zebra-row">
-                {columns.map((col, colIndex) => (
-                  <TableCell key={colIndex} className={col.className}>
-                    {col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? "") : null)}
-                  </TableCell>
+      <div className="hidden md:block rounded-md border border-white/[0.08] bg-card/60 backdrop-blur-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-muted/50">
+              <TableRow>
+                {columns.map((col, i) => (
+                  <TableHead key={i} className={cn("text-muted-foreground font-mono text-xs uppercase tracking-wider", col.className)}>
+                    {col.header}
+                  </TableHead>
                 ))}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {data.map((row, rowIndex) => (
+                <TableRow
+                  key={keyExtractor(row, rowIndex)}
+                  className={cn(
+                    "transition-colors hover:bg-muted/30 zebra-row",
+                    rowClassName?.(row)
+                  )}
+                >
+                  {columns.map((col, colIndex) => (
+                    <TableCell key={colIndex} className={col.className}>
+                      {col.cell ? col.cell(row) : (col.accessorKey ? String(row[col.accessorKey] ?? "") : null)}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
 
-      {/* Mobile Stacked Cards */}
       <div className="md:hidden flex flex-col gap-3">
         {renderMobileCard
           ? data.map((row, rowIndex) => (

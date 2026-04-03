@@ -13,4 +13,7 @@ export type ListTransactionsParams = {
   category?: string;
   cycleStart?: string;
   cycleEnd?: string;
+  accountId?: string;
+  amountMin?: string;
+  amountMax?: string;
 };

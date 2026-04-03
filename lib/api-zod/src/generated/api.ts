@@ -24,6 +24,9 @@ export const ListTransactionsQueryParams = zod.object({
   category: zod.coerce.string().optional(),
   cycleStart: zod.coerce.string().optional(),
   cycleEnd: zod.coerce.string().optional(),
+  accountId: zod.coerce.string().optional(),
+  amountMin: zod.coerce.string().optional(),
+  amountMax: zod.coerce.string().optional(),
 });
 
 export const ListTransactionsResponseItem = zod.object({
