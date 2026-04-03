@@ -38,7 +38,7 @@ export function ResponsiveTable<T>({
     <div className={className}>
       <div className="hidden md:block rounded-md border border-white/[0.08] bg-card/60 backdrop-blur-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="table-fixed">
             <TableHeader className="bg-muted/50">
               <TableRow>
                 {columns.map((col, i) => (

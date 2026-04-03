@@ -401,6 +401,7 @@ export default function Transactions() {
       ),
       cardLabel: "Date",
       accessorKey: "date" as const,
+      className: "w-[12%]",
       cell: (tx: Transaction) => <span className="font-mono">{formatDate(tx.date)}</span>,
     },
     {
@@ -411,7 +412,7 @@ export default function Transactions() {
       ),
       cardLabel: "Description",
       accessorKey: "description" as const,
-      className: "font-medium max-w-[200px] truncate",
+      className: "w-[28%] font-medium truncate",
       cell: (tx: Transaction) => (
         <div className="flex items-center gap-1.5">
           <span className={`truncate ${isBalanceAdjustment(tx) ? "italic text-muted-foreground" : ""}`}>
@@ -440,6 +441,7 @@ export default function Transactions() {
       ),
       cardLabel: "Category",
       accessorKey: "category" as const,
+      className: "w-[15%]",
       cell: (tx: Transaction) => (
         <CategoryBadge
           category={tx.category}
@@ -452,6 +454,7 @@ export default function Transactions() {
       header: "Account",
       cardLabel: "Account",
       accessorKey: "accountId" as const,
+      className: "w-[20%]",
       cell: (tx: Transaction) => {
         const acct = accounts?.find((a) => a.id === tx.accountId);
         const toAcct = tx.toAccountId ? accounts?.find((a) => a.id === tx.toAccountId) : null;
@@ -473,7 +476,7 @@ export default function Transactions() {
       ),
       cardLabel: "Amount",
       accessorKey: "amount" as const,
-      className: "text-right",
+      className: "w-[17%] text-right",
       cell: (tx: Transaction) => (
         <div className="flex items-center justify-end gap-1 font-mono font-bold">
           {tx.type === "Income" ? (
@@ -492,7 +495,7 @@ export default function Transactions() {
     },
     {
       header: "",
-      className: "w-20 text-center",
+      className: "w-[8%] text-center",
       cardLabel: "Actions",
       cell: (tx: Transaction) => (
         <div className="flex items-center gap-1">
