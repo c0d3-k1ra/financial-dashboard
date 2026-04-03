@@ -51,6 +51,7 @@ import {
   Customized, ReferenceLine,
 } from "recharts";
 import { Link, useLocation } from "wouter";
+import { useChartTheme } from "@/lib/chart-theme";
 
 const CHART_COLORS = [
   "hsl(var(--chart-1))",
@@ -65,26 +66,6 @@ const CHART_COLORS = [
   "hsl(330, 65%, 50%)",
 ];
 
-const TOOLTIP_STYLE: React.CSSProperties = {
-  backgroundColor: "rgba(255,255,255,0.08)",
-  backdropFilter: "blur(24px) saturate(150%)",
-  WebkitBackdropFilter: "blur(24px) saturate(150%)",
-  borderColor: "rgba(255,255,255,0.10)",
-  borderRadius: "12px",
-  fontFamily: "var(--font-sans)",
-  fontVariantNumeric: "tabular-nums lining-nums",
-  fontSize: "12px",
-  color: "hsl(210 40% 98%)",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-};
-
-const TOOLTIP_LABEL_STYLE: React.CSSProperties = {
-  color: "hsl(210 40% 98%)",
-};
-
-const TOOLTIP_ITEM_STYLE: React.CSSProperties = {
-  color: "hsl(210 40% 98%)",
-};
 
 function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | number; currentAmount: string | number }> }) {
   const totalTarget = goals.reduce((s, g) => s + Number(g.targetAmount), 0);
@@ -207,6 +188,7 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const chartTheme = useChartTheme();
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -607,10 +589,10 @@ export default function Dashboard() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={waterfallData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
-                <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
+                <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {waterfallData.map((entry, index) => (
                     <Cell key={index} fill={entry.fill} />
@@ -704,9 +686,9 @@ export default function Dashboard() {
                         ))}
                       </Pie>
                       <RechartsTooltip
-                        contentStyle={TOOLTIP_STYLE}
-                        labelStyle={TOOLTIP_LABEL_STYLE}
-                        itemStyle={TOOLTIP_ITEM_STYLE}
+                        contentStyle={chartTheme.tooltip}
+                        labelStyle={chartTheme.label}
+                        itemStyle={chartTheme.item}
                         formatter={(value: number) => formatCurrency(value)}
                       />
                     </PieChart>
@@ -810,7 +792,7 @@ export default function Dashboard() {
                             <p className="text-sm font-medium">
                               {cc.name}
                               {cc.sharedLimitGroup && (
-                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
+                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-info">{cc.sharedLimitGroup}</span>
                               )}
                             </p>
                             <p className="text-lg font-bold tabular-nums mt-0.5">
@@ -1003,18 +985,18 @@ export default function Dashboard() {
                       );
                     })}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                    tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }}
                     tickFormatter={formatAxisValue}
                     ticks={niceYAxisTicks(catTrendYMax)}
                     domain={[0, "auto"]}
                     allowDecimals={false}
                   />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
                   <Legend content={renderCategoryLegend} />
                   {visibleCategories.map((cat, i) => {
                     const colorIdx = cat === "Others" ? CHART_COLORS.length - 1 : allCategoryNames.indexOf(cat);
@@ -1061,10 +1043,10 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 11, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
+                  <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
                   <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} fillOpacity={1} fill="url(#gradCcSpend)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -1100,18 +1082,18 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="hsl(354 70% 54%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }} />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                    tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }}
                     tickFormatter={formatAxisValue}
                     ticks={niceYAxisTicks(incExpYMax)}
                     domain={[0, "auto"]}
                     allowDecimals={false}
                   />
-                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
                   {crossoverMonths.map((month, i) => (
                     <ReferenceLine

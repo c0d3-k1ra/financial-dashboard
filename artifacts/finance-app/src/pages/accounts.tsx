@@ -654,7 +654,7 @@ export default function Accounts() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-semibold text-sm truncate">{account.name}</p>
                                 {account.useInSurplus && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium">Surplus</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-success">Surplus</span>
                                 )}
                               </div>
                               <p className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</p>
@@ -742,7 +742,7 @@ export default function Accounts() {
                                 <p className="font-semibold text-sm truncate">{account.name}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                   {account.sharedLimitGroup && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium">{account.sharedLimitGroup}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-info">{account.sharedLimitGroup}</span>
                                   )}
                                   {account.billingDueDay && (
                                     <span className="text-[10px] text-muted-foreground/60 font-mono">Due {getOrdinalSuffix(account.billingDueDay)}</span>

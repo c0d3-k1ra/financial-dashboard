@@ -49,6 +49,7 @@ import {
 } from "recharts";
 import { Plus, Target, AlertTriangle, TrendingUp, Trash2, Pencil } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useChartTheme } from "@/lib/chart-theme";
 
 const CATEGORY_OPTIONS = ["Emergency", "Debt", "Travel", "Purchase", "General"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -60,11 +61,11 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  "On Track": "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
-  "At Risk": "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
-  "Behind": "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
-  "Not Started": "bg-zinc-500/20 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
-  "Achieved": "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+  "On Track": "status-badge-success",
+  "At Risk": "status-badge-warning",
+  "Behind": "status-badge-danger",
+  "Not Started": "status-badge-neutral",
+  "Achieved": "status-badge-success",
 };
 
 export default function Goals() {
@@ -356,7 +357,7 @@ export default function Goals() {
                         <span
                           className={`text-[10px] font-mono px-2 py-0.5 rounded-full border whitespace-nowrap ${
                             goal.status === "Achieved"
-                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                              ? "status-badge-success"
                               : STATUS_COLORS[goal.statusIndicator] || ""
                           }`}
                         >
@@ -515,6 +516,7 @@ export default function Goals() {
 }
 
 function GoalProjectionChart({ goalId }: { goalId: number }) {
+  const ct = useChartTheme();
   const { data: projection, isLoading } = useGetGoalProjectionById(
     goalId,
     { query: { queryKey: getGetGoalProjectionByIdQueryKey(goalId) } }
@@ -550,34 +552,25 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
         ) : chartData && chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={ct.gridStroke} />
               <XAxis
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "var(--font-mono)" }}
+                tick={{ fill: ct.tickFill, fontSize: 11, fontFamily: "var(--font-mono)" }}
                 interval={chartData.length > 14 ? 2 : chartData.length > 8 ? 1 : 0}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                tick={{ fill: ct.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }}
                 tickFormatter={(val) =>
                   val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${(val / 1000).toFixed(0)}k`
                 }
                 domain={[0, "auto"]}
               />
               <RechartsTooltip
-                contentStyle={{
-                  backgroundColor: "rgba(255,255,255,0.08)",
-                  backdropFilter: "blur(24px) saturate(150%)",
-                  borderColor: "rgba(255,255,255,0.10)",
-                  borderRadius: "12px",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "12px",
-                  color: "hsl(210 40% 98%)",
-                  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-                }}
+                contentStyle={ct.tooltip}
                 formatter={(value: number, name: string) => [
                   formatCurrency(value),
                   name === "actual" ? "Actual" : name === "currentPace" ? "Current Pace" : "Needed Pace",

@@ -10,7 +10,7 @@ export interface ThemeDefinition {
 export const THEMES: ThemeDefinition[] = [
   {
     id: "glass-ui",
-    label: "Glass UI (Dark)",
+    label: "Dark",
     rootClassName: "mesh-gradient-bg ambient-orbs",
     navClassName: "glass-nav",
   },
