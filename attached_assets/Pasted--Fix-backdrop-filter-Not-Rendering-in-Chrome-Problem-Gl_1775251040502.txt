@@ -1,0 +1,31 @@
+ Fix backdrop-filter Not Rendering in Chrome
+Problem
+Glassmorphism blur effects (backdrop-filter: blur()) work correctly in Safari but show as plain transparency in Chrome — no frosted/blurred effect, just see-through panels.
+Root Cause
+Chrome requires specific conditions for backdrop-filter to work. It breaks when any ancestor element has overflow: hidden, opacity less than 1, a filter, or its own backdrop-filter creating a stacking context conflict.
+Fix — Apply in This Order
+Step 1: Add webkit prefix everywhere
+Find every CSS rule that uses backdrop-filter. Add the -webkit- prefix BEFORE it:
+css-webkit-backdrop-filter: blur(40px);
+backdrop-filter: blur(40px);
+Do a global search across all CSS/styled-components/Tailwind classes for backdrop-filter and make sure every instance has both lines.
+Step 2: Force GPU compositing
+Add will-change: transform to every element that uses backdrop-filter:
+css-webkit-backdrop-filter: blur(40px);
+backdrop-filter: blur(40px);
+will-change: transform;
+This forces Chrome to create a separate compositing layer, which is required for the blur to render.
+Step 3: Fix parent stacking contexts
+This is the most common cause. Check every parent/ancestor of a glass element for these properties that break backdrop-filter in Chrome:
+
+overflow: hidden or overflow: auto or overflow: scroll — change to overflow: visible where possible, or move the glass element outside the overflowing container
+opacity less than 1 on any parent — remove it or set to exactly 1
+filter on any parent (e.g., filter: drop-shadow(...)) — replace with box-shadow instead
+A parent that also has backdrop-filter — this creates nested blur layers which Chrome sometimes collapses. Add isolation: isolate to the parent to create a clean stacking context
+
+Step 4: Add isolation to layout containers
+On major layout wrappers (page container, main content area, sidebar), add:
+cssisolation: isolate;
+This creates clean stacking contexts that prevent Chrome from collapsing blur layers.
+Step 5: Check z-index
+Glass elements need to be in the correct stacking order for blur to sample from behind them. Ensure glass cards have a position: relative and a z-index that places them above the background but below elevated elements like modals and dropdowns.
