@@ -30,21 +30,21 @@ const DARK_THEME: ChartTheme = {
 
 const LIGHT_THEME: ChartTheme = {
   tooltip: {
-    backgroundColor: "rgba(255,255,255,0.72)",
-    backdropFilter: "blur(60px) saturate(160%)",
-    WebkitBackdropFilter: "blur(60px) saturate(160%)",
-    borderColor: "rgba(255,255,255,0.8)",
-    borderRadius: "8px",
+    backgroundColor: "rgba(255,255,255,0.75)",
+    backdropFilter: "blur(64px) saturate(115%)",
+    WebkitBackdropFilter: "blur(64px) saturate(115%)",
+    borderColor: "rgba(0,0,0,0.07)",
+    borderRadius: "12px",
     fontFamily: "var(--font-sans)",
     fontVariantNumeric: "tabular-nums lining-nums",
     fontSize: "12px",
-    color: "rgba(15,23,42,0.9)",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.08)",
+    color: "rgba(15,23,42,0.92)",
+    boxShadow: "none",
   },
-  label: { color: "rgba(15,23,42,0.9)" },
-  item: { color: "rgba(15,23,42,0.9)" },
-  gridStroke: "rgba(0,0,0,0.05)",
-  tickFill: "rgba(15,23,42,0.35)",
+  label: { color: "rgba(15,23,42,0.92)" },
+  item: { color: "rgba(15,23,42,0.92)" },
+  gridStroke: "rgba(0,0,0,0.04)",
+  tickFill: "rgba(15,23,42,0.4)",
 };
 
 export function useChartTheme(): ChartTheme {

@@ -18,6 +18,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`min-h-[100dvh] ${theme.rootClassName} text-foreground flex flex-col relative`}>
+      <div className="frost-wash-mint" aria-hidden="true" />
+      <div className="frost-wash-peach" aria-hidden="true" />
       {theme.id === "glass-ui" && (
         <div className="ambient-orb-teal" aria-hidden="true" style={{
           position: "fixed",

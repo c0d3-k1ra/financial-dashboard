@@ -63,13 +63,15 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 3.  Allocates surplus to an Emergency Fund upon user action.
 4.  Maintains a rolling balance where the end balance of one month becomes the starting balance of the next.
 
-**UI/UX and Theming (iOS-Style Glass System):**
-*   **Design Language:** Apple iOS/macOS Control Center aesthetic with layered frosted glass on a dark mesh gradient.
-*   **Glass Tiers:** Defined in `index.css` with varying `rgba` backgrounds, `backdrop-filter` blur, and saturation for `.glass-1` (primary cards), `.glass-2` (nested/inputs), and `.glass-3` (elevated/modals).
-*   **Background:** Animated mesh gradient with ambient orbs.
+**UI/UX and Theming (Dual-Theme Glass System):**
+*   **Design Language:** Dual-theme system with distinct light and dark aesthetics.
+*   **Light Theme:** Apple visionOS-inspired matte frosted glass — milky, diffused frost panels with no shine/gloss/reflections. Soft color wash overlays (blue, lavender, mint, peach) bleed through with 180px blur. Cards use `box-shadow: none`, flat matte inputs, 10% opacity badges, and density-based separation via borders only.
+*   **Dark Theme:** iOS/macOS Control Center aesthetic with layered frosted glass on a dark mesh gradient, retaining shadow-lg depth and inset highlights.
+*   **Glass Tiers:** Defined in `index.css` with varying `rgba` backgrounds, `backdrop-filter` blur, and saturation for `.glass-1` (primary cards), `.glass-2` (nested/inputs), and `.glass-3` (elevated/modals). Light theme overrides remove all shadows and top-edge highlights.
+*   **Background:** Light: warm multi-tone radial gradient with 4 fixed frost wash pseudo-elements. Dark: animated mesh gradient with ambient orbs.
 *   **Navigation:** Frosted glass navigation bar with active tab highlighting.
 *   **Typography:** Inter for headings, JetBrains Mono for monetary values.
-*   **Charts:** Monotone curves with linear gradient fills, glass-3 tooltips, and subtle gridlines.
+*   **Charts:** Monotone curves with linear gradient fills, matte tooltips (light) / glass-3 tooltips (dark), and subtle gridlines.
 *   **Accessibility:** Fallback for `backdrop-filter` and `prefers-reduced-motion` support.
 *   **Mobile:** Minimum 44px touch targets, bottom-sheet drawer for transaction input.
 
