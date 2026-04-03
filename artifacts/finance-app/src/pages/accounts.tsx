@@ -10,7 +10,7 @@ import {
   getGetDashboardSummaryQueryKey,
   getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
-import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
+import { formatCurrency, getApiErrorMessage, getOrdinalSuffix } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,8 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, Trash2, Wallet, CreditCard, TrendingUp, TrendingDown, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -519,46 +520,116 @@ export default function Accounts() {
         </div>
       </div>
 
-      <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
+      <Card className="bg-card/60 backdrop-blur-xl border-white/10 shadow-lg shadow-black/5">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-2">
-            <TrendingUp className="w-4 h-4" /> Net Worth
+            {netWorth >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : <TrendingDown className="w-4 h-4 text-destructive" />} Net Worth
           </CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <Skeleton className="h-10 w-40" />
-          ) : (
-            <div className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-              {formatCurrency(netWorth)}
+            <div className="space-y-3">
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-3 w-60" />
             </div>
+          ) : (
+            <>
+              <div className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                {formatCurrency(netWorth)}
+              </div>
+
+              {(totalBank > 0 || totalCcOutstanding > 0 || totalLoanOutstanding > 0) && (() => {
+                const totalAbs = totalBank + totalCcOutstanding + totalLoanOutstanding;
+                const bankPct = totalAbs > 0 ? (totalBank / totalAbs) * 100 : 0;
+                const ccPct = totalAbs > 0 ? (totalCcOutstanding / totalAbs) * 100 : 0;
+                const loanPct = totalAbs > 0 ? (totalLoanOutstanding / totalAbs) * 100 : 0;
+                return (
+                  <div className="mt-3 space-y-2">
+                    <div className="w-full h-3 rounded-full overflow-hidden flex bg-secondary/50">
+                      {bankPct > 0 && (
+                        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${bankPct}%` }} />
+                      )}
+                      {ccPct > 0 && (
+                        <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${ccPct}%` }} />
+                      )}
+                      {loanPct > 0 && (
+                        <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${loanPct}%` }} />
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-mono">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
+                        <span className="text-muted-foreground">Assets</span>
+                        <span className="text-emerald-500 font-semibold">{formatCurrency(totalBank)}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />
+                        <span className="text-muted-foreground">CC Debt</span>
+                        <span className="text-red-500 font-semibold">{formatCurrency(totalCcOutstanding)}</span>
+                      </span>
+                      {totalLoanOutstanding > 0 && (
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
+                          <span className="text-muted-foreground">Loans</span>
+                          <span className="text-amber-500 font-semibold">{formatCurrency(totalLoanOutstanding)}</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
+            </>
           )}
-          <div className="flex flex-wrap gap-4 mt-2 text-sm font-mono text-muted-foreground">
-            <span>Banks: {formatCurrency(totalBank)}</span>
-            <span>CC Outstanding: {formatCurrency(totalCcOutstanding)}</span>
-            {totalLoanOutstanding > 0 && <span>Loans: {formatCurrency(totalLoanOutstanding)}</span>}
-          </div>
         </CardContent>
       </Card>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+        <div className="space-y-4">
+          {[1, 2, 3].map((section) => (
+            <div key={section} className="rounded-xl border border-border/40 bg-card/30 backdrop-blur overflow-hidden">
+              <div className="px-5 py-3.5 flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <Skeleton className="w-5 h-5 rounded" />
+                  <Skeleton className="h-4 w-28" />
+                </div>
+                <Skeleton className="h-4 w-20" />
+              </div>
+              <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[1, 2].map((card) => (
+                  <div key={card} className="rounded-xl border border-border/30 bg-background/20 p-4 space-y-3">
+                    <div className="flex justify-between">
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-6 w-24" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="w-7 h-7 rounded" />
+                        <Skeleton className="w-7 h-7 rounded" />
+                        <Skeleton className="w-7 h-7 rounded" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-2 w-full rounded-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       ) : allAccounts.length === 0 ? (
-        <div className="text-center py-12 px-4 border border-dashed border-border/50 rounded-lg bg-background/30">
-          <p className="text-muted-foreground font-mono text-sm">No accounts yet. Add one to get started.</p>
+        <div className="text-center py-16 px-4 border border-dashed border-border/50 rounded-xl bg-card/30 backdrop-blur">
+          <Wallet className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
+          <p className="text-muted-foreground font-medium text-sm">Add your first bank account to start tracking</p>
+          <p className="text-muted-foreground/60 text-xs mt-1">Track balances, credit limits, and loan progress all in one place.</p>
         </div>
       ) : (
         <>
           <div className="space-y-4">
             {bankAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur overflow-hidden">
+              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-xl overflow-hidden">
                 <button
                   onClick={() => setBankOpen(!bankOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors border-b border-border/40"
                 >
                   <div className="flex items-center gap-2.5">
                     <Wallet className="w-5 h-5 text-emerald-500" />
@@ -573,9 +644,10 @@ export default function Accounts() {
                   </div>
                 </button>
                 {bankOpen && (
-                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <TooltipProvider delayDuration={300}>
                     {bankAccounts.map((account) => (
-                      <Card key={account.id} className="bg-background/40 border-border/40 hover:border-border/70 transition-colors">
+                      <Card key={account.id} className="bg-background/40 backdrop-blur border-white/10 hover:border-white/20 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200">
                         <CardContent className="pt-4 pb-3 px-4">
                           <div className="flex justify-between items-start">
                             <div className="min-w-0 flex-1">
@@ -587,31 +659,47 @@ export default function Accounts() {
                               </div>
                               <p className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</p>
                             </div>
-                            <div className="flex items-center gap-0.5 ml-2">
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                <RefreshCw className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </Button>
+                            <div className="flex items-center gap-4 ml-2">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Sync Balance</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Edit Account</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Delete Account</TooltipContent>
+                              </Tooltip>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     ))}
+                    </TooltipProvider>
                   </div>
                 )}
               </div>
             )}
 
             {ccAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur overflow-hidden">
+              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-xl overflow-hidden">
                 <button
                   onClick={() => setCcOpen(!ccOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors border-b border-border/40"
                 >
                   <div className="flex items-center gap-2.5">
                     <CreditCard className="w-5 h-5 text-destructive" />
@@ -619,14 +707,15 @@ export default function Accounts() {
                     <span className="text-xs text-muted-foreground/60 font-mono">{ccAccounts.length}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold font-mono">
+                    <span className="text-sm font-bold font-mono text-red-500">
                       {formatCurrency(Math.abs(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
                     </span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${ccOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {ccOpen && (
-                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <TooltipProvider delayDuration={300}>
                     {ccAccounts.map((account) => {
                       const outstanding = Math.abs(Number(account.currentBalance));
                       const limit = account.creditLimit ? Number(account.creditLimit) : null;
@@ -640,13 +729,13 @@ export default function Accounts() {
                         availableLimit = Math.max(0, limit - outstanding);
                       }
                       const usedPct = limit && limit > 0 ? (outstanding / limit) * 100 : 0;
-                      const strokeColor = usedPct < 50 ? "#10b981" : usedPct < 80 ? "#eab308" : "#ef4444";
-                      const radius = 36;
+                      const strokeColor = usedPct <= 30 ? "#10b981" : usedPct <= 50 ? "#eab308" : "#ef4444";
+                      const radius = 22;
                       const circumference = 2 * Math.PI * radius;
                       const strokeDash = (Math.min(usedPct, 100) / 100) * circumference;
 
                       return (
-                        <Card key={account.id} className="bg-background/40 border-border/40 hover:border-border/70 transition-colors">
+                        <Card key={account.id} className="bg-background/40 backdrop-blur border-white/10 hover:border-white/20 hover:shadow-md hover:shadow-red-500/5 transition-all duration-200">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="min-w-0 flex-1">
@@ -656,33 +745,47 @@ export default function Accounts() {
                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{account.sharedLimitGroup}</span>
                                   )}
                                   {account.billingDueDay && (
-                                    <span className="text-[10px] text-muted-foreground/60 font-mono">Due {account.billingDueDay}th</span>
+                                    <span className="text-[10px] text-muted-foreground/60 font-mono">Due {getOrdinalSuffix(account.billingDueDay)}</span>
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-0.5 ml-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+                              <div className="flex items-center gap-4 ml-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                      <RefreshCw className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Sync Balance</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Edit Account</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Account</TooltipContent>
+                                </Tooltip>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-4">
                               {limit != null && (
-                                <div className="relative flex-shrink-0">
-                                  <svg width="80" height="80" viewBox="0 0 88 88">
-                                    <circle cx="44" cy="44" r={radius} fill="none" stroke="currentColor" strokeWidth="6" className="text-secondary" />
-                                    <circle cx="44" cy="44" r={radius} fill="none" stroke={strokeColor} strokeWidth="6" strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 44 44)" className="transition-all duration-500" />
+                                <div className="relative flex-shrink-0" style={{ width: 56, height: 56 }}>
+                                  <svg width="56" height="56" viewBox="0 0 56 56">
+                                    <circle cx="28" cy="28" r={radius} fill="none" stroke="currentColor" strokeWidth="5" className="text-secondary" />
+                                    <circle cx="28" cy="28" r={radius} fill="none" stroke={strokeColor} strokeWidth="5" strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 28 28)" className="transition-all duration-500" />
                                   </svg>
                                   <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-xs font-bold font-mono" style={{ color: strokeColor }}>{Math.round(usedPct)}%</span>
-                                    <span className="text-[9px] text-muted-foreground/60">used</span>
+                                    <span className="text-[10px] font-bold font-mono" style={{ color: strokeColor }}>{Math.round(usedPct)}%</span>
                                   </div>
                                 </div>
                               )}
@@ -693,7 +796,7 @@ export default function Accounts() {
                                   <div className="mt-1.5 space-y-0.5">
                                     <div className="flex justify-between text-[11px] font-mono">
                                       <span className="text-muted-foreground/60">Available</span>
-                                      <span className={usedPct < 50 ? "text-emerald-500" : usedPct < 80 ? "text-yellow-500" : "text-destructive"}>{formatCurrency(availableLimit ?? 0)}</span>
+                                      <span className={usedPct <= 30 ? "text-emerald-500" : usedPct <= 50 ? "text-yellow-500" : "text-destructive"}>{formatCurrency(availableLimit ?? 0)}</span>
                                     </div>
                                     <div className="flex justify-between text-[11px] font-mono">
                                       <span className="text-muted-foreground/60">Limit</span>
@@ -707,16 +810,17 @@ export default function Accounts() {
                         </Card>
                       );
                     })}
+                    </TooltipProvider>
                   </div>
                 )}
               </div>
             )}
 
             {loanAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur overflow-hidden">
+              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-xl overflow-hidden">
                 <button
                   onClick={() => setLoanOpen(!loanOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors border-b border-border/40"
                 >
                   <div className="flex items-center gap-2.5">
                     <Landmark className="w-5 h-5 text-amber-500" />
@@ -724,48 +828,89 @@ export default function Accounts() {
                     <span className="text-xs text-muted-foreground/60 font-mono">{loanAccounts.length}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold font-mono text-amber-500">
+                    <span className="text-sm font-bold font-mono text-red-500">
                       {formatCurrency(Math.abs(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
                     </span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${loanOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {loanOpen && (
-                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <TooltipProvider delayDuration={300}>
                     {loanAccounts.map((account) => {
                       const principal = Number(account.currentBalance);
                       const emi = account.emiAmount ? Number(account.emiAmount) : null;
                       const tenure = account.loanTenure ? Number(account.loanTenure) : null;
+                      const rate = account.interestRate ? Number(account.interestRate) : null;
                       let paidPct = 0;
+                      let totalLoan = 0;
                       if (emi && tenure) {
-                        const totalLoan = emi * tenure;
+                        totalLoan = emi * tenure;
                         paidPct = totalLoan > 0 ? Math.max(0, Math.min(100, ((totalLoan - principal) / totalLoan) * 100)) : 0;
                       }
                       const barColor = paidPct > 60 ? "bg-emerald-500" : paidPct > 30 ? "bg-yellow-500" : "bg-amber-500";
 
+                      let monthsRemaining: number | null = null;
+                      let estimatedPayoff: string | null = null;
+                      if (emi && emi > 0 && principal > 0) {
+                        monthsRemaining = Math.ceil(principal / emi);
+                        const payoffDate = new Date();
+                        payoffDate.setMonth(payoffDate.getMonth() + monthsRemaining);
+                        estimatedPayoff = payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                      }
+
+                      let principalPortion = 0;
+                      let interestPortion = 0;
+                      if (emi && tenure && totalLoan > 0) {
+                        const totalPaid = totalLoan - principal;
+                        if (rate && rate > 0) {
+                          const totalInterest = totalLoan - (totalLoan / (1 + (rate / 100) * (tenure / 12)));
+                          const paidRatio = totalPaid / totalLoan;
+                          interestPortion = Math.min(totalInterest * paidRatio, totalPaid);
+                          principalPortion = totalPaid - interestPortion;
+                        } else {
+                          principalPortion = totalPaid;
+                        }
+                      }
+
                       return (
-                        <Card key={account.id} className="bg-background/40 border-border/40 hover:border-border/70 transition-colors">
+                        <Card key={account.id} className="bg-background/40 backdrop-blur border-white/10 hover:border-white/20 hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex justify-between items-start mb-2">
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold text-sm truncate">{account.name}</p>
                                 {account.emiDay && (
-                                  <span className="text-[10px] text-muted-foreground/60 font-mono">EMI on {account.emiDay}th</span>
+                                  <span className="text-[10px] text-muted-foreground/60 font-mono">EMI on {getOrdinalSuffix(account.emiDay)}</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-0.5 ml-2">
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
+                              <div className="flex items-center gap-4 ml-2">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                      <RefreshCw className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Sync Balance</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                      <Pencil className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Edit Account</TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>Delete Account</TooltipContent>
+                                </Tooltip>
                               </div>
                             </div>
-                            <p className="text-lg font-bold font-mono text-amber-500">{formatCurrency(Math.abs(Number(account.currentBalance)))}</p>
+                            <p className="text-lg font-bold font-mono text-red-500">{formatCurrency(Math.abs(principal))}</p>
                             <div className="mt-2 space-y-1">
                               {emi && (
                                 <div className="flex justify-between text-[11px] font-mono">
@@ -773,10 +918,10 @@ export default function Accounts() {
                                   <span className="text-muted-foreground">{formatCurrency(emi)}/mo</span>
                                 </div>
                               )}
-                              {account.interestRate && (
+                              {rate != null && rate > 0 && (
                                 <div className="flex justify-between text-[11px] font-mono">
                                   <span className="text-muted-foreground/60">Rate</span>
-                                  <span className="text-muted-foreground">{account.interestRate}%</span>
+                                  <span className="text-muted-foreground">{rate}%</span>
                                 </div>
                               )}
                               {account.linkedAccountId && (
@@ -785,21 +930,52 @@ export default function Accounts() {
                                   <span className="text-muted-foreground truncate ml-2">{accounts?.find((a) => a.id === account.linkedAccountId)?.name ?? "—"}</span>
                                 </div>
                               )}
+                              {monthsRemaining != null && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">Months remaining</span>
+                                  <span className="text-muted-foreground">{monthsRemaining}</span>
+                                </div>
+                              )}
+                              {estimatedPayoff && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">Estimated payoff</span>
+                                  <span className="text-muted-foreground">{estimatedPayoff}</span>
+                                </div>
+                              )}
                             </div>
                             {emi && tenure && (
-                              <div className="mt-2.5">
-                                <div className="flex justify-between text-[10px] font-mono mb-1">
+                              <div className="mt-3">
+                                <div className="flex justify-between text-[10px] font-mono mb-1.5">
                                   <span className="text-muted-foreground/50">{Math.round(paidPct)}% repaid</span>
+                                  <span className="font-semibold" style={{ color: paidPct > 60 ? "#10b981" : paidPct > 30 ? "#eab308" : "#f59e0b" }}>{Math.round(paidPct)}%</span>
                                 </div>
-                                <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-                                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${paidPct}%` }} />
+                                <div className="w-full h-3 bg-secondary rounded-full overflow-hidden flex">
+                                  {principalPortion > 0 && (
+                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(principalPortion / totalLoan) * 100}%` }} />
+                                  )}
+                                  {interestPortion > 0 && (
+                                    <div className="h-full bg-orange-400 transition-all duration-500" style={{ width: `${(interestPortion / totalLoan) * 100}%` }} />
+                                  )}
                                 </div>
+                                {(principalPortion > 0 || interestPortion > 0) && (
+                                  <div className="flex gap-3 mt-1.5 text-[9px] font-mono text-muted-foreground/60">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />
+                                      Principal
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 rounded-sm bg-orange-400 inline-block" />
+                                      Interest
+                                    </span>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </CardContent>
                         </Card>
                       );
                     })}
+                    </TooltipProvider>
                   </div>
                 )}
               </div>

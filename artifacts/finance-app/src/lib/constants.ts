@@ -60,6 +60,15 @@ export const formatDate = (dateStr: string) => {
   }).format(new Date(dateStr));
 };
 
+export function getOrdinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return `${day}th`;
+  const lastDigit = day % 10;
+  if (lastDigit === 1) return `${day}st`;
+  if (lastDigit === 2) return `${day}nd`;
+  if (lastDigit === 3) return `${day}rd`;
+  return `${day}th`;
+}
+
 export function getApiErrorMessage(err: unknown): string {
   if (err && typeof err === "object") {
     const data = (err as Record<string, unknown>).data;
