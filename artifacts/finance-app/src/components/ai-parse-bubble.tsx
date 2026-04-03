@@ -145,12 +145,13 @@ function clearPersistedChat() {
   }
 }
 
+function getIsMobileTouch() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+}
+
 function useIsMobileTouch() {
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const primaryInputIsTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
-    setIsMobile(primaryInputIsTouch);
-  }, []);
+  const [isMobile] = useState(getIsMobileTouch);
   return isMobile;
 }
 
