@@ -236,6 +236,11 @@
   color: hsl(210 40% 98%) !important;
 }
 
+.currency {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" on, "lnum" on;
+}
+
 @media (max-width: 768px) {
   button, a, a[role="button"], [role="button"] {
     min-height: 44px;

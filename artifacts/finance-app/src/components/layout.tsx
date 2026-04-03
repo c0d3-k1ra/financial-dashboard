@@ -40,8 +40,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                     isActive 
-                      ? "bg-secondary text-foreground" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                      ? "bg-secondary text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:shadow-sm"
                   }`}
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
@@ -65,7 +65,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
                     isActive 
                       ? "bg-secondary text-foreground border border-border" 
-                      : "text-muted-foreground bg-transparent border border-transparent"
+                      : "text-muted-foreground bg-transparent border border-transparent hover:text-foreground hover:bg-secondary/40 hover:border-border/50"
                   }`}
                   data-testid={`nav-mobile-${item.label.toLowerCase()}`}
                 >

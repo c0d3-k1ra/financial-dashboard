@@ -48,6 +48,7 @@ import {
   AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+  Customized, ReferenceLine,
 } from "recharts";
 import { Link, useLocation } from "wouter";
 
@@ -68,7 +69,8 @@ const TOOLTIP_STYLE: React.CSSProperties = {
   backgroundColor: "hsl(222 47% 10%)",
   borderColor: "hsl(222 47% 15%)",
   borderRadius: "8px",
-  fontFamily: "var(--font-mono)",
+  fontFamily: "var(--font-sans)",
+  fontVariantNumeric: "tabular-nums lining-nums",
   fontSize: "12px",
   color: "hsl(210 40% 98%)",
 };
@@ -106,15 +108,95 @@ function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | num
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold font-mono">{progress.toFixed(0)}%</span>
+          <span className="text-2xl font-bold tabular-nums">{progress.toFixed(0)}%</span>
           <span className="text-[10px] text-muted-foreground font-mono">GOALS</span>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground font-mono mt-2">
+      <p className="text-xs text-muted-foreground tabular-nums mt-2">
         {formatCurrency(totalCurrent)} / {formatCurrency(totalTarget)}
       </p>
     </div>
   );
+}
+
+interface BarRectData {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CustomizedChartProps {
+  formattedGraphicalItems?: Array<{
+    props?: { data?: BarRectData[] };
+  }>;
+}
+
+function WaterfallConnectors(props: CustomizedChartProps) {
+  const { formattedGraphicalItems } = props;
+  if (!formattedGraphicalItems || formattedGraphicalItems.length === 0) return null;
+  const firstSeries = formattedGraphicalItems[0];
+  if (!firstSeries?.props?.data) return null;
+  const bars = firstSeries.props.data;
+  return (
+    <g>
+      {bars.slice(0, -1).map((bar: BarRectData, i: number) => {
+        const next = bars[i + 1];
+        if (!bar || !next) return null;
+        return (
+          <line
+            key={i}
+            x1={bar.x + bar.width + 2}
+            y1={bar.y}
+            x2={next.x - 2}
+            y2={bar.y}
+            stroke="hsl(var(--muted-foreground))"
+            strokeDasharray="4 3"
+            strokeWidth={1.5}
+            opacity={0.35}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function formatDateGroup(dateStr: string): string {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Today";
+  if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(d);
+}
+
+function niceYAxisTicks(maxVal: number): number[] {
+  if (maxVal <= 0) return [0];
+  const raw = maxVal / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const nice = [1, 2, 2.5, 5, 10].find(n => n * mag >= raw) ?? 10;
+  const step = nice * mag;
+  const ticks: number[] = [];
+  for (let v = 0; v <= maxVal + step * 0.5; v += step) {
+    ticks.push(v);
+  }
+  return ticks;
+}
+
+function formatAxisValue(value: number): string {
+  if (value >= 100000) return `₹${(value / 100000).toFixed(value % 100000 === 0 ? 0 : 1)}L`;
+  if (value >= 1000) return `₹${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`;
+  return `₹${value}`;
+}
+
+function calcMonthsRemaining(balance: number, emi: number, annualRate: number): number {
+  if (emi <= 0 || balance <= 0) return 0;
+  const r = annualRate / 100 / 12;
+  if (r <= 0) return Math.ceil(balance / emi);
+  const ratio = 1 - (r * balance) / emi;
+  if (ratio <= 0) return 999;
+  return Math.ceil(-Math.log(ratio) / Math.log(1 + r));
 }
 
 
@@ -131,6 +213,7 @@ export default function Dashboard() {
   const [spendAccountFilter, setSpendAccountFilter] = useState<"all" | "cc" | "non_cc">("all");
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
+  const [showAllCcDues, setShowAllCcDues] = useState(false);
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
     { month: currentMonth },
@@ -203,36 +286,80 @@ export default function Dashboard() {
     [allAccounts]
   );
 
-  const pieData = (spendByCategory ?? []).map((item, i) => ({
-    name: item.category,
-    value: Number(item.total),
-    fill: CHART_COLORS[i % CHART_COLORS.length],
-  }));
+  const pieData = useMemo(() => {
+    const raw = (spendByCategory ?? []).map((item, i) => ({
+      name: item.category,
+      value: Number(item.total),
+      fill: CHART_COLORS[i % CHART_COLORS.length],
+    }));
+    const total = raw.reduce((sum, d) => sum + d.value, 0);
+    if (total === 0) return raw;
+    const significant = raw.filter(d => d.value / total >= 0.02);
+    const othersTotal = raw.filter(d => d.value / total < 0.02).reduce((s, d) => s + d.value, 0);
+    if (othersTotal > 0) {
+      significant.push({ name: "Others", value: othersTotal, fill: "hsl(215 16% 47%)" });
+    }
+    return significant;
+  }, [spendByCategory]);
 
   const pieTotal = pieData.reduce((sum, d) => sum + d.value, 0);
 
-  const categoryNames = useMemo(() => (categoryTrend ?? []).map((c) => c.category), [categoryTrend]);
+  const allCategoryNames = useMemo(() => (categoryTrend ?? []).map((c) => c.category), [categoryTrend]);
 
-  const categoryTrendLineData = useMemo((): Record<string, string | number>[] => {
-    if (!categoryTrend || categoryTrend.length === 0) return [];
-    const filtered = selectedCategory === "all"
-      ? categoryTrend
-      : categoryTrend.filter((c) => c.category === selectedCategory);
+  const { top5Categories, categoryTrendLineData, visibleCategories } = useMemo(() => {
+    if (!categoryTrend || categoryTrend.length === 0) return { top5Categories: [] as string[], categoryTrendLineData: [] as Record<string, string | number>[], visibleCategories: [] as string[] };
+
+    if (selectedCategory !== "all") {
+      const filtered = categoryTrend.filter((c) => c.category === selectedCategory);
+      const cycleMap = new Map<string, Record<string, string | number>>();
+      for (const cat of filtered) {
+        for (const pt of cat.data) {
+          if (!cycleMap.has(pt.cycle)) cycleMap.set(pt.cycle, { cycle: pt.cycle });
+          cycleMap.get(pt.cycle)![cat.category] = Number(pt.total || 0);
+        }
+      }
+      return {
+        top5Categories: [selectedCategory],
+        categoryTrendLineData: Array.from(cycleMap.values()),
+        visibleCategories: [selectedCategory],
+      };
+    }
+
+    const totals = categoryTrend.map(c => ({
+      category: c.category,
+      total: c.data.reduce((s, pt) => s + Number(pt.total || 0), 0),
+      data: c.data,
+    }));
+    totals.sort((a, b) => b.total - a.total);
+
+    const top5 = totals.slice(0, 5);
+    const others = totals.slice(5);
+    const cats = top5.map(t => t.category);
+    if (others.length > 0) cats.push("Others");
 
     const cycleMap = new Map<string, Record<string, string | number>>();
-    for (const cat of filtered) {
+    for (const cat of top5) {
       for (const pt of cat.data) {
-        if (!cycleMap.has(pt.cycle)) {
-          cycleMap.set(pt.cycle, { cycle: pt.cycle });
-        }
-        const row = cycleMap.get(pt.cycle)!;
-        row[cat.category] = Number(pt.total || 0);
+        if (!cycleMap.has(pt.cycle)) cycleMap.set(pt.cycle, { cycle: pt.cycle });
+        cycleMap.get(pt.cycle)![cat.category] = Number(pt.total || 0);
       }
     }
-    return Array.from(cycleMap.values());
-  }, [categoryTrend, selectedCategory]);
+    if (others.length > 0) {
+      for (const cat of others) {
+        for (const pt of cat.data) {
+          if (!cycleMap.has(pt.cycle)) cycleMap.set(pt.cycle, { cycle: pt.cycle });
+          const row = cycleMap.get(pt.cycle)!;
+          row["Others"] = (Number(row["Others"] || 0)) + Number(pt.total || 0);
+        }
+      }
+    }
 
-  const visibleCategories = selectedCategory === "all" ? categoryNames : [selectedCategory];
+    return {
+      top5Categories: cats,
+      categoryTrendLineData: Array.from(cycleMap.values()),
+      visibleCategories: cats,
+    };
+  }, [categoryTrend, selectedCategory]);
 
   const waterfallData = useMemo(() => {
     if (!summary) return [];
@@ -261,27 +388,110 @@ export default function Dashboard() {
     return { totalBank: tBank, totalCcOutstanding: tCc, totalLoanOutstanding: tLoan, netWorth: tBank - tCc - tLoan };
   }, [allAccounts]);
 
+  const debtToAssetRatio = totalBank > 0 ? ((totalCcOutstanding + totalLoanOutstanding) / totalBank * 100) : 0;
+
+  const crossoverMonths = useMemo(() => {
+    if (!monthlyTrend) return [] as string[];
+    return monthlyTrend
+      .filter(d => Number(d.expenses) > Number(d.income))
+      .map(d => d.month as string);
+  }, [monthlyTrend]);
+
+  const groupedTxs = useMemo(() => {
+    if (!recentTxs || recentTxs.length === 0) return [];
+    const groups: { date: string; label: string; txs: typeof recentTxs }[] = [];
+    for (const tx of recentTxs) {
+      const dateStr = tx.date.split("T")[0];
+      const existing = groups.find(g => g.date === dateStr);
+      if (existing) {
+        existing.txs.push(tx);
+      } else {
+        groups.push({ date: dateStr, label: formatDateGroup(tx.date), txs: [tx] });
+      }
+    }
+    return groups;
+  }, [recentTxs]);
+
+  const visibleCcDues = useMemo(() => {
+    if (!ccDues) return [];
+    if (showAllCcDues) return ccDues;
+    return ccDues.slice(0, 3);
+  }, [ccDues, showAllCcDues]);
+
+  const catTrendYMax = useMemo(() => {
+    let max = 0;
+    for (const row of categoryTrendLineData) {
+      for (const key of Object.keys(row)) {
+        if (key === "cycle") continue;
+        const v = Number(row[key]);
+        if (v > max) max = v;
+      }
+    }
+    return max;
+  }, [categoryTrendLineData]);
+
+  const incExpYMax = useMemo(() => {
+    if (!monthlyTrend) return 0;
+    let max = 0;
+    for (const d of monthlyTrend) {
+      max = Math.max(max, Number(d.income || 0), Number(d.expenses || 0));
+    }
+    return max;
+  }, [monthlyTrend]);
+
+  interface LegendEntry {
+    value: string;
+    color: string;
+  }
+
+  const renderCategoryLegend = (props: { payload?: LegendEntry[] }) => {
+    const { payload } = props;
+    if (!payload) return null;
+    return (
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 justify-center mt-3 px-2">
+        {payload.map((entry: LegendEntry, index: number) => (
+          <button
+            key={index}
+            className={`flex items-center gap-1.5 text-[11px] transition-opacity hover:opacity-80 ${entry.value === "Others" ? "cursor-default" : "cursor-pointer"}`}
+            onClick={() => {
+              if (entry.value === "Others") return;
+              setSelectedCategory(prev => prev === entry.value ? "all" : entry.value);
+            }}
+          >
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
+            <span style={{
+              color: selectedCategory !== "all" && selectedCategory !== entry.value ? "hsl(var(--muted-foreground))" : "hsl(var(--foreground))",
+              opacity: selectedCategory !== "all" && selectedCategory !== entry.value ? 0.4 : 1,
+            }}>
+              {entry.value}
+            </span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financial Cockpit</h1>
         <div className="flex items-center gap-2 flex-wrap">
-          <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => setIsTransferOpen(true)}>
+          <Button size="sm" variant="outline" className="text-xs uppercase tracking-wider" onClick={() => setIsTransferOpen(true)}>
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
           </Button>
           {cycleAlreadyEnded ? (
             <>
-              <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider opacity-60" disabled>
+              <Button size="sm" variant="outline" className="text-xs uppercase tracking-wider opacity-60" disabled>
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Cycle Ended
               </Button>
               {canUndo && (
-                <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setUndoConfirmOpen(true)}>
+                <Button size="sm" variant="outline" className="text-xs uppercase tracking-wider text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setUndoConfirmOpen(true)}>
                   <Undo2 className="w-4 h-4 mr-1.5" /> Undo Distribution
                 </Button>
               )}
             </>
           ) : (
-            <Button size="sm" variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={handleEndCycle}>
+            <Button size="sm" className="text-xs uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleEndCycle}>
               <CheckCircle2 className="w-4 h-4 mr-1.5" /> End Cycle
             </Button>
           )}
@@ -291,27 +501,30 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="glass-card rounded-xl shadow-lg">
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="glass-card rounded-xl shadow-lg min-h-[200px] flex flex-col">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Liquidity</CardTitle>
             <Activity className="w-4 h-4 text-primary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             {isLoadingSummary ? (
               <Skeleton className="h-12 w-48" />
             ) : (
               <>
-                <div className="text-4xl font-extrabold font-mono tracking-tight text-foreground">
-                  {formatCurrency(summary?.netLiquidity || 0)}
-                </div>
-                <div className={`flex items-center gap-1.5 mt-2 text-sm font-mono ${liquidityHealthy ? "text-emerald-400" : "text-amber-400"}`}>
-                  <Droplets className="w-3.5 h-3.5" />
-                  Covers {liquidityRatio.toFixed(1)}x monthly expenses
+                <div>
+                  <div className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground">
+                    {formatCurrency(summary?.netLiquidity || 0)}
+                  </div>
+                  <div className={`flex items-center gap-1.5 mt-2 text-sm tabular-nums ${liquidityHealthy ? "text-emerald-400" : "text-amber-400"}`}>
+                    <Droplets className="w-3.5 h-3.5" />
+                    Covers {liquidityRatio.toFixed(1)}x monthly expenses
+                  </div>
                 </div>
               </>
             )}
-            <div className="flex flex-wrap gap-4 mt-3 text-sm font-mono text-muted-foreground">
+            <div className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Wallet className="w-3.5 h-3.5 text-emerald-500" />
                 {formatCurrency(summary?.bankBalance || 0)}
@@ -330,21 +543,27 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card rounded-xl shadow-lg">
+        <Card className="glass-card rounded-xl shadow-lg min-h-[200px] flex flex-col">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-2">
-              <TrendingUp className="w-4 h-4" /> Net Worth
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Worth</CardTitle>
+            <TrendingUp className="w-4 h-4 text-primary" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 flex flex-col justify-between">
             {!allAccounts ? (
               <Skeleton className="h-10 w-40" />
             ) : (
-              <div className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-                {formatCurrency(netWorth)}
+              <div>
+                <div className={`text-4xl font-bold tabular-nums tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                  {formatCurrency(netWorth)}
+                </div>
+                <div className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
+                  <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-400" : "text-emerald-400"}`}>
+                    Debt-to-asset ratio: {debtToAssetRatio.toFixed(1)}%
+                  </span>
+                </div>
               </div>
             )}
-            <div className="flex flex-wrap gap-4 mt-2 text-sm font-mono text-muted-foreground">
+            <div className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
               <span>Banks: {formatCurrency(totalBank)}</span>
               <span>CC: -{formatCurrency(totalCcOutstanding)}</span>
               {totalLoanOutstanding > 0 && <span>Loans: -{formatCurrency(totalLoanOutstanding)}</span>}
@@ -352,13 +571,12 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card rounded-xl shadow-lg">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-1.5">
-              <Target className="w-3.5 h-3.5" /> Goal Progress
-            </CardTitle>
+        <Card className="glass-card rounded-xl shadow-lg min-h-[200px] flex flex-col">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Goal Progress</CardTitle>
+            <Target className="w-4 h-4 text-primary" />
           </CardHeader>
-          <CardContent className="h-[180px]">
+          <CardContent className="flex-1">
             {goals && goals.length > 0 ? (
               <GoalProgressRing goals={goals} />
             ) : (
@@ -383,20 +601,22 @@ export default function Dashboard() {
               <BarChart data={waterfallData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
                 <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {waterfallData.map((entry, index) => (
                     <Cell key={index} fill={entry.fill} />
                   ))}
                 </Bar>
+                <Customized component={WaterfallConnectors} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 gap-4">
+      
+      <div className="grid grid-cols-1 gap-6">
         <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Monthly Burn Rate</CardTitle>
@@ -411,8 +631,8 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="flex justify-between items-end mb-2">
-                  <div className="font-mono text-2xl font-bold">{summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%</div>
-                  <div className="text-sm font-mono text-muted-foreground">
+                  <div className="tabular-nums text-2xl font-bold">{summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%</div>
+                  <div className="text-sm tabular-nums text-muted-foreground">
                     {formatCurrency(summary?.actualExpenses || 0)} / {formatCurrency(summary?.plannedExpenses || 1)}
                   </div>
                 </div>
@@ -427,7 +647,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 glass-card rounded-xl">
           <CardHeader>
             <div className="flex items-center justify-between flex-wrap gap-2">
@@ -440,9 +661,9 @@ export default function Dashboard() {
                   <button
                     key={value}
                     onClick={() => setSpendAccountFilter(value)}
-                    className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-colors ${
+                    className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
                       spendAccountFilter === value
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
                         : "bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
                     }`}
                   >
@@ -456,16 +677,16 @@ export default function Dashboard() {
             {isLoadingCatSpend ? (
               <Skeleton className="w-full h-[280px]" />
             ) : pieData.length > 0 ? (
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="w-full md:w-[220px] h-[220px] flex-shrink-0">
+              <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 items-start">
+                <div className="h-[260px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
                         data={pieData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={95}
+                        innerRadius={55}
+                        outerRadius={115}
                         paddingAngle={2}
                         dataKey="value"
                         nameKey="name"
@@ -505,10 +726,10 @@ export default function Dashboard() {
                                 <span className="truncate">{entry.name}</span>
                               </div>
                             </td>
-                            <td className="text-right py-2 px-2 font-mono text-xs whitespace-nowrap">
+                            <td className="text-right py-2 px-2 tabular-nums text-xs whitespace-nowrap">
                               {formatCurrency(entry.value)}
                             </td>
-                            <td className="text-right py-2 pl-2 font-mono text-xs text-muted-foreground whitespace-nowrap">
+                            <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
                               {pct}%
                             </td>
                           </tr>
@@ -518,10 +739,10 @@ export default function Dashboard() {
                     <tfoot>
                       <tr className="border-t border-border/50">
                         <td className="py-2 pr-2 font-medium">Total</td>
-                        <td className="text-right py-2 px-2 font-mono text-xs font-bold whitespace-nowrap">
+                        <td className="text-right py-2 px-2 tabular-nums text-xs font-bold whitespace-nowrap">
                           {formatCurrency(pieTotal)}
                         </td>
-                        <td className="text-right py-2 pl-2 font-mono text-xs text-muted-foreground">100%</td>
+                        <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground">100%</td>
                       </tr>
                     </tfoot>
                   </table>
@@ -549,8 +770,8 @@ export default function Dashboard() {
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : ccDues && ccDues.length > 0 ? (
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                {ccDues.map((cc) => (
+              <div className="space-y-3">
+                {visibleCcDues.map((cc) => (
                     <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
                       <div className="flex justify-between items-start">
                         <div>
@@ -560,11 +781,11 @@ export default function Dashboard() {
                               <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
                             )}
                           </p>
-                          <p className="text-lg font-bold font-mono mt-0.5">
+                          <p className="text-lg font-bold tabular-nums mt-0.5">
                             {formatCurrency(cc.outstanding)}
                           </p>
                           {cc.remainingLimit != null && (
-                            <p className={`text-xs font-mono mt-0.5 ${
+                            <p className={`text-xs tabular-nums mt-0.5 ${
                               cc.creditLimit ? (
                                 Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.5 ? "text-emerald-500" :
                                 Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.2 ? "text-yellow-500" :
@@ -578,6 +799,22 @@ export default function Dashboard() {
                       </div>
                     </div>
                 ))}
+                {!showAllCcDues && ccDues.length > 3 && (
+                  <button
+                    onClick={() => setShowAllCcDues(true)}
+                    className="w-full text-center text-xs font-medium text-primary hover:text-primary/80 transition-colors py-2 flex items-center justify-center gap-1"
+                  >
+                    View All ({ccDues.length}) <ArrowRight className="w-3 h-3" />
+                  </button>
+                )}
+                {showAllCcDues && ccDues.length > 3 && (
+                  <button
+                    onClick={() => setShowAllCcDues(false)}
+                    className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
+                  >
+                    Show Less
+                  </button>
+                )}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
@@ -589,7 +826,7 @@ export default function Dashboard() {
       </div>
 
       {(loanAccounts.length > 0 || Number(summary?.totalLoanOutstanding || 0) > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="glass-card rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -598,13 +835,62 @@ export default function Dashboard() {
               <CardDescription>Total loan principal remaining</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold font-mono text-amber-500">
+              <div className="text-3xl font-bold tabular-nums text-amber-500">
                 {formatCurrency(summary?.totalLoanOutstanding || 0)}
               </div>
               {Number(summary?.totalEmiDue || 0) > 0 && (
-                <p className="text-sm font-mono text-muted-foreground mt-2">
+                <p className="text-sm tabular-nums text-muted-foreground mt-2">
                   Monthly EMI burden: {formatCurrency(summary?.totalEmiDue || 0)}
                 </p>
+              )}
+              {loanAccounts.length > 0 && (
+                <div className="mt-4 space-y-3">
+                  {loanAccounts.map((loan) => {
+                    const balance = Number(loan.currentBalance ?? 0);
+                    const emi = Number(loan.emiAmount ?? 0);
+                    const rate = Number(loan.interestRate ?? 0);
+                    const monthsLeft = calcMonthsRemaining(balance, emi, rate);
+                    const isAmortizing = monthsLeft > 0 && monthsLeft < 600;
+                    const payoffDate = new Date();
+                    if (isAmortizing) payoffDate.setMonth(payoffDate.getMonth() + monthsLeft);
+                    const maxMonthsVisual = 240;
+                    const progressPct = isAmortizing ? Math.max(0, 100 - (monthsLeft / maxMonthsVisual) * 100) : 0;
+
+                    return (
+                      <div key={loan.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-sm font-medium">{loan.name}</span>
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            {emi > 0 ? `${formatCurrency(emi)}/mo` : "—"}
+                          </span>
+                        </div>
+                        {emi > 0 && isAmortizing && (
+                          <>
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <Progress
+                                value={progressPct}
+                                className="h-1.5 bg-secondary flex-1"
+                                indicatorClassName="bg-amber-500"
+                              />
+                              <span className="text-[10px] tabular-nums text-amber-400 font-medium whitespace-nowrap" title="Estimated repayment progress based on remaining term">
+                                ~{progressPct.toFixed(0)}% paid
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+                              <span>{monthsLeft} months remaining</span>
+                              <span>
+                                Payoff: {payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {emi > 0 && !isAmortizing && (
+                          <p className="text-xs text-amber-400 mt-1">EMI insufficient to amortize — review repayment plan</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -624,7 +910,7 @@ export default function Dashboard() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="text-sm font-medium">{loan.name}</p>
-                          <p className="text-lg font-bold font-mono mt-0.5">
+                          <p className="text-lg font-bold tabular-nums mt-0.5">
                             {loan.emiAmount ? formatCurrency(loan.emiAmount) : "—"}/mo
                           </p>
                         </div>
@@ -635,11 +921,11 @@ export default function Dashboard() {
                             </span>
                           )}
                           {loan.interestRate && (
-                            <span className="text-xs font-mono text-muted-foreground">@ {loan.interestRate}%</span>
+                            <span className="text-xs tabular-nums text-muted-foreground">@ {loan.interestRate}%</span>
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground font-mono mt-1">
+                      <p className="text-xs text-muted-foreground tabular-nums mt-1">
                         Outstanding: {formatCurrency(loan.currentBalance)}
                       </p>
                     </div>
@@ -655,73 +941,122 @@ export default function Dashboard() {
         </div>
       )}
 
-      <Card className="glass-card rounded-xl">
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <CardTitle className="text-lg">Category Trend</CardTitle>
-              <CardDescription>Expense trends over last 6 billing cycles</CardDescription>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 glass-card rounded-xl">
+          <CardHeader>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <CardTitle className="text-lg">Category Trend</CardTitle>
+                <CardDescription>Expense trends over last 6 billing cycles</CardDescription>
+              </div>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px] h-8 text-xs font-mono">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {allCategoryNames.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-              <SelectTrigger className="w-[180px] h-8 text-xs font-mono">
-                <SelectValue placeholder="All categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categoryNames.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardHeader>
-        <CardContent className="h-[320px] w-full pt-4">
-          {isLoadingCatTrend ? (
-            <Skeleton className="w-full h-full" />
-          ) : categoryTrendLineData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={categoryTrendLineData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <defs>
+          </CardHeader>
+          <CardContent className="h-[320px] w-full pt-4">
+            {isLoadingCatTrend ? (
+              <Skeleton className="w-full h-full" />
+            ) : categoryTrendLineData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={categoryTrendLineData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+                  <defs>
+                    {visibleCategories.map((cat, i) => {
+                      const colorIdx = cat === "Others" ? CHART_COLORS.length - 1 : allCategoryNames.indexOf(cat);
+                      const color = CHART_COLORS[colorIdx >= 0 ? colorIdx % CHART_COLORS.length : i % CHART_COLORS.length];
+                      return (
+                        <linearGradient key={cat} id={`grad-cat-${i}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={color} stopOpacity={0} />
+                        </linearGradient>
+                      );
+                    })}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                    tickFormatter={formatAxisValue}
+                    ticks={niceYAxisTicks(catTrendYMax)}
+                    domain={[0, "auto"]}
+                    allowDecimals={false}
+                  />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <Legend content={renderCategoryLegend} />
                   {visibleCategories.map((cat, i) => {
-                    const color = CHART_COLORS[categoryNames.indexOf(cat) % CHART_COLORS.length];
+                    const colorIdx = cat === "Others" ? CHART_COLORS.length - 1 : allCategoryNames.indexOf(cat);
+                    const color = CHART_COLORS[colorIdx >= 0 ? colorIdx % CHART_COLORS.length : i % CHART_COLORS.length];
                     return (
-                      <linearGradient key={cat} id={`grad-cat-${i}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={color} stopOpacity={0} />
-                      </linearGradient>
+                      <Area
+                        key={cat}
+                        type="monotone"
+                        dataKey={cat}
+                        name={cat}
+                        stroke={color}
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                        fillOpacity={1}
+                        fill={`url(#grad-cat-${i})`}
+                      />
                     );
                   })}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
-                <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "11px", paddingTop: "10px" }} />
-                {visibleCategories.map((cat, i) => (
-                  <Area
-                    key={cat}
-                    type="monotone"
-                    dataKey={cat}
-                    name={cat}
-                    stroke={CHART_COLORS[categoryNames.indexOf(cat) % CHART_COLORS.length]}
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                    fillOpacity={1}
-                    fill={`url(#grad-cat-${i})`}
-                  />
-                ))}
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
-              No category trend data available
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+                No category trend data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="glass-card rounded-xl">
+          <CardHeader>
+            <CardTitle className="text-lg">CC Spend Trend</CardTitle>
+            <CardDescription>Credit card spending per cycle</CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px] w-full pt-4">
+            {isLoadingCcSpend ? (
+              <Skeleton className="w-full h-full" />
+            ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={ccSpendTrend} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <defs>
+                    <linearGradient id="gradCcSpend" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(43 100% 60%)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
+                  <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
+                  <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} fillOpacity={1} fill="url(#gradCcSpend)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+                No CC spending data available
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg">Income vs Expenses Trend</CardTitle>
@@ -745,11 +1080,69 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                    tickFormatter={formatAxisValue}
+                    ticks={niceYAxisTicks(incExpYMax)}
+                    domain={[0, "auto"]}
+                    allowDecimals={false}
+                  />
                   <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
-                  <Area type="monotone" dataKey="income" name="Income" stroke="hsl(var(--chart-1))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradIncome)" />
-                  <Area type="monotone" dataKey="expenses" name="Expenses" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradExpenses)" />
+                  {crossoverMonths.map((month, i) => (
+                    <ReferenceLine
+                      key={`cross-${i}`}
+                      x={month}
+                      stroke="hsl(354 70% 54%)"
+                      strokeDasharray="4 4"
+                      strokeOpacity={0.5}
+                      label={{
+                        value: "⚠",
+                        position: "top",
+                        fill: "hsl(354 70% 54%)",
+                        fontSize: 14,
+                      }}
+                    />
+                  ))}
+                  <Area
+                    type="monotone"
+                    dataKey="income"
+                    name="Income"
+                    stroke="hsl(var(--chart-1))"
+                    strokeWidth={2}
+                    dot={(props: { cx: number; cy: number; index: number }) => {
+                      const { cx, cy, index } = props;
+                      return <circle key={`inc-dot-${index}`} cx={cx} cy={cy} r={4} fill="hsl(160 84% 39%)" stroke="none" />;
+                    }}
+                    activeDot={{ r: 6 }}
+                    fillOpacity={1}
+                    fill="url(#gradIncome)"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="expenses"
+                    name="Expenses"
+                    stroke="hsl(var(--chart-3))"
+                    strokeWidth={2}
+                    dot={(props: { cx: number; cy: number; index: number; payload: Record<string, number> }) => {
+                      const { cx, cy, payload, index } = props;
+                      const isOver = Number(payload.expenses) > Number(payload.income);
+                      if (isOver) {
+                        return (
+                          <g key={`exp-dot-${index}`}>
+                            <circle cx={cx} cy={cy} r={8} fill="hsl(354 70% 54%)" opacity={0.2} />
+                            <circle cx={cx} cy={cy} r={4} fill="hsl(354 70% 54%)" />
+                          </g>
+                        );
+                      }
+                      return <circle key={`exp-dot-${index}`} cx={cx} cy={cy} r={4} fill="hsl(354 70% 54%)" stroke="none" />;
+                    }}
+                    activeDot={{ r: 6 }}
+                    fillOpacity={1}
+                    fill="url(#gradExpenses)"
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
@@ -774,34 +1167,37 @@ export default function Dashboard() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
-            ) : recentTxs && recentTxs.length > 0 ? (
-              <div className="space-y-3 pt-2">
-                {recentTxs.map((tx) => {
-                  const Icon = getCategoryIcon(tx.category);
-                  return (
-                    <div key={tx.id} className="flex justify-between items-center pb-3 border-b border-border/40 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          tx.type === "Income" ? "bg-emerald-500/10" : "bg-rose-500/10"
-                        }`}>
-                          <Icon className={`w-4 h-4 ${tx.type === "Income" ? "text-emerald-400" : "text-rose-400"}`} />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-medium line-clamp-1">{tx.description}</span>
-                          <div className="flex gap-2 text-xs text-muted-foreground font-mono">
-                            <span>{formatDate(tx.date)}</span>
-                            <span>&bull;</span>
-                            <span className="truncate max-w-[80px]">{tx.category}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <span className={`font-mono text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
-                        {tx.type === "Income" ? "+" : "-"}
-                        {formatCurrency(tx.amount)}
-                      </span>
+            ) : groupedTxs.length > 0 ? (
+              <div className="pt-2 space-y-1">
+                {groupedTxs.map((group) => (
+                  <div key={group.date}>
+                    <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground py-1.5 border-b border-border/30 mb-1.5">
+                      {group.label}
                     </div>
-                  );
-                })}
+                    {group.txs.map((tx) => {
+                      const Icon = getCategoryIcon(tx.category);
+                      return (
+                        <div key={tx.id} className="flex justify-between items-center pb-2.5 mb-2.5 border-b border-border/20 last:border-0 last:pb-0 last:mb-0">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              tx.type === "Income" ? "bg-emerald-500/10" : "bg-rose-500/10"
+                            }`}>
+                              <Icon className={`w-4 h-4 ${tx.type === "Income" ? "text-emerald-400" : "text-rose-400"}`} />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium line-clamp-1">{tx.description}</span>
+                              <span className="text-xs text-muted-foreground font-mono truncate max-w-[100px]">{tx.category}</span>
+                            </div>
+                          </div>
+                          <span className={`tabular-nums text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
+                            {tx.type === "Income" ? "+" : "-"}
+                            {formatCurrency(tx.amount)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
@@ -811,38 +1207,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-
-      <Card className="glass-card rounded-xl">
-        <CardHeader>
-          <CardTitle className="text-lg">CC Spend Trend</CardTitle>
-          <CardDescription>Credit card spending per billing cycle</CardDescription>
-        </CardHeader>
-        <CardContent className="h-[280px] w-full pt-4">
-          {isLoadingCcSpend ? (
-            <Skeleton className="w-full h-full" />
-          ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={ccSpendTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="gradCcSpend" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(43 100% 60%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={(value) => `₹${value / 1000}k`} />
-                <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
-                <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} fillOpacity={1} fill="url(#gradCcSpend)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
-              No CC spending data available
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
 
@@ -896,7 +1260,7 @@ export default function Dashboard() {
               <div className="space-y-1.5">
                 <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Goal Allocations to Remove</div>
                 {canUndoData.allocations.map((a, i) => (
-                  <div key={i} className="flex justify-between items-center p-2 rounded-md bg-secondary/30 text-sm font-mono">
+                  <div key={i} className="flex justify-between items-center p-2 rounded-md bg-secondary/30 text-sm tabular-nums">
                     <span>{a.goalName}</span>
                     <span className="text-destructive">-{formatCurrency(a.amount)}</span>
                   </div>
@@ -946,7 +1310,7 @@ export default function Dashboard() {
                 );
               }}
             >
-              {undoSurplus.isPending ? "Undoing..." : "Confirm Undo"}
+              <Undo2 className="w-4 h-4 mr-1.5" /> Confirm Undo
             </Button>
           </DialogFooter>
         </DialogContent>
