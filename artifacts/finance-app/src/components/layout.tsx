@@ -2,9 +2,11 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { DollarSign, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
 import { AiParseBubble } from "@/components/ai-parse-bubble";
+import { useTheme } from "@/lib/theme-context";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { theme } = useTheme();
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -20,8 +22,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   ];
 
   return (
-    <div className="min-h-[100dvh] mesh-gradient-bg text-foreground flex flex-col">
-      <header className="sticky top-0 z-40 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <div className={`min-h-[100dvh] ${theme.rootClassName} text-foreground flex flex-col relative`}>
+      <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`}>
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
@@ -38,10 +40,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive 
-                      ? "bg-secondary text-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/60 hover:shadow-sm"
+                      ? "bg-white/10 text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
                   }`}
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
@@ -53,7 +55,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         
-        <div className="md:hidden border-t border-border/40 overflow-x-auto scrollbar-hide">
+        <div className="md:hidden border-t border-white/[0.06] overflow-x-auto scrollbar-hide">
           <nav className="flex px-4 py-2 gap-2 min-w-max">
             {navItems.map((item) => {
               const isActive = location === item.href;
@@ -64,8 +66,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive 
-                      ? "bg-secondary text-foreground border border-border shadow-sm" 
-                      : "text-muted-foreground bg-transparent border border-transparent hover:text-foreground hover:bg-secondary/50 hover:border-border/50"
+                      ? "bg-white/10 text-foreground border border-white/[0.08] shadow-sm" 
+                      : "text-muted-foreground bg-transparent border border-transparent hover:text-foreground hover:bg-white/[0.06] hover:border-white/[0.06]"
                   }`}
                   data-testid={`nav-mobile-${item.label.toLowerCase()}`}
                 >
@@ -78,7 +80,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6 md:py-8">
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-8 relative z-10">
         {children}
       </main>
 

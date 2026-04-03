@@ -520,7 +520,7 @@ export default function Accounts() {
         </div>
       </div>
 
-      <Card className="bg-card/60 backdrop-blur-xl border-white/10 shadow-lg shadow-black/5">
+      <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-2">
             {netWorth >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : <TrendingDown className="w-4 h-4 text-destructive" />} Net Worth
@@ -587,7 +587,7 @@ export default function Accounts() {
       {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((section) => (
-            <div key={section} className="rounded-xl border border-border/40 bg-card/30 backdrop-blur overflow-hidden">
+            <div key={section} className="glass-1 overflow-hidden">
               <div className="px-5 py-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <Skeleton className="w-5 h-5 rounded" />
@@ -597,7 +597,7 @@ export default function Accounts() {
               </div>
               <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 {[1, 2].map((card) => (
-                  <div key={card} className="rounded-xl border border-border/30 bg-background/20 p-4 space-y-3">
+                  <div key={card} className="glass-2 p-4 space-y-3">
                     <div className="flex justify-between">
                       <div className="space-y-2 flex-1">
                         <Skeleton className="h-4 w-32" />
@@ -617,7 +617,7 @@ export default function Accounts() {
           ))}
         </div>
       ) : allAccounts.length === 0 ? (
-        <div className="text-center py-16 px-4 border border-dashed border-border/50 rounded-xl bg-card/30 backdrop-blur">
+        <div className="text-center py-16 px-4 border border-dashed border-white/[0.08] rounded-xl glass-1">
           <Wallet className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground font-medium text-sm">Add your first bank account to start tracking</p>
           <p className="text-muted-foreground/60 text-xs mt-1">Track balances, credit limits, and loan progress all in one place.</p>
@@ -626,10 +626,10 @@ export default function Accounts() {
         <>
           <div className="space-y-4">
             {bankAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-xl overflow-hidden">
+              <div className="glass-1 overflow-hidden">
                 <button
                   onClick={() => setBankOpen(!bankOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors border-b border-border/40"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
                 >
                   <div className="flex items-center gap-2.5">
                     <Wallet className="w-5 h-5 text-emerald-500" />
@@ -647,7 +647,7 @@ export default function Accounts() {
                   <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <TooltipProvider delayDuration={300}>
                     {bankAccounts.map((account) => (
-                      <Card key={account.id} className="bg-background/40 backdrop-blur border-white/10 hover:border-white/20 hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200">
+                      <Card key={account.id} className="glass-2 hover:bg-white/[0.06] hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200">
                         <CardContent className="pt-4 pb-3 px-4">
                           <div className="flex justify-between items-start">
                             <div className="min-w-0 flex-1">
@@ -696,10 +696,10 @@ export default function Accounts() {
             )}
 
             {ccAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-xl overflow-hidden">
+              <div className="glass-1 overflow-hidden">
                 <button
                   onClick={() => setCcOpen(!ccOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors border-b border-border/40"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
                 >
                   <div className="flex items-center gap-2.5">
                     <CreditCard className="w-5 h-5 text-destructive" />
@@ -735,7 +735,7 @@ export default function Accounts() {
                       const strokeDash = (Math.min(usedPct, 100) / 100) * circumference;
 
                       return (
-                        <Card key={account.id} className="bg-background/40 backdrop-blur border-white/10 hover:border-white/20 hover:shadow-md hover:shadow-red-500/5 transition-all duration-200">
+                        <Card key={account.id} className="glass-2 hover:bg-white/[0.06] hover:shadow-md hover:shadow-red-500/5 transition-all duration-200">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="min-w-0 flex-1">
@@ -817,10 +817,10 @@ export default function Accounts() {
             )}
 
             {loanAccounts.length > 0 && (
-              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur-xl overflow-hidden">
+              <div className="glass-1 overflow-hidden">
                 <button
                   onClick={() => setLoanOpen(!loanOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors border-b border-border/40"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
                 >
                   <div className="flex items-center gap-2.5">
                     <Landmark className="w-5 h-5 text-amber-500" />
@@ -874,7 +874,7 @@ export default function Accounts() {
                       }
 
                       return (
-                        <Card key={account.id} className="bg-background/40 backdrop-blur border-white/10 hover:border-white/20 hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200">
+                        <Card key={account.id} className="glass-2 hover:bg-white/[0.06] hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex justify-between items-start mb-2">
                               <div className="min-w-0 flex-1">

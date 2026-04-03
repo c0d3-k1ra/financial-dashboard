@@ -27,8 +27,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const GLASS_CARD = "bg-card/40 backdrop-blur-md border-white/10 shadow-lg shadow-black/5";
-const GLASS_SECTION = "bg-card/30 backdrop-blur-md rounded-xl border border-white/10 shadow-lg shadow-black/5 p-4 md:p-6";
 
 function MiniProgressBar({ actual, planned, colorClass }: { actual: number; planned: number; colorClass?: string }) {
   const percent = planned > 0 ? Math.min((actual / planned) * 100, 100) : (actual > 0 ? 100 : 0);
@@ -386,7 +384,7 @@ function BudgetSkeleton() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className={`${GLASS_CARD} rounded-xl border p-6 space-y-3`}>
+          <div key={i} className="glass-card rounded-xl border p-6 space-y-3">
             <Skeleton className="h-3 w-20" />
             <Skeleton className="h-7 w-24" />
             <Skeleton className="h-1.5 w-full rounded-full" />
@@ -394,7 +392,7 @@ function BudgetSkeleton() {
         ))}
       </div>
 
-      <div className={`${GLASS_SECTION}`}>
+      <div className="glass-1 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <Skeleton className="h-5 w-40 mb-1" />
@@ -420,7 +418,7 @@ function BudgetSkeleton() {
         </div>
       </div>
 
-      <div className={`${GLASS_SECTION}`}>
+      <div className="glass-1 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <Skeleton className="h-5 w-32 mb-1" />
@@ -597,7 +595,7 @@ export default function Budget() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Budget Analysis</h1>
           <p className="text-muted-foreground text-sm mt-1">Plan vs actual spending for {monthLabel}.</p>
         </div>
-        <div className="flex items-center gap-1 bg-card/40 backdrop-blur-md rounded-lg border border-white/10 p-1">
+        <div className="flex items-center gap-1 glass-2 rounded-lg p-1">
           <Button
             variant="ghost"
             size="icon"
@@ -622,7 +620,7 @@ export default function Budget() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className={GLASS_CARD}>
+        <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Cycle Progress</CardTitle>
           </CardHeader>
@@ -639,7 +637,7 @@ export default function Budget() {
           </CardContent>
         </Card>
 
-        <Card className={GLASS_CARD}>
+        <Card className="glass-card glass-animate-in glass-stagger-2 rounded-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Overall</CardTitle>
           </CardHeader>
@@ -652,7 +650,7 @@ export default function Budget() {
           </CardContent>
         </Card>
 
-        <Card className={GLASS_CARD}>
+        <Card className="glass-card glass-animate-in glass-stagger-3 rounded-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Difference</CardTitle>
           </CardHeader>
@@ -666,7 +664,7 @@ export default function Budget() {
           </CardContent>
         </Card>
 
-        <Card className={GLASS_CARD}>
+        <Card className="glass-card glass-animate-in glass-stagger-4 rounded-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Fixed</CardTitle>
           </CardHeader>
@@ -679,7 +677,7 @@ export default function Budget() {
           </CardContent>
         </Card>
 
-        <Card className={GLASS_CARD}>
+        <Card className="glass-card glass-animate-in glass-stagger-5 rounded-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Discretionary</CardTitle>
           </CardHeader>
@@ -693,7 +691,7 @@ export default function Budget() {
         </Card>
       </div>
 
-      <div className={GLASS_SECTION}>
+      <div className="glass-1 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">Fixed Commitments</h2>
@@ -729,7 +727,7 @@ export default function Budget() {
         />
       </div>
 
-      <div className={GLASS_SECTION}>
+      <div className="glass-1 p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="flex items-center gap-2">

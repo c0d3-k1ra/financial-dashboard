@@ -36,10 +36,10 @@ export function ResponsiveTable<T>({
 
   return (
     <div className={className}>
-      <div className="hidden md:block rounded-md border border-white/[0.08] bg-card/60 backdrop-blur-sm overflow-hidden">
+      <div className="hidden md:block glass-1 overflow-hidden">
         <div className="overflow-x-auto">
           <Table className="table-fixed">
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-white/[0.02]">
               <TableRow>
                 {columns.map((col, i) => (
                   <TableHead key={i} className={cn("text-muted-foreground font-mono text-xs uppercase tracking-wider", col.className)}>
@@ -53,7 +53,7 @@ export function ResponsiveTable<T>({
                 <TableRow
                   key={keyExtractor(row, rowIndex)}
                   className={cn(
-                    "transition-colors hover:bg-muted/30 zebra-row",
+                    "transition-colors hover:bg-white/[0.04] zebra-row",
                     rowClassName?.(row)
                   )}
                 >

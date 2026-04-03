@@ -483,7 +483,7 @@ export function AiParseBubble() {
 
     if (msg.editMode) {
       return (
-        <div className="bg-background/80 border border-border/60 rounded-lg p-3 space-y-2">
+        <div className="glass-2 rounded-lg p-3 space-y-2">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground w-16">Amount</span>
@@ -602,7 +602,7 @@ export function AiParseBubble() {
     }
 
     return (
-      <div className="bg-background/80 border border-border/60 rounded-lg p-3 space-y-2">
+      <div className="glass-2 rounded-lg p-3 space-y-2">
         <div className="flex items-center justify-between">
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
             tx.transactionType === "Income" ? "bg-emerald-500/20 text-emerald-400" :
@@ -697,8 +697,8 @@ export function AiParseBubble() {
     <div ref={containerRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 md:bottom-8 md:right-8" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {isOpen && (
         <div className="w-[calc(100vw-3rem)] max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="bg-card/95 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
-            <div className="flex items-center justify-between p-3 border-b border-border/40">
+          <div className="glass-3 rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
+            <div className="flex items-center justify-between p-3 border-b border-white/[0.06]">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-400" />
                 <span className="text-sm font-medium">AI Assistant</span>
@@ -751,7 +751,7 @@ export function AiParseBubble() {
                   return (
                     <div key={msg.id} className="flex justify-start">
                       <div className="max-w-[95%] w-full space-y-2">
-                        <div className="bg-card border border-border/40 rounded-lg rounded-bl-sm px-3 py-2">
+                        <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
                           <p className="text-sm">{msg.content}</p>
                         </div>
                         {msg.transaction && renderConfirmationCard(msg)}
@@ -763,7 +763,7 @@ export function AiParseBubble() {
                 return (
                   <div key={msg.id} className="flex justify-start">
                     <div className="max-w-[85%] space-y-2">
-                      <div className="bg-card border border-border/40 rounded-lg rounded-bl-sm px-3 py-2">
+                      <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
                         <p className="text-sm">{msg.content}</p>
                       </div>
                       {msg.options && msg.options.length > 0 && (
@@ -787,7 +787,7 @@ export function AiParseBubble() {
 
               {isProcessing && (
                 <div className="flex justify-start">
-                  <div className="bg-card border border-border/40 rounded-lg rounded-bl-sm px-3 py-2">
+                  <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
                     <div className="flex items-center gap-2">
                       <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
                       <span className="text-sm text-muted-foreground">Thinking...</span>
@@ -799,7 +799,7 @@ export function AiParseBubble() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 border-t border-border/40">
+            <div className="p-3 border-t border-white/[0.06]">
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input

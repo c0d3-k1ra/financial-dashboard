@@ -156,18 +156,26 @@ Categories are stored in the database (not hardcoded) and manageable via Setting
 
 Every category has a matching Lucide icon via `src/lib/category-icons.ts`. The `getCategoryIcon(name)` function returns the icon component; unknown categories fall back to `Tag`. The `CategoryBadge` component (`src/components/category-badge.tsx`) renders icon + name with emerald tint for income or rose tint for expenses. Used in transactions table, budget breakdown, dashboard recent ledger, and settings category list.
 
-## UI Theme — "Sophisticated Midnight"
+## UI Theme — iOS-Style Glass System
 
+- **Design language**: Apple iOS/macOS Control Center aesthetic — layered frosted glass on dark mesh gradient
+- **Glass tiers** (defined in `index.css`):
+  - `.glass-1` — Primary cards: `rgba(255,255,255,0.04)` bg + `blur(16px) saturate(180%)` + white/6 border
+  - `.glass-2` — Nested/inputs: `rgba(255,255,255,0.06)` bg + `blur(12px) saturate(150%)` + white/8 border
+  - `.glass-3` — Elevated/modals/dropdowns: `rgba(255,255,255,0.08)` bg + `blur(24px) saturate(150%)` + white/10 border
+  - `.glass-card` — Alias for glass-1 with rounded-xl and transitions
+  - `.glass-nav` — Nav bar: `rgba(10,14,28,0.6)` bg + `blur(40px) saturate(150%)`
+- **Background**: Mesh gradient (`mesh-gradient-bg`) with animated ambient orbs (`ambient-orbs`)
+- **Navigation**: Frosted glass-nav header, active tab highlighted with `bg-white/10` pill
 - **Heading font**: Inter with -0.02em letter-spacing; JetBrains Mono for monetary values
-- **Background**: Mesh gradient (deep blues/purples via CSS radials) applied in layout
-- **Cards**: Glassmorphism — `glass-card` CSS class (backdrop-blur + rgba white border)
 - **Dashboard hero**: Net Worth spans 2/3 of top row; Goal Progress radial ring in remaining 1/3
 - **Monthly Flow**: Full-width waterfall bar chart (Income → Expenses → Surplus → Goals)
-- **Charts**: All line charts use monotone curves with linearGradient fills underneath
-- **Liquidity health**: Badge indicator on dashboard — green "Liquid" or amber "Low Cash"
+- **Charts**: monotone curves with linearGradient fills; glass-3 tooltips; `rgba(255,255,255,0.04)` gridlines
 - **Action buttons**: Solid emerald (bg-emerald-600) for primary actions (Log Transaction, etc.)
 - **Tables**: Zebra striping via `zebra-row` CSS class
+- **Accessibility**: `@supports not (backdrop-filter)` fallback to solid backgrounds; `prefers-reduced-motion` disables glass animations
 - **Mobile**: 44px minimum touch targets; bottom-sheet drawer (Sheet) for adding transactions on mobile viewports
+- **Performance**: Max 2 nested backdrop-filter layers; no persistent `will-change` on always-visible elements
 
 ## AI Transaction Assistant
 

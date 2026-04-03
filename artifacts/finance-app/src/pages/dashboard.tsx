@@ -66,13 +66,16 @@ const CHART_COLORS = [
 ];
 
 const TOOLTIP_STYLE: React.CSSProperties = {
-  backgroundColor: "hsl(222 47% 10%)",
-  borderColor: "hsl(222 47% 15%)",
-  borderRadius: "8px",
+  backgroundColor: "rgba(255,255,255,0.08)",
+  backdropFilter: "blur(24px) saturate(150%)",
+  WebkitBackdropFilter: "blur(24px) saturate(150%)",
+  borderColor: "rgba(255,255,255,0.10)",
+  borderRadius: "12px",
   fontFamily: "var(--font-sans)",
   fontVariantNumeric: "tabular-nums lining-nums",
   fontSize: "12px",
   color: "hsl(210 40% 98%)",
+  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
 };
 
 const TOOLTIP_LABEL_STYLE: React.CSSProperties = {
@@ -497,7 +500,7 @@ export default function Dashboard() {
 
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="glass-card rounded-xl shadow-lg min-h-[200px] flex flex-col">
+        <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl shadow-lg min-h-[200px] flex flex-col">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Liquidity</CardTitle>
             <Activity className="w-4 h-4 text-primary" />
@@ -537,7 +540,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card rounded-xl shadow-lg min-h-[200px] flex flex-col">
+        <Card className="glass-card glass-animate-in glass-stagger-2 rounded-xl shadow-lg min-h-[200px] flex flex-col">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Worth</CardTitle>
             <TrendingUp className="w-4 h-4 text-primary" />
@@ -576,7 +579,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="glass-card rounded-xl shadow-lg min-h-[200px] flex flex-col">
+        <Card className="glass-card glass-animate-in glass-stagger-3 rounded-xl shadow-lg min-h-[200px] flex flex-col">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Goal Progress</CardTitle>
             <Target className="w-4 h-4 text-primary" />
@@ -604,9 +607,9 @@ export default function Dashboard() {
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={waterfallData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
                 <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {waterfallData.map((entry, index) => (
@@ -1000,12 +1003,12 @@ export default function Dashboard() {
                       );
                     })}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                    tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }}
                     tickFormatter={formatAxisValue}
                     ticks={niceYAxisTicks(catTrendYMax)}
                     domain={[0, "auto"]}
@@ -1058,9 +1061,9 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="hsl(43 100% 60%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
                   <RechartsTooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL_STYLE} itemStyle={TOOLTIP_ITEM_STYLE} formatter={(value: number) => formatCurrency(value)} />
                   <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} fillOpacity={1} fill="url(#gradCcSpend)" />
                 </AreaChart>
@@ -1097,12 +1100,12 @@ export default function Dashboard() {
                       <stop offset="95%" stopColor="hsl(354 70% 54%)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }} />
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                    tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }}
                     tickFormatter={formatAxisValue}
                     ticks={niceYAxisTicks(incExpYMax)}
                     domain={[0, "auto"]}

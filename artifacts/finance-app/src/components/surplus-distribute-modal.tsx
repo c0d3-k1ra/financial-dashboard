@@ -59,7 +59,7 @@ export default function SurplusDistributeModal({
         <DialogTitle>Distribute Surplus — {month}</DialogTitle>
       </DialogHeader>
       <div className="space-y-4 py-2">
-        <div className="p-3 rounded-md bg-secondary/50 font-mono text-xs space-y-1">
+        <div className="p-3 rounded-lg glass-2 font-mono text-xs space-y-1">
           <div className="flex justify-between">
             <span className="font-bold">Available Surplus:</span>
             <span className={monthlySurplus <= 0 ? "text-destructive" : "text-emerald-400"}>
@@ -102,7 +102,7 @@ export default function SurplusDistributeModal({
             const needsTransfer = goal.accountId && goal.accountId !== Number(sourceAccountId);
 
             return (
-              <div key={goal.id} className="flex items-center gap-3 p-2 rounded-md bg-secondary/30">
+              <div key={goal.id} className="flex items-center gap-3 p-2 rounded-lg glass-2">
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{goal.name}</div>
                   <div className="text-[10px] font-mono text-muted-foreground">
@@ -122,7 +122,7 @@ export default function SurplusDistributeModal({
           })}
         </div>
 
-        <div className="flex justify-between items-center p-3 rounded-md bg-secondary/50 font-mono text-sm">
+        <div className="flex justify-between items-center p-3 rounded-lg glass-2 font-mono text-sm">
           <span>Total: {formatCurrency(totalAllocated)}</span>
           <div className="flex flex-col items-end gap-0.5">
             {exceedsBalance && (

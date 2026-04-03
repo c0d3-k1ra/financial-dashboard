@@ -17,7 +17,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage, setActiveCurrency } from "@/lib/constants";
-import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2, Palette } from "lucide-react";
+import { useTheme } from "@/lib/theme-context";
 import { getCategoryIcon } from "@/lib/category-icons";
 
 const CYCLE_DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
@@ -42,6 +43,7 @@ export default function Settings() {
   const [searchQuery, setSearchQuery] = useState("");
   const [billingSaved, setBillingSaved] = useState(false);
   const [currencySaved, setCurrencySaved] = useState(false);
+  const { themeId, setThemeId, themes } = useTheme();
 
   const { data: categories, isLoading } = useListCategories(
     {},
@@ -212,7 +214,7 @@ export default function Settings() {
     return (
       <div
         key={cat.id}
-        className="flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-colors group"
+        className="flex items-center justify-between p-3 rounded-lg glass-2 hover:bg-white/[0.06] transition-colors group"
       >
         {isEditing ? (
           <div className="flex items-center gap-2 flex-1 mr-3">
@@ -220,7 +222,7 @@ export default function Settings() {
             <Input
               value={editingName}
               onChange={(e) => setEditingName(e.target.value)}
-              className="h-8 text-sm bg-background/50 border-border/50 flex-1 max-w-[200px]"
+              className="h-8 text-sm flex-1 max-w-[200px]"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === "Enter") saveRename();
@@ -228,7 +230,7 @@ export default function Settings() {
               }}
             />
             <Select value={editingType} onValueChange={setEditingType} disabled>
-              <SelectTrigger className="h-8 w-[100px] text-xs bg-background/50 border-border/50">
+              <SelectTrigger className="h-8 w-[100px] text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -296,8 +298,8 @@ export default function Settings() {
         <p className="text-muted-foreground text-sm mt-1">Manage your categories, billing cycle, currency, and data.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-white/[0.04] backdrop-blur-xl border-white/[0.08] shadow-lg">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <Calendar className="w-5 h-5" /> Billing Cycle
@@ -318,7 +320,7 @@ export default function Settings() {
                     onValueChange={handleBillingCycleDayChange}
                     disabled={updateSettings.isPending}
                   >
-                    <SelectTrigger className="w-[100px] bg-white/[0.04] border-white/[0.08]">
+                    <SelectTrigger className="w-[100px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -340,7 +342,7 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white/[0.04] backdrop-blur-xl border-white/[0.08] shadow-lg">
+        <Card className="glass-card glass-animate-in glass-stagger-2 rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
               <DollarSign className="w-5 h-5" /> Currency
@@ -361,7 +363,7 @@ export default function Settings() {
                     onValueChange={handleCurrencyChange}
                     disabled={updateSettings.isPending}
                   >
-                    <SelectTrigger className="w-[220px] bg-white/[0.04] border-white/[0.08]">
+                    <SelectTrigger className="w-[220px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -382,9 +384,39 @@ export default function Settings() {
             )}
           </CardContent>
         </Card>
+
+        <Card className="glass-card glass-animate-in glass-stagger-3 rounded-xl">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Palette className="w-5 h-5" /> Theme
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col justify-center flex-1">
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Choose the visual theme for the app.
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium whitespace-nowrap">Theme:</span>
+                <Select value={themeId} onValueChange={setThemeId}>
+                  <SelectTrigger className="w-[160px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {themes.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="bg-white/[0.04] backdrop-blur-xl border-white/[0.08] shadow-lg">
+      <Card className="glass-card rounded-xl">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Tag className="w-5 h-5" /> Category Manager
@@ -397,7 +429,7 @@ export default function Settings() {
                 placeholder="New category name"
                 value={newCategoryName}
                 onChange={(e) => setNewCategoryName(e.target.value)}
-                className={`bg-white/[0.04] border-white/[0.08] ${duplicateError ? "border-destructive/60 focus-visible:ring-destructive/40" : ""}`}
+                className={`${duplicateError ? "border-destructive/60 focus-visible:ring-destructive/40" : ""}`}
                 onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               />
               {duplicateError && (
@@ -405,7 +437,7 @@ export default function Settings() {
               )}
             </div>
             <Select value={newCategoryType} onValueChange={setNewCategoryType}>
-              <SelectTrigger className="w-full sm:w-[130px] flex-[1] bg-white/[0.04] border-white/[0.08]">
+              <SelectTrigger className="w-full sm:w-[130px] flex-[1]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -430,7 +462,7 @@ export default function Settings() {
               placeholder="Search categories..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-white/[0.04] border-white/[0.08]"
+              className="pl-9"
             />
           </div>
 
@@ -476,7 +508,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      <Card className="bg-white/[0.04] backdrop-blur-xl border-destructive/20 shadow-lg">
+      <Card className="glass-card rounded-xl border-destructive/20">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2 text-destructive">
             <AlertTriangle className="w-5 h-5" /> Data Management

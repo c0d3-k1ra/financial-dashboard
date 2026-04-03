@@ -297,12 +297,12 @@ export default function Goals() {
         {selectedGoalId ? (
           <GoalProjectionChart goalId={selectedGoalId} />
         ) : (
-          <Card className="bg-card/50 backdrop-blur border-border/60">
+          <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
             <CardHeader>
               <CardTitle className="text-lg">Goal Projection</CardTitle>
               <CardDescription>Click a goal card to see its 12-month projection</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50">
+            <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-white/[0.06]">
               Select a goal to view projection
             </CardContent>
           </Card>
@@ -316,7 +316,7 @@ export default function Goals() {
         {isLoadingGoals ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {[1, 2, 3].map((i) => (
-              <Card key={i} className="bg-card/50">
+              <Card key={i} className="glass-card rounded-xl">
                 <CardContent className="p-6 space-y-4">
                   <Skeleton className="h-6 w-32" />
                   <Skeleton className="h-4 w-full" />
@@ -336,7 +336,7 @@ export default function Goals() {
               return (
                 <Card
                   key={goal.id}
-                  className={`bg-card/50 backdrop-blur border-border/60 cursor-pointer transition-all hover:border-primary/40 ${
+                  className={`glass-card rounded-xl cursor-pointer transition-all hover:border-primary/40 ${
                     isSelected ? "border-primary/60 ring-1 ring-primary/30" : ""
                   } ${goal.status === "Achieved" ? "opacity-70" : ""}`}
                   onClick={() => setSelectedGoalId(isSelected ? null : goal.id)}
@@ -421,7 +421,7 @@ export default function Goals() {
             })}
           </div>
         ) : (
-          <Card className="bg-card/50 backdrop-blur border-border/60">
+          <Card className="glass-card rounded-xl">
             <CardContent className="py-12 text-center text-muted-foreground font-mono text-sm">
               No goals created yet. Click "Create Goal" to get started.
             </CardContent>
@@ -533,7 +533,7 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
   }));
 
   return (
-    <Card className="bg-card/50 backdrop-blur border-border/60">
+    <Card className="glass-card rounded-xl">
       <CardHeader>
         <CardTitle className="text-lg">Goal Projection</CardTitle>
         <CardDescription>
@@ -550,18 +550,18 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
         ) : chartData && chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.04)" />
               <XAxis
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontFamily: "var(--font-mono)" }}
+                tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "var(--font-mono)" }}
                 interval={chartData.length > 14 ? 2 : chartData.length > 8 ? 1 : 0}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 12, fontFamily: "var(--font-mono)" }}
                 tickFormatter={(val) =>
                   val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${(val / 1000).toFixed(0)}k`
                 }
@@ -569,11 +569,14 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
               />
               <RechartsTooltip
                 contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "8px",
+                  backgroundColor: "rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(24px) saturate(150%)",
+                  borderColor: "rgba(255,255,255,0.10)",
+                  borderRadius: "12px",
                   fontFamily: "var(--font-mono)",
                   fontSize: "12px",
+                  color: "hsl(210 40% 98%)",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
                 }}
                 formatter={(value: number, name: string) => [
                   formatCurrency(value),

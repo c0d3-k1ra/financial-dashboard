@@ -22,10 +22,10 @@ export function CategoryBadge({ category, type, className = "", onClick, compact
               type="button"
               onClick={onClick}
               aria-label={category}
-              className={`inline-flex items-center justify-center w-7 h-7 rounded-md ${
+              className={`inline-flex items-center justify-center w-7 h-7 rounded-md backdrop-blur-sm ${
                 isIncome
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-rose-500/10 text-rose-300"
+                  ? "bg-emerald-500/15 text-emerald-400"
+                  : "bg-rose-500/15 text-rose-300"
               } ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""} ${className}`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -42,10 +42,10 @@ export function CategoryBadge({ category, type, className = "", onClick, compact
   return (
     <span
       onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border backdrop-blur-sm ${
         isIncome
-          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-          : "bg-rose-500/10 text-rose-300 border-rose-500/20"
+          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+          : "bg-rose-500/15 text-rose-300 border-rose-500/25"
       } ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""} ${className}`}
     >
       <Icon className="w-3.5 h-3.5" />

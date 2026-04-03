@@ -448,7 +448,7 @@ export default function Transactions() {
     return (
       <div
         key={tx.id}
-        className={`relative rounded-xl border bg-card/60 backdrop-blur-sm text-card-foreground shadow overflow-hidden ${
+        className={`relative rounded-xl glass-1 text-card-foreground shadow overflow-hidden ${
           isAdj
             ? "border-dashed border-muted-foreground/30 opacity-60"
             : isIncome
@@ -685,20 +685,20 @@ export default function Transactions() {
         />
       </div>
 
-      <div className="bg-card/40 backdrop-blur-md rounded-xl border border-white/[0.08] shadow-lg p-4 md:p-6 flex flex-col gap-4">
+      <div className="glass-1 p-4 md:p-6 flex flex-col gap-4">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search transactions..."
-                className="pl-9 bg-background/50 border-white/[0.08]"
+                className="pl-9"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs bg-background/50 border-white/[0.08]">
+              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
                 <SelectValue placeholder="Category" />
               </SelectTrigger>
               <SelectContent>
@@ -711,7 +711,7 @@ export default function Transactions() {
               </SelectContent>
             </Select>
             <Select value={filterType} onValueChange={(v) => { setFilterType(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs bg-background/50 border-white/[0.08]">
+              <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
@@ -722,7 +722,7 @@ export default function Transactions() {
               </SelectContent>
             </Select>
             <Select value={filterAccount} onValueChange={(v) => { setFilterAccount(v); setCurrentPage(1); }}>
-              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs bg-background/50 border-white/[0.08]">
+              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
                 <SelectValue placeholder="Account" />
               </SelectTrigger>
               <SelectContent>
@@ -737,7 +737,7 @@ export default function Transactions() {
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs bg-background/50 border-white/[0.08]">
+              <SelectTrigger className="w-full sm:w-[180px] h-9 text-xs">
                 <SelectValue placeholder="Date Range" />
               </SelectTrigger>
               <SelectContent>
@@ -760,7 +760,7 @@ export default function Transactions() {
               <Input
                 type="number"
                 placeholder="Min ₹"
-                className="w-[100px] h-9 text-xs font-mono bg-background/50 border-white/[0.08]"
+                className="w-[100px] h-9 text-xs font-mono"
                 value={amountMin}
                 onChange={(e) => { setAmountMin(e.target.value); setCurrentPage(1); }}
               />
@@ -768,7 +768,7 @@ export default function Transactions() {
               <Input
                 type="number"
                 placeholder="Max ₹"
-                className="w-[100px] h-9 text-xs font-mono bg-background/50 border-white/[0.08]"
+                className="w-[100px] h-9 text-xs font-mono"
                 value={amountMax}
                 onChange={(e) => { setAmountMax(e.target.value); setCurrentPage(1); }}
               />
@@ -838,7 +838,7 @@ export default function Transactions() {
         ) : (
           <>
             {paginatedTransactions.length === 0 ? (
-              <div className="text-center py-12 px-4 border border-dashed border-border/50 rounded-lg bg-background/30">
+              <div className="text-center py-12 px-4 border border-dashed border-white/[0.08] rounded-lg glass-2">
                 {activeFilterCount > 0 ? (
                   <>
                     <p className="text-muted-foreground font-mono text-sm">No transactions match your filters.</p>
@@ -862,10 +862,10 @@ export default function Transactions() {
             ) : (
               <>
                 <div className="hidden md:block overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6">
-                  <div className="rounded-md border border-white/[0.08] bg-card/60 backdrop-blur-sm overflow-hidden">
+                  <div className="rounded-md border border-white/[0.08] glass-1 overflow-hidden">
                   <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table className="table-fixed">
-                        <TableHeader className="bg-muted/50 sticky top-0 z-20">
+                        <TableHeader className="glass-2 sticky top-0 z-20">
                           <TableRow>
                             {columns.map((col, i) => (
                               <TableHead key={i} className={cn("text-muted-foreground font-mono text-xs uppercase tracking-wider", col.className)}>
@@ -884,7 +884,7 @@ export default function Transactions() {
 
                             return (
                               <React.Fragment key={group.date}>
-                                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b-0 sticky top-[37px] z-10 backdrop-blur-sm">
+                                <TableRow className="glass-2 hover:bg-white/[0.04] border-b-0 sticky top-[37px] z-10">
                                   <TableCell colSpan={columns.length} className="py-2 px-4">
                                     <div className="flex items-center justify-between">
                                       <span className="text-xs font-semibold font-mono text-foreground/80 tracking-wide">
@@ -901,7 +901,7 @@ export default function Transactions() {
                                 {nonAdjustments.map((tx) => (
                                   <TableRow
                                     key={tx.id}
-                                    className={cn("transition-colors hover:bg-muted/30 zebra-row", getRowClassName(tx))}
+                                    className={cn("transition-colors hover:bg-white/[0.04] zebra-row", getRowClassName(tx))}
                                   >
                                     {columns.map((col, colIndex) => (
                                       <TableCell key={colIndex} className={col.className}>
@@ -914,7 +914,7 @@ export default function Transactions() {
                                   <>
                                     {hasMultipleAdj && !isAdjExpanded ? (
                                       <TableRow
-                                        className="transition-colors hover:bg-muted/20 cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
+                                        className="transition-colors hover:bg-white/[0.04] cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
                                         onClick={() => toggleAdjustmentDate(group.date)}
                                       >
                                         <TableCell colSpan={columns.length} className="py-2 px-4">
@@ -929,7 +929,7 @@ export default function Transactions() {
                                       <>
                                         {hasMultipleAdj && (
                                           <TableRow
-                                            className="transition-colors hover:bg-muted/20 cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
+                                            className="transition-colors hover:bg-white/[0.04] cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
                                             onClick={() => toggleAdjustmentDate(group.date)}
                                           >
                                             <TableCell colSpan={columns.length} className="py-1.5 px-4">
@@ -943,7 +943,7 @@ export default function Transactions() {
                                         {adjustments.map((tx) => (
                                           <TableRow
                                             key={tx.id}
-                                            className={cn("transition-colors hover:bg-muted/30 zebra-row", getRowClassName(tx))}
+                                            className={cn("transition-colors hover:bg-white/[0.04] zebra-row", getRowClassName(tx))}
                                           >
                                             {columns.map((col, colIndex) => (
                                               <TableCell key={colIndex} className={col.className}>
@@ -974,7 +974,7 @@ export default function Transactions() {
 
                     return (
                       <div key={group.date}>
-                        <div className="sticky top-0 z-10 flex items-center justify-between py-2 px-1 mb-1 bg-background/95 backdrop-blur-sm border-b border-white/[0.06]">
+                        <div className="sticky top-0 z-10 flex items-center justify-between py-2 px-1 mb-1 glass-2 border-b border-white/[0.06]">
                           <span className="text-xs font-semibold font-mono text-foreground/80">{group.formattedDate}</span>
                           {group.dailySpend > 0 && (
                             <span className="text-xs font-mono text-muted-foreground">— {formatCurrency(group.dailySpend)}</span>
