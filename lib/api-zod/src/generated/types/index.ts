@@ -7,6 +7,11 @@
  */
 
 export * from "./accountItem";
+export * from "./aiParseRequest";
+export * from "./aiParseRequestAccountsItem";
+export * from "./aiParseRequestCategoriesItem";
+export * from "./aiParseResponse";
+export * from "./aiParseResponseIntent";
 export * from "./appSettings";
 export * from "./billingCycle";
 export * from "./budgetAnalysisResponse";

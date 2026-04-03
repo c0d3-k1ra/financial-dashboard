@@ -6,11 +6,15 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { getApiErrorMessage } from "@/lib/constants";
 import { useAiParseContext } from "@/lib/ai-parse-context";
+import { useQueryClient } from "@tanstack/react-query";
 import {
-  useParseNaturalTransaction,
+  useAiParse,
   useListCategories,
   useListAccounts,
   getListAccountsQueryKey,
+  getListCategoriesQueryKey,
+  getListBudgetGoalsQueryKey,
+  getListGoalsQueryKey,
 } from "@workspace/api-client-react";
 
 interface ISpeechRecognitionResultItem {
@@ -70,6 +74,7 @@ export function AiParseBubble() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const { setParsedResult } = useAiParseContext();
+  const queryClient = useQueryClient();
 
   const speechSupported = !!getSpeechRecognition();
 
@@ -164,7 +169,7 @@ export function AiParseBubble() {
     query: { queryKey: getListAccountsQueryKey() },
   });
 
-  const parseTx = useParseNaturalTransaction();
+  const aiParse = useAiParse();
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
@@ -176,25 +181,25 @@ export function AiParseBubble() {
     if (!isOpen) return;
     function handleClickOutside(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        if (!parseTx.isPending) {
+        if (!aiParse.isPending) {
           setIsOpen(false);
         }
       }
     }
     document.addEventListener("pointerdown", handleClickOutside);
     return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, [isOpen, parseTx.isPending]);
+  }, [isOpen, aiParse.isPending]);
 
   const handleParse = () => {
     stopListening(true);
     const trimmed = nlInput.trim();
     if (!trimmed) return;
 
-    parseTx.mutate(
+    aiParse.mutate(
       {
         data: {
           text: trimmed,
-          categories: (categories ?? []).map((c) => ({ name: c.name, type: c.type })),
+          categories: (categories ?? []).map((c) => ({ id: c.id, name: c.name, type: c.type })),
           accounts: (accounts ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type })),
         },
       },
@@ -203,16 +208,9 @@ export function AiParseBubble() {
           setNlInput("");
           setIsOpen(false);
 
-          if (result.transactionType === "Transfer") {
-            setParsedResult({
-              transactionType: "Transfer",
-              fromAccountId: result.fromAccountId ? String(result.fromAccountId) : undefined,
-              toAccountId: result.toAccountId ? String(result.toAccountId) : undefined,
-              amount: result.amount || undefined,
-              date: result.date || undefined,
-              description: result.description || undefined,
-            });
-          } else {
+          const intent = result.intent;
+
+          if (intent === "add_transaction") {
             setParsedResult({
               transactionType: (result.transactionType as "Income" | "Expense") || "Expense",
               date: result.date || new Date().toISOString().split("T")[0],
@@ -221,13 +219,64 @@ export function AiParseBubble() {
               category: result.category || "",
               accountId: result.accountId ? String(result.accountId) : "",
             });
+            navigate("/transactions");
+            return;
           }
 
-          navigate("/transactions");
+          if (intent === "transfer") {
+            setParsedResult({
+              transactionType: "Transfer",
+              fromAccountId: result.fromAccountId ? String(result.fromAccountId) : undefined,
+              toAccountId: result.toAccountId ? String(result.toAccountId) : undefined,
+              amount: result.amount || undefined,
+              date: result.date || undefined,
+              description: result.description || undefined,
+            });
+            navigate("/transactions");
+            return;
+          }
+
+          if (intent === "add_category") {
+            queryClient.invalidateQueries({ queryKey: getListCategoriesQueryKey() });
+            queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+            queryClient.invalidateQueries({ queryKey: getListBudgetGoalsQueryKey() });
+            toast({
+              title: "Category created",
+              description: result.message || `Created category "${result.createdEntityName}"`,
+            });
+            return;
+          }
+
+          if (intent === "add_account") {
+            queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+            toast({
+              title: "Account created",
+              description: result.message || `Created account "${result.createdEntityName}"`,
+            });
+            return;
+          }
+
+          if (intent === "set_budget") {
+            queryClient.invalidateQueries({ queryKey: getListBudgetGoalsQueryKey() });
+            toast({
+              title: "Budget updated",
+              description: result.message || `Updated budget for "${result.createdEntityName}"`,
+            });
+            return;
+          }
+
+          if (intent === "add_savings_goal") {
+            queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+            toast({
+              title: "Savings goal created",
+              description: result.message || `Created savings goal "${result.createdEntityName}"`,
+            });
+            return;
+          }
         },
         onError: (err) => {
           toast({
-            title: "Failed to parse transaction",
+            title: "Failed to process request",
             description: getApiErrorMessage(err),
             variant: "destructive",
           });
@@ -244,13 +293,13 @@ export function AiParseBubble() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-medium">AI Transaction Parser</span>
+                <span className="text-sm font-medium">AI Assistant</span>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                onClick={() => { if (!parseTx.isPending) setIsOpen(false); }}
+                onClick={() => { if (!aiParse.isPending) setIsOpen(false); }}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -259,7 +308,7 @@ export function AiParseBubble() {
               <div className="relative flex-1">
                 <Input
                   ref={inputRef}
-                  placeholder='e.g. "Spent 450 at Starbucks yesterday"'
+                  placeholder='e.g. "Spent 450 at Starbucks" or "Add a category"'
                   className={`bg-background/50 border-amber-500/30 focus-visible:ring-amber-500/30 text-sm ${speechSupported ? "pr-9" : ""}`}
                   value={nlInput}
                   onChange={(e) => setNlInput(e.target.value)}
@@ -269,13 +318,13 @@ export function AiParseBubble() {
                       handleParse();
                     }
                   }}
-                  disabled={parseTx.isPending}
+                  disabled={aiParse.isPending}
                 />
                 {speechSupported && (
                   <button
                     type="button"
                     onClick={() => isListening ? stopListening() : startListening()}
-                    disabled={parseTx.isPending}
+                    disabled={aiParse.isPending}
                     className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors disabled:opacity-50 ${
                       isListening
                         ? "text-red-500 animate-pulse"
@@ -289,11 +338,11 @@ export function AiParseBubble() {
               </div>
               <Button
                 onClick={handleParse}
-                disabled={parseTx.isPending || !nlInput.trim()}
+                disabled={aiParse.isPending || !nlInput.trim()}
                 className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
                 size="icon"
               >
-                {parseTx.isPending ? (
+                {aiParse.isPending ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />
@@ -301,7 +350,7 @@ export function AiParseBubble() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Describe a transaction or transfer in plain English.
+              Describe a transaction, or ask me to add a category, account, budget, or savings goal.
             </p>
           </div>
         </div>

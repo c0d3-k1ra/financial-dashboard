@@ -86,6 +86,49 @@ export const ParseNaturalTransactionResponse = zod.object({
 });
 
 /**
+ * @summary Parse natural language input and execute or return structured data based on intent
+ */
+export const AiParseBody = zod.object({
+  text: zod.string(),
+  categories: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      type: zod.string(),
+    }),
+  ),
+  accounts: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      type: zod.string(),
+    }),
+  ),
+});
+
+export const AiParseResponse = zod.object({
+  intent: zod.enum([
+    "add_transaction",
+    "transfer",
+    "add_category",
+    "add_account",
+    "set_budget",
+    "add_savings_goal",
+  ]),
+  transactionType: zod.string().nullish(),
+  amount: zod.string().nullish(),
+  date: zod.string().nullish(),
+  description: zod.string().nullish(),
+  category: zod.string().nullish(),
+  accountId: zod.number().nullish(),
+  fromAccountId: zod.number().nullish(),
+  toAccountId: zod.number().nullish(),
+  message: zod.string().nullish(),
+  createdEntityId: zod.number().nullish(),
+  createdEntityName: zod.string().nullish(),
+});
+
+/**
  * @summary Update a transaction
  */
 export const UpdateTransactionParams = zod.object({

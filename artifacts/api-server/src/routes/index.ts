@@ -13,6 +13,7 @@ import trendsRouter from "./trends";
 import goalsRouter from "./goals";
 import analyticsRouter from "./analytics";
 import settingsRouter from "./settings";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(trendsRouter);
 router.use(goalsRouter);
 router.use(analyticsRouter);
 router.use(settingsRouter);
+router.use(aiRouter);
 
 export default router;

@@ -377,6 +377,51 @@ export interface ParseNaturalTransactionResponse {
   toAccountId?: number | null;
 }
 
+export type AiParseRequestCategoriesItem = {
+  id: number;
+  name: string;
+  type: string;
+};
+
+export type AiParseRequestAccountsItem = {
+  id: number;
+  name: string;
+  type: string;
+};
+
+export interface AiParseRequest {
+  text: string;
+  categories: AiParseRequestCategoriesItem[];
+  accounts: AiParseRequestAccountsItem[];
+}
+
+export type AiParseResponseIntent =
+  (typeof AiParseResponseIntent)[keyof typeof AiParseResponseIntent];
+
+export const AiParseResponseIntent = {
+  add_transaction: "add_transaction",
+  transfer: "transfer",
+  add_category: "add_category",
+  add_account: "add_account",
+  set_budget: "set_budget",
+  add_savings_goal: "add_savings_goal",
+} as const;
+
+export interface AiParseResponse {
+  intent: AiParseResponseIntent;
+  transactionType?: string | null;
+  amount?: string | null;
+  date?: string | null;
+  description?: string | null;
+  category?: string | null;
+  accountId?: number | null;
+  fromAccountId?: number | null;
+  toAccountId?: number | null;
+  message?: string | null;
+  createdEntityId?: number | null;
+  createdEntityName?: string | null;
+}
+
 export type ListTransactionsParams = {
   month?: string;
   search?: string;

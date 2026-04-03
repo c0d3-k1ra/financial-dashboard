@@ -91,6 +91,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `surplus.ts` — `POST /api/surplus/consolidate` (legacy) + `POST /api/surplus/distribute` (distribute surplus across goals) + `GET /api/surplus/allocations`
   - `accounts.ts` — CRUD for bank accounts, credit cards, and loans + `POST /api/accounts/:id/reconcile` (balance reconciliation) + `POST /api/accounts/process-emis` (process monthly EMI payments for loan accounts)
   - `categories.ts` — CRUD for expense/income categories + `PATCH /api/categories/:id` (rename with cascade to transactions). Creating expense categories auto-creates budget_goals with sensible defaults via category_id FK.
+  - `ai.ts` — `POST /api/ai/parse` — AI-powered intent router for natural language commands. Supports intents: `add_transaction`, `transfer`, `add_category`, `add_account`, `set_budget`, `add_savings_goal`. Transaction/transfer intents return parsed fields for frontend review; creation intents execute server-side and return confirmation.
   - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
   - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`
   - `analytics.ts` — `GET /api/analytics/spend-by-category` + `GET /api/analytics/category-trend` + `GET /api/analytics/cc-dues` (returns remainingLimit, sharedLimitGroup, and smart due dates that shift to next month when payment detected in current billing cycle)

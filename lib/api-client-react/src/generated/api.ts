@@ -18,6 +18,8 @@ import type {
 
 import type {
   AccountItem,
+  AiParseRequest,
+  AiParseResponse,
   AppSettings,
   BillingCycle,
   BudgetAnalysisResponse,
@@ -428,6 +430,92 @@ export const useParseNaturalTransaction = <
   TContext
 > => {
   return useMutation(getParseNaturalTransactionMutationOptions(options));
+};
+
+/**
+ * @summary Parse natural language input and execute or return structured data based on intent
+ */
+export const getAiParseUrl = () => {
+  return `/api/ai/parse`;
+};
+
+export const aiParse = async (
+  aiParseRequest: AiParseRequest,
+  options?: RequestInit,
+): Promise<AiParseResponse> => {
+  return customFetch<AiParseResponse>(getAiParseUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiParseRequest),
+  });
+};
+
+export const getAiParseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiParse>>,
+    TError,
+    { data: BodyType<AiParseRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiParse>>,
+  TError,
+  { data: BodyType<AiParseRequest> },
+  TContext
+> => {
+  const mutationKey = ["aiParse"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiParse>>,
+    { data: BodyType<AiParseRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return aiParse(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiParseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiParse>>
+>;
+export type AiParseMutationBody = BodyType<AiParseRequest>;
+export type AiParseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Parse natural language input and execute or return structured data based on intent
+ */
+export const useAiParse = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiParse>>,
+    TError,
+    { data: BodyType<AiParseRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiParse>>,
+  TError,
+  { data: BodyType<AiParseRequest> },
+  TContext
+> => {
+  return useMutation(getAiParseMutationOptions(options));
 };
 
 /**

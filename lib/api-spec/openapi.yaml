@@ -28,6 +28,8 @@ tags:
     description: Account operations
   - name: categories
     description: Category operations
+  - name: ai
+    description: AI-powered natural language actions
   - name: transfers
     description: Transfer operations
   - name: trends
@@ -138,6 +140,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ParseNaturalTransactionResponse"
+
+  /ai/parse:
+    post:
+      operationId: aiParse
+      tags: [ai]
+      summary: Parse natural language input and execute or return structured data based on intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiParseRequest"
+      responses:
+        "200":
+          description: Intent-based response with either parsed transaction fields or confirmation of created entity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiParseResponse"
 
   /transactions/{id}:
     put:
@@ -1797,4 +1818,92 @@ components:
           nullable: true
         toAccountId:
           type: integer
+          nullable: true
+
+    AiParseRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - id
+              - name
+              - type
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - id
+              - name
+              - type
+      required:
+        - text
+        - categories
+        - accounts
+
+    AiParseResponse:
+      type: object
+      required:
+        - intent
+      properties:
+        intent:
+          type: string
+          enum:
+            - add_transaction
+            - transfer
+            - add_category
+            - add_account
+            - set_budget
+            - add_savings_goal
+        transactionType:
+          type: string
+          nullable: true
+        amount:
+          type: string
+          nullable: true
+        date:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        accountId:
+          type: integer
+          nullable: true
+        fromAccountId:
+          type: integer
+          nullable: true
+        toAccountId:
+          type: integer
+          nullable: true
+        message:
+          type: string
+          nullable: true
+        createdEntityId:
+          type: integer
+          nullable: true
+        createdEntityName:
+          type: string
           nullable: true
