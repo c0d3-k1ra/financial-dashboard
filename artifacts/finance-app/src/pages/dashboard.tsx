@@ -213,7 +213,6 @@ export default function Dashboard() {
   const [spendAccountFilter, setSpendAccountFilter] = useState<"all" | "cc" | "non_cc">("all");
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
-  const [showAllCcDues, setShowAllCcDues] = useState(false);
 
   const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
     { month: currentMonth },
@@ -412,11 +411,6 @@ export default function Dashboard() {
     return groups;
   }, [recentTxs]);
 
-  const visibleCcDues = useMemo(() => {
-    if (!ccDues) return [];
-    if (showAllCcDues) return ccDues;
-    return ccDues.slice(0, 3);
-  }, [ccDues, showAllCcDues]);
 
   const catTrendYMax = useMemo(() => {
     let max = 0;
@@ -782,7 +776,7 @@ export default function Dashboard() {
               </div>
             ) : ccDues && ccDues.length > 0 ? (
               <div className="space-y-3">
-                {visibleCcDues.map((cc) => (
+                {ccDues.map((cc) => (
                     <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
                       <div className="flex justify-between items-start">
                         <div>
@@ -810,22 +804,6 @@ export default function Dashboard() {
                       </div>
                     </div>
                 ))}
-                {!showAllCcDues && ccDues.length > 3 && (
-                  <button
-                    onClick={() => setShowAllCcDues(true)}
-                    className="w-full text-center text-xs font-medium text-primary hover:text-primary/80 transition-colors py-2 flex items-center justify-center gap-1"
-                  >
-                    View All ({ccDues.length}) <ArrowRight className="w-3 h-3" />
-                  </button>
-                )}
-                {showAllCcDues && ccDues.length > 3 && (
-                  <button
-                    onClick={() => setShowAllCcDues(false)}
-                    className="w-full text-center text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-2"
-                  >
-                    Show Less
-                  </button>
-                )}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
