@@ -148,10 +148,8 @@ function clearPersistedChat() {
 function useIsMobileTouch() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
-    const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
-    const noHover = !window.matchMedia('(hover: hover)').matches;
-    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    setIsMobile(isSmallScreen && (noHover || hasTouch));
+    const primaryInputIsTouch = window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+    setIsMobile(primaryInputIsTouch);
   }, []);
   return isMobile;
 }
