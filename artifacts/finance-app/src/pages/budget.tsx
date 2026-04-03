@@ -209,7 +209,7 @@ function CategoryRow({
       isOverdue ? "border-destructive/40 bg-destructive/5" :
       pending ? "border-amber-500/30 bg-amber-500/5" :
       row.overBudget ? "border-destructive/30 bg-destructive/5" :
-      "border-white/10 bg-white/[0.02]"
+      "border-[var(--divider-color)] bg-[rgba(var(--glass-overlay-rgb),0.02)]"
     }`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <CategoryBadge category={row.category} type="Expense" />
@@ -298,7 +298,7 @@ function AddCategoryButton({
       <Button
         variant="outline"
         size="sm"
-        className="mt-3 border-dashed border-white/10 hover:border-white/20"
+        className="mt-3 border-dashed border-[var(--divider-color)] hover:border-[rgba(var(--glass-overlay-rgb),0.20)]"
         onClick={() => setIsOpen(true)}
         disabled={isAdding}
       >
@@ -402,7 +402,7 @@ function BudgetSkeleton() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="border border-white/10 rounded-lg p-4 space-y-3">
+            <div key={i} className="border border-[var(--divider-color)] rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-5 w-24 rounded-full" />
                 <Skeleton className="h-4 w-16" />
@@ -428,7 +428,7 @@ function BudgetSkeleton() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="border border-white/10 rounded-lg p-4 space-y-3">
+            <div key={i} className="border border-[var(--divider-color)] rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <Skeleton className="h-5 w-24 rounded-full" />
                 <Skeleton className="h-4 w-16" />
@@ -599,7 +599,7 @@ export default function Budget() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 hover:bg-white/10"
+            className="h-8 w-8 hover:bg-[var(--glass-hover)]"
             onClick={() => navigateMonth(-1)}
             title="Previous month"
           >
@@ -609,7 +609,7 @@ export default function Budget() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 hover:bg-white/10"
+            className="h-8 w-8 hover:bg-[var(--glass-hover)]"
             onClick={() => navigateMonth(1)}
             disabled={isCurrentMonth}
             title="Next month"

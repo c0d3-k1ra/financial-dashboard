@@ -509,7 +509,7 @@ export default function Transactions() {
               isIncome
                 ? "text-emerald-500"
                 : isTransfer
-                ? "text-blue-400"
+                ? "text-blue-600 dark:text-blue-400"
                 : "text-foreground"
             }`}>
               {isIncome && <ArrowDownRight className="w-3.5 h-3.5" />}
@@ -612,7 +612,7 @@ export default function Transactions() {
               <ArrowDownRight className="w-3 h-3" /> +{formatCurrency(tx.amount)}
             </span>
           ) : tx.type === "Transfer" ? (
-            <span className="text-blue-400 flex items-center gap-1">
+            <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
               <ArrowLeftRight className="w-3 h-3" /> {formatCurrency(tx.amount)}
             </span>
           ) : (
@@ -800,7 +800,7 @@ export default function Transactions() {
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border transition-colors ${
                 showAdjustments
                   ? "bg-primary/15 text-primary border-primary/30"
-                  : "bg-background/50 text-muted-foreground border-white/[0.08] hover:border-white/[0.15]"
+                  : "bg-background/50 text-muted-foreground border-[var(--divider-color)] hover:border-[rgba(var(--glass-overlay-rgb),0.15)]"
               }`}
             >
               {showAdjustments ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
@@ -838,7 +838,7 @@ export default function Transactions() {
         ) : (
           <>
             {paginatedTransactions.length === 0 ? (
-              <div className="text-center py-12 px-4 border border-dashed border-white/[0.08] rounded-lg glass-2">
+              <div className="text-center py-12 px-4 border border-dashed border-[var(--divider-color)] rounded-lg glass-2">
                 {activeFilterCount > 0 ? (
                   <>
                     <p className="text-muted-foreground font-mono text-sm">No transactions match your filters.</p>
@@ -862,7 +862,7 @@ export default function Transactions() {
             ) : (
               <>
                 <div className="hidden md:block overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6">
-                  <div className="rounded-md border border-white/[0.08] glass-1 overflow-hidden">
+                  <div className="rounded-md border border-[var(--divider-color)] glass-1 overflow-hidden">
                   <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
                       <Table className="table-fixed">
                         <TableHeader className="glass-2 sticky top-0 z-20">
@@ -884,7 +884,7 @@ export default function Transactions() {
 
                             return (
                               <React.Fragment key={group.date}>
-                                <TableRow className="glass-2 hover:bg-white/[0.04] border-b-0 sticky top-[37px] z-10">
+                                <TableRow className="glass-2 hover:bg-[var(--glass-hover)] border-b-0 sticky top-[37px] z-10">
                                   <TableCell colSpan={columns.length} className="py-2 px-4">
                                     <div className="flex items-center justify-between">
                                       <span className="text-xs font-semibold font-mono text-foreground/80 tracking-wide">
@@ -901,7 +901,7 @@ export default function Transactions() {
                                 {nonAdjustments.map((tx) => (
                                   <TableRow
                                     key={tx.id}
-                                    className={cn("transition-colors hover:bg-white/[0.04] zebra-row", getRowClassName(tx))}
+                                    className={cn("transition-colors hover:bg-[var(--glass-hover)] zebra-row", getRowClassName(tx))}
                                   >
                                     {columns.map((col, colIndex) => (
                                       <TableCell key={colIndex} className={col.className}>
@@ -914,7 +914,7 @@ export default function Transactions() {
                                   <>
                                     {hasMultipleAdj && !isAdjExpanded ? (
                                       <TableRow
-                                        className="transition-colors hover:bg-white/[0.04] cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
+                                        className="transition-colors hover:bg-[var(--glass-hover)] cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
                                         onClick={() => toggleAdjustmentDate(group.date)}
                                       >
                                         <TableCell colSpan={columns.length} className="py-2 px-4">
@@ -929,7 +929,7 @@ export default function Transactions() {
                                       <>
                                         {hasMultipleAdj && (
                                           <TableRow
-                                            className="transition-colors hover:bg-white/[0.04] cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
+                                            className="transition-colors hover:bg-[var(--glass-hover)] cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
                                             onClick={() => toggleAdjustmentDate(group.date)}
                                           >
                                             <TableCell colSpan={columns.length} className="py-1.5 px-4">
@@ -943,7 +943,7 @@ export default function Transactions() {
                                         {adjustments.map((tx) => (
                                           <TableRow
                                             key={tx.id}
-                                            className={cn("transition-colors hover:bg-white/[0.04] zebra-row", getRowClassName(tx))}
+                                            className={cn("transition-colors hover:bg-[var(--glass-hover)] zebra-row", getRowClassName(tx))}
                                           >
                                             {columns.map((col, colIndex) => (
                                               <TableCell key={colIndex} className={col.className}>
@@ -974,7 +974,7 @@ export default function Transactions() {
 
                     return (
                       <div key={group.date}>
-                        <div className="sticky top-0 z-10 flex items-center justify-between py-2 px-1 mb-1 glass-2 border-b border-white/[0.06]">
+                        <div className="sticky top-0 z-10 flex items-center justify-between py-2 px-1 mb-1 glass-2 border-b border-[var(--divider-color)]">
                           <span className="text-xs font-semibold font-mono text-foreground/80">{group.formattedDate}</span>
                           {group.dailySpend > 0 && (
                             <span className="text-xs font-mono text-muted-foreground">— {formatCurrency(group.dailySpend)}</span>
@@ -1017,7 +1017,7 @@ export default function Transactions() {
             )}
 
             {totalCount > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-[var(--divider-color)]">
                 <p className="text-xs font-mono text-muted-foreground">
                   Showing {showingFrom}–{showingTo} of {totalCount} transactions
                 </p>

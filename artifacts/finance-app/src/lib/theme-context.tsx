@@ -10,9 +10,15 @@ export interface ThemeDefinition {
 export const THEMES: ThemeDefinition[] = [
   {
     id: "glass-ui",
-    label: "Glass UI",
+    label: "Glass UI (Dark)",
     rootClassName: "mesh-gradient-bg ambient-orbs",
     navClassName: "glass-nav",
+  },
+  {
+    id: "light",
+    label: "Light",
+    rootClassName: "mesh-gradient-bg-light ambient-orbs-light",
+    navClassName: "glass-nav-light",
   },
 ];
 
@@ -51,6 +57,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme.id);
+    if (theme.id === "light") {
+      document.documentElement.classList.remove("dark");
+    } else {
+      document.documentElement.classList.add("dark");
+    }
     return () => {
       document.documentElement.removeAttribute("data-theme");
     };

@@ -617,7 +617,7 @@ export default function Accounts() {
           ))}
         </div>
       ) : allAccounts.length === 0 ? (
-        <div className="text-center py-16 px-4 border border-dashed border-white/[0.08] rounded-xl glass-1">
+        <div className="text-center py-16 px-4 border border-dashed border-[var(--divider-color)] rounded-xl glass-1">
           <Wallet className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />
           <p className="text-muted-foreground font-medium text-sm">Add your first bank account to start tracking</p>
           <p className="text-muted-foreground/60 text-xs mt-1">Track balances, credit limits, and loan progress all in one place.</p>
@@ -629,7 +629,7 @@ export default function Accounts() {
               <div className="glass-1 overflow-hidden">
                 <button
                   onClick={() => setBankOpen(!bankOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--glass-hover)] transition-colors border-b border-[var(--divider-color)]"
                 >
                   <div className="flex items-center gap-2.5">
                     <Wallet className="w-5 h-5 text-emerald-500" />
@@ -647,14 +647,14 @@ export default function Accounts() {
                   <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <TooltipProvider delayDuration={300}>
                     {bankAccounts.map((account) => (
-                      <Card key={account.id} className="glass-2 hover:bg-white/[0.06] hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200">
+                      <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200">
                         <CardContent className="pt-4 pb-3 px-4">
                           <div className="flex justify-between items-start">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-semibold text-sm truncate">{account.name}</p>
                                 {account.useInSurplus && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">Surplus</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium">Surplus</span>
                                 )}
                               </div>
                               <p className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</p>
@@ -699,7 +699,7 @@ export default function Accounts() {
               <div className="glass-1 overflow-hidden">
                 <button
                   onClick={() => setCcOpen(!ccOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--glass-hover)] transition-colors border-b border-[var(--divider-color)]"
                 >
                   <div className="flex items-center gap-2.5">
                     <CreditCard className="w-5 h-5 text-destructive" />
@@ -735,14 +735,14 @@ export default function Accounts() {
                       const strokeDash = (Math.min(usedPct, 100) / 100) * circumference;
 
                       return (
-                        <Card key={account.id} className="glass-2 hover:bg-white/[0.06] hover:shadow-md hover:shadow-red-500/5 transition-all duration-200">
+                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-red-500/5 transition-all duration-200">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="min-w-0 flex-1">
                                 <p className="font-semibold text-sm truncate">{account.name}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                                   {account.sharedLimitGroup && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{account.sharedLimitGroup}</span>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium">{account.sharedLimitGroup}</span>
                                   )}
                                   {account.billingDueDay && (
                                     <span className="text-[10px] text-muted-foreground/60 font-mono">Due {getOrdinalSuffix(account.billingDueDay)}</span>
@@ -820,7 +820,7 @@ export default function Accounts() {
               <div className="glass-1 overflow-hidden">
                 <button
                   onClick={() => setLoanOpen(!loanOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/[0.04] transition-colors border-b border-white/[0.06]"
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--glass-hover)] transition-colors border-b border-[var(--divider-color)]"
                 >
                   <div className="flex items-center gap-2.5">
                     <Landmark className="w-5 h-5 text-amber-500" />
@@ -874,7 +874,7 @@ export default function Accounts() {
                       }
 
                       return (
-                        <Card key={account.id} className="glass-2 hover:bg-white/[0.06] hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200">
+                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex justify-between items-start mb-2">
                               <div className="min-w-0 flex-1">
@@ -1009,7 +1009,7 @@ export default function Accounts() {
               </div>
             </div>
             {reconcileBalance && Math.abs(reconcileAdjustment) > 0.01 && (
-              <div className={`text-sm font-mono p-2 rounded-md ${reconcileAdjustment >= 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+              <div className={`text-sm font-mono p-2 rounded-md ${reconcileAdjustment >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400"}`}>
                 Adjustment: {reconcileAdjustment >= 0 ? "+" : ""}{formatCurrency(reconcileAdjustment)}
               </div>
             )}

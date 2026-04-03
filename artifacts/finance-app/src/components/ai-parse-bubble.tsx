@@ -605,9 +605,9 @@ export function AiParseBubble() {
       <div className="glass-2 rounded-lg p-3 space-y-2">
         <div className="flex items-center justify-between">
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            tx.transactionType === "Income" ? "bg-emerald-500/20 text-emerald-400" :
-            tx.transactionType === "Transfer" ? "bg-blue-500/20 text-blue-400" :
-            "bg-red-500/20 text-red-400"
+            tx.transactionType === "Income" ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" :
+            tx.transactionType === "Transfer" ? "bg-blue-500/20 text-blue-600 dark:text-blue-400" :
+            "bg-red-500/20 text-red-600 dark:text-red-400"
           }`}>
             {tx.transactionType}
           </span>
@@ -623,7 +623,7 @@ export function AiParseBubble() {
         <div className="flex items-center gap-2 text-sm">
           {!isTransfer && (
             <>
-              <CategoryIcon className="w-4 h-4 text-amber-400" />
+              <CategoryIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               <span>{tx.category}</span>
             </>
           )}
@@ -676,14 +676,14 @@ export function AiParseBubble() {
       <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-            <Check className="w-4 h-4 text-emerald-400" />
+            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
-          <span className="text-sm text-emerald-400">{msg.content}</span>
+          <span className="text-sm text-emerald-600 dark:text-emerald-400">{msg.content}</span>
         </div>
         {hasUndo && (
           <button
             onClick={() => handleUndo(msg.id)}
-            className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 transition-colors"
+            className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-300 transition-colors"
           >
             <Undo2 className="w-3 h-3" />
             Undo
@@ -698,9 +698,9 @@ export function AiParseBubble() {
       {isOpen && (
         <div className="w-[calc(100vw-3rem)] max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
           <div className="glass-3 rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
-            <div className="flex items-center justify-between p-3 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between p-3 border-b border-[var(--divider-color)]">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+                <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <span className="text-sm font-medium">AI Assistant</span>
               </div>
               <Button
@@ -716,7 +716,7 @@ export function AiParseBubble() {
             <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
               {messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-60">
-                  <Sparkles className="w-8 h-8 text-amber-400" />
+                  <Sparkles className="w-8 h-8 text-amber-600 dark:text-amber-400" />
                   <p className="text-sm text-muted-foreground">
                     Describe a transaction and I'll help you log it.
                   </p>
@@ -789,7 +789,7 @@ export function AiParseBubble() {
                 <div className="flex justify-start">
                   <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                      <Loader2 className="w-3 h-3 animate-spin text-amber-600 dark:text-amber-400" />
                       <span className="text-sm text-muted-foreground">Thinking...</span>
                     </div>
                   </div>
@@ -799,7 +799,7 @@ export function AiParseBubble() {
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="p-3 border-t border-white/[0.06]">
+            <div className="p-3 border-t border-[var(--divider-color)]">
               <div className="flex gap-2">
                 <div className="relative flex-1">
                   <Input

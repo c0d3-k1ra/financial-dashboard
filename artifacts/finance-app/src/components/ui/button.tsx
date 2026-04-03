@@ -11,9 +11,9 @@ const buttonVariants = cva(
       variant: {
         default: "bg-primary/90 text-primary-foreground border border-primary/50 backdrop-blur-sm hover:bg-primary shadow-sm",
         destructive: "bg-destructive/90 text-destructive-foreground shadow-sm border border-destructive/50 backdrop-blur-sm hover:bg-destructive",
-        outline: "border border-white/[0.10] bg-white/[0.04] backdrop-blur-sm shadow-xs hover:bg-white/[0.08] active:shadow-none",
-        secondary: "border border-white/[0.08] bg-white/[0.06] text-secondary-foreground backdrop-blur-sm hover:bg-white/[0.10]",
-        ghost: "border border-transparent hover:bg-white/[0.06]",
+        outline: "border border-[rgba(var(--glass-overlay-rgb),0.10)] bg-[rgba(var(--glass-overlay-rgb),0.04)] backdrop-blur-sm shadow-xs hover:bg-[rgba(var(--glass-overlay-rgb),0.08)] active:shadow-none",
+        secondary: "border border-[rgba(var(--glass-overlay-rgb),0.08)] bg-[rgba(var(--glass-overlay-rgb),0.06)] text-secondary-foreground backdrop-blur-sm hover:bg-[rgba(var(--glass-overlay-rgb),0.10)]",
+        ghost: "border border-transparent hover:bg-[rgba(var(--glass-overlay-rgb),0.06)]",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

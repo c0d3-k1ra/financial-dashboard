@@ -482,7 +482,7 @@ export default function Dashboard() {
                 <CheckCircle2 className="w-4 h-4 mr-1.5" /> Cycle Ended
               </Button>
               {canUndo && (
-                <Button size="sm" variant="outline" className="text-xs uppercase tracking-wider text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setUndoConfirmOpen(true)}>
+                <Button size="sm" variant="outline" className="text-xs uppercase tracking-wider text-amber-600 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setUndoConfirmOpen(true)}>
                   <Undo2 className="w-4 h-4 mr-1.5" /> Undo Distribution
                 </Button>
               )}
@@ -514,7 +514,7 @@ export default function Dashboard() {
                   <div className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground">
                     {formatCurrency(summary?.netLiquidity || 0)}
                   </div>
-                  <div className={`flex items-center gap-1.5 mt-2 text-sm tabular-nums ${liquidityHealthy ? "text-emerald-400" : "text-amber-400"}`}>
+                  <div className={`flex items-center gap-1.5 mt-2 text-sm tabular-nums ${liquidityHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                     <Droplets className="w-3.5 h-3.5" />
                     Covers {liquidityRatio.toFixed(1)}x monthly expenses
                   </div>
@@ -554,7 +554,7 @@ export default function Dashboard() {
                   {formatCurrency(Math.abs(netWorth))}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
-                  <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-400" : "text-emerald-400"}`}>
+                  <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                     Debt-to-asset ratio: {debtToAssetRatio.toFixed(1)}%
                   </span>
                 </div>
@@ -810,7 +810,7 @@ export default function Dashboard() {
                             <p className="text-sm font-medium">
                               {cc.name}
                               {cc.sharedLimitGroup && (
-                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
+                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-600 dark:text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
                               )}
                             </p>
                             <p className="text-lg font-bold tabular-nums mt-0.5">
@@ -894,7 +894,7 @@ export default function Dashboard() {
                                 className="h-1.5 bg-secondary flex-1"
                                 indicatorClassName="bg-amber-500"
                               />
-                              <span className="text-[10px] tabular-nums text-amber-400 font-medium whitespace-nowrap" title="Estimated repayment progress based on remaining term">
+                              <span className="text-[10px] tabular-nums text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap" title="Estimated repayment progress based on remaining term">
                                 ~{progressPct.toFixed(0)}% paid
                               </span>
                             </div>
@@ -907,7 +907,7 @@ export default function Dashboard() {
                           </>
                         )}
                         {emi > 0 && !isAmortizing && (
-                          <p className="text-xs text-amber-400 mt-1">EMI insufficient to amortize — review repayment plan</p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">EMI insufficient to amortize — review repayment plan</p>
                         )}
                       </div>
                     );
@@ -938,7 +938,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {loan.emiDay && (
-                            <span className="text-xs font-mono px-2 py-1 rounded bg-amber-500/15 text-amber-400">
+                            <span className="text-xs font-mono px-2 py-1 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">
                               {loan.emiDay}th
                             </span>
                           )}
@@ -1204,7 +1204,7 @@ export default function Dashboard() {
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                               tx.type === "Income" ? "bg-emerald-500/10" : "bg-rose-500/10"
                             }`}>
-                              <Icon className={`w-4 h-4 ${tx.type === "Income" ? "text-emerald-400" : "text-rose-400"}`} />
+                              <Icon className={`w-4 h-4 ${tx.type === "Income" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`} />
                             </div>
                             <div className="flex flex-col">
                               <span className="text-sm font-medium line-clamp-1">{tx.description}</span>
@@ -1290,7 +1290,7 @@ export default function Dashboard() {
               </div>
             )}
             {(canUndoData?.transferCount ?? 0) > 0 && (
-              <div className="text-xs font-mono p-2 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <div className="text-xs font-mono p-2 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                 {canUndoData!.transferCount} auto-transfer transaction(s) will be deleted and account balances reversed.
               </div>
             )}

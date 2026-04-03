@@ -24,8 +24,8 @@ export function CategoryBadge({ category, type, className = "", onClick, compact
               aria-label={category}
               className={`inline-flex items-center justify-center w-7 h-7 rounded-md backdrop-blur-sm ${
                 isIncome
-                  ? "bg-emerald-500/15 text-emerald-400"
-                  : "bg-rose-500/15 text-rose-300"
+                  ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                  : "bg-rose-500/15 text-rose-700 dark:text-rose-300"
               } ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""} ${className}`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -44,8 +44,8 @@ export function CategoryBadge({ category, type, className = "", onClick, compact
       onClick={onClick}
       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-mono border backdrop-blur-sm ${
         isIncome
-          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
-          : "bg-rose-500/15 text-rose-300 border-rose-500/25"
+          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30 dark:border-emerald-500/25"
+          : "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/30 dark:border-rose-500/25"
       } ${onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : ""} ${className}`}
     >
       <Icon className="w-3.5 h-3.5" />

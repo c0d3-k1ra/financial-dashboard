@@ -214,7 +214,7 @@ export default function Settings() {
     return (
       <div
         key={cat.id}
-        className="flex items-center justify-between p-3 rounded-lg glass-2 hover:bg-white/[0.06] transition-colors group"
+        className="flex items-center justify-between p-3 rounded-lg glass-2 hover:bg-[var(--glass-hover)] transition-colors group"
       >
         {isEditing ? (
           <div className="flex items-center gap-2 flex-1 mr-3">
@@ -488,7 +488,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="border-t border-white/[0.06]" />
+              <div className="border-t glass-divider" />
 
               <div>
                 <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">

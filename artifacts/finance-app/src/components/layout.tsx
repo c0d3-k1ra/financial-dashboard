@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { DollarSign, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
 import { AiParseBubble } from "@/components/ai-parse-bubble";
@@ -7,10 +6,6 @@ import { useTheme } from "@/lib/theme-context";
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { theme } = useTheme();
-
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-  }, []);
 
   const navItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -42,8 +37,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isActive 
-                      ? "bg-white/10 text-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground hover:bg-white/[0.06]"
+                      ? "nav-link-active text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground nav-link-hover"
                   }`}
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
@@ -55,7 +50,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         
-        <div className="md:hidden border-t border-white/[0.06] overflow-x-auto scrollbar-hide">
+        <div className="md:hidden border-t nav-mobile-border overflow-x-auto scrollbar-hide">
           <nav className="flex px-4 py-2 gap-2 min-w-max">
             {navItems.map((item) => {
               const isActive = location === item.href;
@@ -66,8 +61,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   href={item.href}
                   className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
                     isActive 
-                      ? "bg-white/10 text-foreground border border-white/[0.08] shadow-sm" 
-                      : "text-muted-foreground bg-transparent border border-transparent hover:text-foreground hover:bg-white/[0.06] hover:border-white/[0.06]"
+                      ? "nav-link-active text-foreground nav-link-active-border shadow-sm" 
+                      : "text-muted-foreground bg-transparent border border-transparent hover:text-foreground nav-link-hover nav-link-hover-border"
                   }`}
                   data-testid={`nav-mobile-${item.label.toLowerCase()}`}
                 >

@@ -62,7 +62,7 @@ export default function SurplusDistributeModal({
         <div className="p-3 rounded-lg glass-2 font-mono text-xs space-y-1">
           <div className="flex justify-between">
             <span className="font-bold">Available Surplus:</span>
-            <span className={monthlySurplus <= 0 ? "text-destructive" : "text-emerald-400"}>
+            <span className={monthlySurplus <= 0 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}>
               {surplusData ? formatCurrency(surplusData.surplus) : "—"}
             </span>
           </div>

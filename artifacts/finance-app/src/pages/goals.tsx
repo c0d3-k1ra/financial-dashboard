@@ -60,11 +60,11 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  "On Track": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
-  "At Risk": "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  "Behind": "bg-red-500/20 text-red-400 border-red-500/30",
-  "Not Started": "bg-zinc-500/20 text-zinc-400 border-zinc-500/30",
-  "Achieved": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  "On Track": "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
+  "At Risk": "bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30",
+  "Behind": "bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30",
+  "Not Started": "bg-zinc-500/20 text-zinc-600 dark:text-zinc-400 border-zinc-500/30",
+  "Achieved": "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30",
 };
 
 export default function Goals() {
@@ -302,7 +302,7 @@ export default function Goals() {
               <CardTitle className="text-lg">Goal Projection</CardTitle>
               <CardDescription>Click a goal card to see its 12-month projection</CardDescription>
             </CardHeader>
-            <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-white/[0.06]">
+            <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-[var(--divider-color)]">
               Select a goal to view projection
             </CardContent>
           </Card>
@@ -356,7 +356,7 @@ export default function Goals() {
                         <span
                           className={`text-[10px] font-mono px-2 py-0.5 rounded-full border whitespace-nowrap ${
                             goal.status === "Achieved"
-                              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                              ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                               : STATUS_COLORS[goal.statusIndicator] || ""
                           }`}
                         >
