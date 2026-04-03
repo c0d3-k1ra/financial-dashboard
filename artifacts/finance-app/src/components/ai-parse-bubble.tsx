@@ -145,6 +145,34 @@ function clearPersistedChat() {
   }
 }
 
+function useIsMobileTouch() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const isSmallScreen = window.matchMedia('(max-width: 768px)').matches;
+    const noHover = !window.matchMedia('(hover: hover)').matches;
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    setIsMobile(isSmallScreen && (noHover || hasTouch));
+  }, []);
+  return isMobile;
+}
+
+const CHAT_MIN_HEIGHT = 200;
+
+function useVisualViewportHeight() {
+  const [vpHeight, setVpHeight] = useState<number | null>(() => {
+    return window.visualViewport?.height ?? null;
+  });
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setVpHeight(vv.height);
+    update();
+    vv.addEventListener('resize', update);
+    return () => vv.removeEventListener('resize', update);
+  }, []);
+  return vpHeight;
+}
+
 export function AiParseBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [nlInput, setNlInput] = useState("");
@@ -158,6 +186,8 @@ export function AiParseBubble() {
   const undoTimersRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isTouchDevice = useIsMobileTouch();
+  const visualViewportHeight = useVisualViewportHeight();
 
   const speechSupported = !!getSpeechRecognition();
 
@@ -274,10 +304,10 @@ export function AiParseBubble() {
   }, [stopListening]);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
+    if (isOpen && inputRef.current && !isTouchDevice) {
       inputRef.current.focus();
     }
-  }, [isOpen]);
+  }, [isOpen, isTouchDevice]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -373,9 +403,9 @@ export function AiParseBubble() {
       ]);
     } finally {
       setIsProcessing(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      if (!isTouchDevice) setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [isProcessing, stopListening, getConversationHistory, aiChat, categories, accounts]);
+  }, [isProcessing, isTouchDevice, stopListening, getConversationHistory, aiChat, categories, accounts]);
 
   const handleOptionClick = (option: ChatOption) => {
     sendMessage(option.value || option.label);
@@ -481,7 +511,7 @@ export function AiParseBubble() {
     } finally {
       setIsProcessing(false);
       setNlInput("");
-      setTimeout(() => inputRef.current?.focus(), 100);
+      if (!isTouchDevice) setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
@@ -840,7 +870,13 @@ export function AiParseBubble() {
     <div ref={containerRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 md:bottom-8 md:right-8" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {isOpen && (
         <div className="w-[calc(100vw-3rem)] max-w-md chat-panel-enter">
-          <div className="glass-3 chat-panel-light chat-panel-dark rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
+          <div className="glass-3 chat-panel-light chat-panel-dark rounded-xl shadow-2xl flex flex-col" style={{
+            height: visualViewportHeight && isTouchDevice
+              ? `${Math.max(CHAT_MIN_HEIGHT, Math.min(visualViewportHeight - 100, 500))}px`
+              : "50vh",
+            maxHeight: "500px",
+            transition: "height 0.15s ease-out",
+          }}>
             <div className="flex items-center justify-between p-3 border-b border-[var(--divider-color)]">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -958,6 +994,11 @@ export function AiParseBubble() {
                       if (e.key === "Enter") {
                         e.preventDefault();
                         sendMessage(nlInput);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (isTouchDevice) {
+                        setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 300);
                       }
                     }}
                     disabled={isProcessing}
