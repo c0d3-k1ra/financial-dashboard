@@ -27,6 +27,9 @@ const DEFAULT_THEME = "glass-ui";
 
 function getStoredTheme(): string {
   try {
+    const params = new URLSearchParams(window.location.search);
+    const urlTheme = params.get("theme");
+    if (urlTheme && THEMES.some((t) => t.id === urlTheme)) return urlTheme;
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && THEMES.some((t) => t.id === stored)) return stored;
   } catch {}

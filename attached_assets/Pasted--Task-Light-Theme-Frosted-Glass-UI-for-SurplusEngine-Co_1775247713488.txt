@@ -1,0 +1,491 @@
+# Task: Light Theme Frosted Glass UI for SurplusEngine
+
+## Context
+SurplusEngine has a dark frosted glass theme. This adds a light theme counterpart — the same frosted, diffused, milky aesthetic but on bright surfaces. Think a frosted glass partition in a sunlit room, or Apple's visionOS panels in a bright environment. You see soft color washes through the frost, but everything is diffused, matte, and gentle. No shine, no reflections, no gloss.
+
+---
+
+## 1. Foundation: Background & Depth System
+
+### 1.1 Base Background
+Light frost needs a warm, tinted background — never stark white. The frost diffuses what's behind it, so the background needs color to bleed through.
+
+- Use a soft, multi-tone gradient:
+  `radial-gradient(ellipse at 30% 35%, #e8edf5 0%, #dfe4ee 40%, #eae6f2 65%, #f0eff5 100%)`
+  — blue-gray with lavender and warm undertones
+- Add 3-4 large, soft ambient color washes behind all content:
+  - Soft blue wash (top-left, ~50% viewport, ~10% opacity): `rgba(96, 165, 250, 0.10)`
+  - Lavender wash (bottom-right, ~40% viewport, ~8% opacity): `rgba(167, 139, 250, 0.08)`
+  - Mint wash (center-left, ~30% viewport, ~5% opacity): `rgba(45, 212, 191, 0.05)`
+  - Warm peach wash (top-right, ~25% viewport, ~4% opacity): `rgba(251, 146, 60, 0.04)`
+- `position: fixed`, `border-radius: 50%`, `filter: blur(180px)` — same heavy blur as dark frost
+- These should appear as very soft color zones bleeding through the frost. No sharp shapes, no visible edges.
+
+### 1.2 Depth Layers
+Three frosted tiers. Light frost uses higher white opacity than dark frost to create the milky look:
+
+**Layer 1 — Primary cards**
+```css
+background: rgba(255, 255, 255, 0.50);
+backdrop-filter: blur(60px) saturate(110%);
+border: 1px solid rgba(255, 255, 255, 0.60);
+border-radius: 20px;
+box-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+```
+- `0.50` white opacity creates the milky/cloudy frosted look
+- `saturate(110%)` — low, matching dark frost. Frost desaturates.
+- Very soft shadow — light frost panels barely cast shadows, they just float
+- NO `border-top` highlight — frosted glass has no specular reflection
+- NO `inset` shadow — flat matte surface
+
+**Layer 2 — Nested elements (inputs, inner panels, table hover, dropdowns)**
+```css
+background: rgba(255, 255, 255, 0.40);
+backdrop-filter: blur(40px) saturate(105%);
+border: 1px solid rgba(0, 0, 0, 0.04);
+border-radius: 14px;
+box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+```
+- Note: borders flip to `rgba(0, 0, 0, ...)` on nested elements — white borders on white frost are invisible, so very subtle dark borders provide definition
+
+**Layer 3 — Elevated (modals, chat panel, popovers)**
+```css
+background: rgba(255, 255, 255, 0.65);
+backdrop-filter: blur(80px) saturate(115%);
+border: 1px solid rgba(255, 255, 255, 0.75);
+border-radius: 24px;
+box-shadow: 0 8px 40px rgba(0, 0, 0, 0.06);
+```
+- Densest frost — more opaque, heavier blur, softest shadow
+
+**CSS Custom Properties:**
+```css
+:root[data-theme="light"] {
+  --frost-1-bg: rgba(255, 255, 255, 0.50);
+  --frost-1-blur: blur(60px) saturate(110%);
+  --frost-1-border: rgba(255, 255, 255, 0.60);
+  --frost-1-shadow: 0 4px 24px rgba(0, 0, 0, 0.04);
+  --frost-1-radius: 20px;
+
+  --frost-2-bg: rgba(255, 255, 255, 0.40);
+  --frost-2-blur: blur(40px) saturate(105%);
+  --frost-2-border: rgba(0, 0, 0, 0.04);
+  --frost-2-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+  --frost-2-radius: 14px;
+
+  --frost-3-bg: rgba(255, 255, 255, 0.65);
+  --frost-3-blur: blur(80px) saturate(115%);
+  --frost-3-border: rgba(255, 255, 255, 0.75);
+  --frost-3-shadow: 0 8px 40px rgba(0, 0, 0, 0.06);
+  --frost-3-radius: 24px;
+
+  --text-primary: rgba(15, 23, 42, 0.85);
+  --text-secondary: rgba(15, 23, 42, 0.50);
+  --text-muted: rgba(15, 23, 42, 0.30);
+  --text-on-accent: #ffffff;
+
+  --divider: rgba(0, 0, 0, 0.04);
+  --divider-strong: rgba(0, 0, 0, 0.07);
+}
+```
+
+---
+
+## 2. Typography & Text Contrast
+
+### 2.1 Text Colors
+- **Primary text:** `rgba(15, 23, 42, 0.85)` — deep slate, slightly softer than pure black. Matches the matte frosted feel.
+- **Secondary text:** `rgba(15, 23, 42, 0.50)`
+- **Muted text:** `rgba(15, 23, 42, 0.30)`
+- Test all text against the lightest possible frost area (where an ambient wash is directly behind the card). If contrast fails WCAG AA, darken text or increase frost opacity.
+
+### 2.2 Text Rendering
+- NO text shadows. On light frost, text shadows create a ghostly double-image that looks wrong on matte surfaces.
+- Use `-webkit-font-smoothing: antialiased` for clean, matte rendering.
+
+---
+
+## 3. Card Surfaces
+
+### 3.1 All Content Cards
+- Apply Layer 1 frost
+- NO top-edge highlights — the surface is uniformly diffused
+- NO inner shadows — flat and matte
+- `border-radius: 20px` consistently
+
+### 3.2 Card Hover States
+Frost gets slightly thinner on hover — more color visible through it:
+```css
+background: rgba(255, 255, 255, 0.58); /* slightly clearer */
+border-color: rgba(255, 255, 255, 0.70);
+box-shadow: 0 6px 30px rgba(0, 0, 0, 0.05);
+transition: all 0.3s ease;
+```
+- NO translateY lift. NO outer glow.
+- Slow 0.3s transition.
+
+### 3.3 Card Active / Pressed
+```css
+background: rgba(255, 255, 255, 0.45); /* denser */
+box-shadow: 0 2px 12px rgba(0, 0, 0, 0.03);
+transition: all 0.15s ease;
+```
+
+### 3.4 Card Groups
+- 20px gap between cards
+- No outer glass wrappers
+
+---
+
+## 4. Badges, Pills & Tags — CRITICAL SECTION
+
+Light frost badges fail when they're too subtle. Colors must be strong enough to read on a milky white surface.
+
+### 4.1 Category Badges
+```css
+.badge-category {
+  background: {category-color at 10% opacity};
+  border: none; /* no borders — frosted badges are defined by fill */
+  color: {category-color DARKENED to 700-weight for contrast};
+  border-radius: 8px;
+  padding: 3px 10px;
+  font-weight: 600; /* heavier than dark theme to compensate for lower contrast */
+  font-size: 12px;
+}
+```
+
+**Per-category colors (light frost safe — darkened text):**
+- Food → bg: `rgba(249, 115, 22, 0.10)`, text: `#c2410c` (orange-700)
+- Drinks → bg: `rgba(168, 85, 247, 0.10)`, text: `#7e22ce` (purple-700)
+- Transportation → bg: `rgba(59, 130, 246, 0.10)`, text: `#1d4ed8` (blue-700)
+- Shopping → bg: `rgba(236, 72, 153, 0.10)`, text: `#be185d` (pink-700)
+- Subscriptions → bg: `rgba(99, 102, 241, 0.10)`, text: `#4338ca` (indigo-700)
+- Father → bg: `rgba(34, 197, 94, 0.10)`, text: `#15803d` (green-700)
+- Term Insurance → bg: `rgba(14, 165, 233, 0.10)`, text: `#0369a1` (sky-700)
+- Spa → bg: `rgba(244, 63, 94, 0.10)`, text: `#be123c` (rose-700)
+- Electricity → bg: `rgba(234, 179, 8, 0.10)`, text: `#a16207` (yellow-700)
+- Grocery → bg: `rgba(16, 185, 129, 0.10)`, text: `#047857` (emerald-700)
+
+Dark theme uses 400-weight (lighter) text colors. Light theme uses 700-weight (darker). This is the single most important difference for badge readability.
+
+### 4.2 Status Badges
+- **Paid / Surplus / Income:** bg: `rgba(34, 197, 94, 0.10)`, text: `#15803d`
+- **Pending:** bg: `rgba(234, 179, 8, 0.10)`, text: `#a16207`
+- **At Risk / Overdue:** bg: `rgba(239, 68, 68, 0.10)`, text: `#b91c1c`
+- **Neutral:** bg: `rgba(15, 23, 42, 0.04)`, text: `rgba(15, 23, 42, 0.55)`
+
+### 4.3 Active Filter Chips
+- **Active:**
+  ```css
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border: none;
+  font-weight: 600;
+  border-radius: 10px;
+  ```
+
+- **Inactive:**
+  ```css
+  background: rgba(255, 255, 255, 0.40);
+  color: rgba(15, 23, 42, 0.35);
+  border: none;
+  border-radius: 10px;
+  ```
+
+---
+
+## 5. Navigation Bar
+
+```css
+nav {
+  position: sticky;
+  top: 0;
+  background: rgba(240, 242, 248, 0.5);
+  backdrop-filter: blur(60px) saturate(110%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+```
+
+- NO box-shadow. Frost separation is from density + faint border only.
+- **Active pill:** `background: rgba(15, 23, 42, 0.06)`, `border-radius: 10px`, `font-weight: 600`
+- **Inactive:** `color: --text-secondary`
+- **Hover:** `background: rgba(15, 23, 42, 0.03)`, `transition: background 0.3s ease`
+
+---
+
+## 6. Form Elements
+
+### 6.1 Inputs
+```css
+input {
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  color: var(--text-primary);
+}
+input::placeholder {
+  color: var(--text-muted);
+}
+```
+- NO inset shadows. Flat, matte surface.
+
+- **Focus:**
+  ```css
+  input:focus {
+    border-color: rgba(37, 99, 235, 0.3);
+    background: rgba(255, 255, 255, 0.55);
+    outline: none;
+    transition: all 0.3s ease;
+  }
+  ```
+  NO focus ring glow. Just a color shift on the border and slight frost clearing.
+
+### 6.2 Dropdowns
+- Trigger: same as input
+- Open menu: Layer 3 frost
+- **Option hover:** `background: rgba(37, 99, 235, 0.06)`, `border-radius: 8px`
+- **Selected:** `background: rgba(37, 99, 235, 0.08)`, `font-weight: 500`
+
+### 6.3 Buttons
+**Primary:**
+```css
+.btn-primary {
+  background: rgba(37, 99, 235, 0.15);
+  color: #1d4ed8;
+  border: none;
+  border-radius: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(12px);
+}
+.btn-primary:hover {
+  background: rgba(37, 99, 235, 0.22);
+  transition: background 0.3s ease;
+}
+```
+- NO gradient. Flat tinted frost. The accent color tints the frost surface.
+- NO box-shadow. NO translateY.
+- Text is darkened accent color (blue-700), not white — maintains frosted translucency feel.
+
+**Secondary:**
+```css
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.40);
+  color: var(--text-primary);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+}
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+```
+
+**Destructive:**
+```css
+.btn-destructive:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: #b91c1c;
+}
+```
+
+---
+
+## 7. Tables
+
+### 7.1 Table Container
+- Layer 1 frost
+- **Header:** `background: rgba(15, 23, 42, 0.02)`, `border-bottom: 1px solid rgba(0, 0, 0, 0.04)`, text `--text-secondary`, uppercase, letter-spaced
+
+### 7.2 Rows
+- Default: transparent
+- **Striping:** `rgba(15, 23, 42, 0.012)` on even rows
+- **Hover:** `background: rgba(37, 99, 235, 0.03)`, `transition: background 0.3s ease` — faint blue tint, not gray
+- **Row borders:** `border-bottom: 1px solid rgba(0, 0, 0, 0.025)`
+
+### 7.3 Adjustment Rows
+- `opacity: 0.40`
+- Italic text
+- `border-left: 2px dashed rgba(0, 0, 0, 0.1)`
+
+---
+
+## 8. Conversational Chat Panel
+
+### 8.1 Panel Container
+```css
+background: rgba(255, 255, 255, 0.65);
+backdrop-filter: blur(80px) saturate(115%);
+border-top: 1px solid rgba(255, 255, 255, 0.75);
+border-radius: 24px 24px 0 0;
+box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.06);
+```
+
+### 8.2 Chat Bubbles
+**User (right-aligned):**
+```css
+.bubble-user {
+  background: rgba(37, 99, 235, 0.14);
+  color: #1e3a5f;
+  border-radius: 18px 18px 6px 18px;
+  padding: 10px 14px;
+  max-width: 80%;
+}
+```
+- Tinted frost, not opaque. User bubbles are blue-frosted glass on the light milky surface.
+
+**AI (left-aligned):**
+```css
+.bubble-ai {
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--text-primary);
+  border-radius: 18px 18px 18px 6px;
+  padding: 10px 14px;
+  max-width: 80%;
+}
+```
+- Neutral frost at slightly different density. NO borders.
+
+### 8.3 Quick-Reply Pills
+```css
+.pill-button {
+  background: rgba(255, 255, 255, 0.50);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 16px;
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 13px;
+}
+.pill-button:hover {
+  background: rgba(37, 99, 235, 0.08);
+  color: #1d4ed8;
+  transition: all 0.3s ease;
+}
+```
+- No borders, no shadows. Frosted blobs.
+- Create/Add pills: `background: rgba(37, 99, 235, 0.05)`, `color: #2563eb`
+
+### 8.4 Confirmation Card
+```css
+.confirmation-card {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  border-radius: 20px;
+  padding: 16px;
+}
+```
+- Warning notes: `background: rgba(234, 179, 8, 0.08)`, `color: #a16207`, `border: none`, `border-radius: 12px`
+
+### 8.5 Chat Input
+```css
+.chat-input-bar {
+  background: rgba(255, 255, 255, 0.35);
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 10px 14px;
+}
+.chat-input {
+  background: rgba(255, 255, 255, 0.50);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 24px;
+  padding: 10px 18px;
+  color: var(--text-primary);
+}
+.chat-input:focus {
+  border-color: rgba(37, 99, 235, 0.25);
+  background: rgba(255, 255, 255, 0.60);
+}
+```
+
+---
+
+## 9. Charts & Visualization
+
+- **Gridlines:** `rgba(0, 0, 0, 0.04)`
+- **Axis labels:** `--text-muted`
+- **Tooltips:** Layer 3 frost
+- **Chart colors:** use **500-600 range** — more saturated than dark theme to stand out on bright frost. NO glow, NO drop-shadow on lines.
+
+### Progress Bars
+```css
+.progress-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 999px;
+}
+.progress-fill {
+  background: #16a34a; /* flat solid */
+  border-radius: 999px;
+  opacity: 0.7;
+}
+```
+- Flat fill, reduced opacity — the bar appears behind/within the frost, not on top of it. NO gradients, NO inset highlights.
+
+---
+
+## 10. Scrollbars
+
+```css
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+```
+
+---
+
+## 11. Icons
+
+- **Default:** `rgba(15, 23, 42, 0.28)` — muted
+- **Hover:** `rgba(15, 23, 42, 0.65)`, `transition: color 0.3s ease`
+- **Destructive hover:** `color: #b91c1c` — no glow, no shadow
+- **Success:** `color: #15803d`
+- Touch targets: 36x36px minimum
+
+---
+
+## 12. Dividers
+
+- Standard: `border-bottom: 1px solid rgba(0, 0, 0, 0.04)`
+- Section: `border-bottom: 1px solid rgba(0, 0, 0, 0.06)`
+- Even fainter than glossy. Separation comes from frost density, not lines.
+
+---
+
+## 13. Transitions & Motion
+
+- **All transitions: 0.3s ease** — unhurried, gentle
+- **Page load:** cards fade `opacity: 0 → 1` over 400ms, stagger 60ms
+- **Chat panel:** 400ms `cubic-bezier(0.16, 1, 0.3, 1)` — heavy frosted panel gliding into place
+- **Press:** 0.15s — only press responses are quick
+- Respect `prefers-reduced-motion`
+
+---
+
+## 14. Theme Toggle
+- Same as dark theme: `data-theme` attribute, `prefers-color-scheme` default
+- All values via CSS custom properties
+- Test every component in both themes
+
+---
+
+## 15. Performance
+- Same limits as dark: max 2 nested `backdrop-filter`, `will-change` on animated elements
+- `@supports` fallback: solid `rgba(240, 242, 248, 0.92)` with no blur
+- Light frost can be heavier than dark due to higher opacity compositing — test on throttled CPU
+
+---
+
+## Frosted Glass Principles (same as dark, repeated for completeness)
+
+1. **No shine.** No top-edge highlights, no inset shadows, no gradient sheens.
+2. **No glow.** No luminous `box-shadow` effects. Frost absorbs and diffuses.
+3. **No gradients on elements.** Buttons, badges, pills — flat tinted frost. Gradients imply reflection.
+4. **Borders are optional.** Panels are defined by density (opacity + blur), not edges. Borders at ≤0.06 opacity or absent entirely.
+5. **Same material everywhere.** Everything is frosted glass at different densities. Nothing breaks the illusion.
+6. **Soft corners.** 12px minimum. 20-24px on major panels.
+7. **Slow transitions.** 0.3s baseline. Calm and deliberate.
+8. **Color through frost.** Accents tint the frost from within — they don't sit on top as opaque elements.
