@@ -620,7 +620,7 @@ export default function Accounts() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold font-mono">
-                      {formatCurrency(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
+                      {formatCurrency(Math.abs(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
                     </span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${ccOpen ? "rotate-180" : ""}`} />
                   </div>
@@ -688,7 +688,7 @@ export default function Accounts() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-medium">Outstanding</p>
-                                <p className="text-lg font-bold font-mono">{formatCurrency(account.currentBalance)}</p>
+                                <p className="text-lg font-bold font-mono">{formatCurrency(Math.abs(Number(account.currentBalance)))}</p>
                                 {limit != null && (
                                   <div className="mt-1.5 space-y-0.5">
                                     <div className="flex justify-between text-[11px] font-mono">
@@ -725,7 +725,7 @@ export default function Accounts() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-bold font-mono text-amber-500">
-                      {formatCurrency(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
+                      {formatCurrency(Math.abs(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
                     </span>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${loanOpen ? "rotate-180" : ""}`} />
                   </div>
@@ -765,7 +765,7 @@ export default function Accounts() {
                                 </Button>
                               </div>
                             </div>
-                            <p className="text-lg font-bold font-mono text-amber-500">{formatCurrency(account.currentBalance)}</p>
+                            <p className="text-lg font-bold font-mono text-amber-500">{formatCurrency(Math.abs(Number(account.currentBalance)))}</p>
                             <div className="mt-2 space-y-1">
                               {emi && (
                                 <div className="flex justify-between text-[11px] font-mono">
