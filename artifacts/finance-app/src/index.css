@@ -241,6 +241,21 @@
   font-feature-settings: "tnum" on, "lnum" on;
 }
 
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+}
+
 @media (max-width: 768px) {
   button, a, a[role="button"], [role="button"] {
     min-height: 44px;

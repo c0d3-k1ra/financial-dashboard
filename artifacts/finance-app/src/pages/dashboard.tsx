@@ -775,7 +775,7 @@ export default function Dashboard() {
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : ccDues && ccDues.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
                 {ccDues.map((cc) => (
                     <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
                       <div className="flex justify-between items-start">
