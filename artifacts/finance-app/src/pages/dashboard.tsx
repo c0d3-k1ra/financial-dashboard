@@ -36,7 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2, Undo2, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2, Undo2, TrendingUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TransferModal from "@/components/transfer-modal";
 import SurplusDistributeModal from "@/components/surplus-distribute-modal";
@@ -775,35 +775,50 @@ export default function Dashboard() {
                 <Skeleton className="h-16 w-full" />
               </div>
             ) : ccDues && ccDues.length > 0 ? (
-              <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin">
-                {ccDues.map((cc) => (
-                    <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-sm font-medium">
-                            {cc.name}
-                            {cc.sharedLimitGroup && (
-                              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
-                            )}
-                          </p>
-                          <p className="text-lg font-bold tabular-nums mt-0.5">
-                            {formatCurrency(cc.outstanding)}
-                          </p>
-                          {cc.remainingLimit != null && (
-                            <p className={`text-xs tabular-nums mt-0.5 ${
-                              cc.creditLimit ? (
-                                Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.5 ? "text-emerald-500" :
-                                Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.2 ? "text-yellow-500" :
-                                "text-destructive"
-                              ) : "text-muted-foreground"
-                            }`}>
-                              Available: {formatCurrency(cc.remainingLimit)}
+              <div className="relative">
+                <div
+                  className="space-y-3 max-h-[320px] overflow-y-auto pr-1 scrollbar-thin"
+                  onScroll={(e) => {
+                    const el = e.currentTarget;
+                    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 10;
+                    const indicator = el.parentElement?.querySelector('[data-scroll-hint]') as HTMLElement | null;
+                    if (indicator) indicator.style.opacity = atBottom ? '0' : '1';
+                  }}
+                >
+                  {ccDues.map((cc) => (
+                      <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm font-medium">
+                              {cc.name}
+                              {cc.sharedLimitGroup && (
+                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
+                              )}
                             </p>
-                          )}
+                            <p className="text-lg font-bold tabular-nums mt-0.5">
+                              {formatCurrency(cc.outstanding)}
+                            </p>
+                            {cc.remainingLimit != null && (
+                              <p className={`text-xs tabular-nums mt-0.5 ${
+                                cc.creditLimit ? (
+                                  Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.5 ? "text-emerald-500" :
+                                  Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.2 ? "text-yellow-500" :
+                                  "text-destructive"
+                                ) : "text-muted-foreground"
+                              }`}>
+                                Available: {formatCurrency(cc.remainingLimit)}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                ))}
+                  ))}
+                </div>
+                {ccDues.length > 3 && (
+                  <div data-scroll-hint className="flex justify-center pt-1.5 transition-opacity duration-300">
+                    <ChevronDown className="w-4 h-4 text-muted-foreground animate-bounce" />
+                  </div>
+                )}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
