@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { DollarSign, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
+import { AiParseBubble } from "@/components/ai-parse-bubble";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -80,6 +81,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main className="flex-1 container mx-auto px-4 py-6 md:py-8">
         {children}
       </main>
+
+      <AiParseBubble />
     </div>
   );
 }
