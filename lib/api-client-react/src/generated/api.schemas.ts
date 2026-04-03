@@ -112,9 +112,10 @@ export interface BudgetAnalysisResponse {
 
 export interface ProjectionPoint {
   month: string;
-  projectedBalance: string;
-  neededBalance?: string | null;
-  targetAmount: string;
+  actual?: number | null;
+  currentPace?: number | null;
+  neededPace?: number | null;
+  targetAmount: number;
 }
 
 export interface MonthlyTrendPoint {

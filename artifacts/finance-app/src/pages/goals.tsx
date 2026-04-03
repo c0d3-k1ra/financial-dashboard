@@ -520,46 +520,52 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
     { query: { queryKey: getGetGoalProjectionByIdQueryKey(goalId) } }
   );
 
-  const hasVelocity = projection?.some(
-    (p, i) => i > 0 && Number(p.projectedBalance) !== Number(projection[0].projectedBalance)
-  );
-  const hasNeeded = projection?.some((p) => p.neededBalance != null);
+  const hasActual = projection?.some((p) => p.actual != null);
+  const hasCurrentPace = projection?.some((p) => p.currentPace != null);
+  const hasNeededPace = projection?.some((p) => p.neededPace != null);
+
+  const chartData = projection?.map(p => ({
+    month: p.month,
+    actual: p.actual ?? null,
+    currentPace: p.currentPace ?? null,
+    neededPace: p.neededPace ?? null,
+    targetAmount: p.targetAmount,
+  }));
 
   return (
     <Card className="bg-card/50 backdrop-blur border-border/60">
       <CardHeader>
         <CardTitle className="text-lg">Goal Projection</CardTitle>
         <CardDescription>
-          {hasVelocity
-            ? "Solid line = projected growth based on your avg monthly savings from past distributions"
-            : hasNeeded
-              ? "No distributions yet — dashed line shows monthly savings needed to hit target date"
-              : "No distributions yet — use End Cycle to start tracking your savings pace"}
+          {hasActual && hasCurrentPace
+            ? "Green = actual savings · Blue = projected at current pace · Yellow dashed = needed to hit target"
+            : hasActual
+              ? "Green = actual savings so far"
+              : "No savings data yet — use End Cycle to start tracking"}
         </CardDescription>
       </CardHeader>
       <CardContent className="h-[300px] w-full pt-4">
         {isLoading ? (
           <Skeleton className="w-full h-full" />
-        ) : projection && projection.length > 0 ? (
+        ) : chartData && chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={projection.map(p => ({
-              month: p.month,
-              projectedBalance: Number(p.projectedBalance),
-              neededBalance: p.neededBalance != null ? Number(p.neededBalance) : null,
-              targetAmount: Number(p.targetAmount),
-            }))} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="month"
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
+                tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11, fontFamily: "var(--font-mono)" }}
+                interval={chartData.length > 14 ? 2 : chartData.length > 8 ? 1 : 0}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12, fontFamily: "var(--font-mono)" }}
-                tickFormatter={(val) => `₹${val / 1000}k`}
+                tickFormatter={(val) =>
+                  val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${(val / 1000).toFixed(0)}k`
+                }
+                domain={[0, "auto"]}
               />
               <RechartsTooltip
                 contentStyle={{
@@ -569,37 +575,56 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
                   fontFamily: "var(--font-mono)",
                   fontSize: "12px",
                 }}
-                formatter={(value: number) => formatCurrency(value)}
+                formatter={(value: number, name: string) => [
+                  formatCurrency(value),
+                  name === "actual" ? "Actual" : name === "currentPace" ? "Current Pace" : "Needed Pace",
+                ]}
+                labelFormatter={(label) => label}
               />
               <ReferenceLine
-                y={Number(projection[0]?.targetAmount || 0)}
+                y={chartData[0]?.targetAmount || 0}
                 stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="3 3"
                 label={{
                   position: "top",
-                  value: "Target",
+                  value: `Target: ${formatCurrency(chartData[0]?.targetAmount || 0)}`,
                   fill: "hsl(var(--muted-foreground))",
                   fontSize: 10,
                   fontFamily: "var(--font-mono)",
                 }}
               />
-              <Line
-                type="monotone"
-                dataKey="projectedBalance"
-                name="Current Pace"
-                stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                dot={{ r: 4, fill: "hsl(var(--background))", stroke: "hsl(var(--primary))", strokeWidth: 2 }}
-                activeDot={{ r: 6, fill: "hsl(var(--primary))", stroke: "hsl(var(--background))" }}
-              />
-              {hasNeeded && (
+              {hasActual && (
                 <Line
                   type="monotone"
-                  dataKey="neededBalance"
-                  name="Needed Pace"
-                  stroke="hsl(var(--chart-4, 43 74% 66%))"
+                  dataKey="actual"
+                  name="actual"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: "hsl(var(--background))", stroke: "#10b981", strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: "#10b981", stroke: "hsl(var(--background))" }}
+                  connectNulls
+                />
+              )}
+              {hasCurrentPace && (
+                <Line
+                  type="monotone"
+                  dataKey="currentPace"
+                  name="currentPace"
+                  stroke="hsl(var(--primary))"
                   strokeWidth={2}
-                  strokeDasharray="6 3"
+                  strokeDasharray="8 4"
+                  dot={false}
+                  connectNulls
+                />
+              )}
+              {hasNeededPace && (
+                <Line
+                  type="monotone"
+                  dataKey="neededPace"
+                  name="neededPace"
+                  stroke="#eab308"
+                  strokeWidth={2}
+                  strokeDasharray="4 4"
                   dot={false}
                   connectNulls
                 />

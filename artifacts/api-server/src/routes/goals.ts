@@ -268,7 +268,10 @@ router.get("/goals/:id/projection", async (req, res) => {
     }
 
     const g = goal[0];
-    const allocations = await db.select().from(surplusAllocationsTable).where(eq(surplusAllocationsTable.goalId, id));
+    const allocations = await db
+      .select()
+      .from(surplusAllocationsTable)
+      .where(eq(surplusAllocationsTable.goalId, id));
     const { velocity } = computeGoalIntelligence(g, allocations);
 
     const current = Number(g.currentAmount ?? 0);
@@ -276,40 +279,78 @@ router.get("/goals/:id/projection", async (req, res) => {
     const remaining = Math.max(0, target - current);
 
     const now = new Date();
-    let targetMonthIndex: number | null = null;
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    const historyByMonth = new Map<string, number>();
+    allocations
+      .sort((a, b) => a.month.localeCompare(b.month))
+      .forEach(a => {
+        historyByMonth.set(a.month, (historyByMonth.get(a.month) ?? 0) + Number(a.amount));
+      });
+
+    const historyData: { month: string; actual: number }[] = [];
+    let cumulative = 0;
+    const sortedMonths = [...historyByMonth.keys()].sort();
+    for (const month of sortedMonths) {
+      cumulative += historyByMonth.get(month)!;
+      historyData.push({ month, actual: Math.round(cumulative * 100) / 100 });
+    }
+
+    if (historyData.length === 0 || historyData[historyData.length - 1].month !== currentMonth) {
+      historyData.push({ month: currentMonth, actual: current });
+    }
+
+    let futureMonths = 12;
     if (g.targetDate && remaining > 0) {
       const targetD = new Date(g.targetDate);
       const diffMs = targetD.getTime() - now.getTime();
-      targetMonthIndex = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30)));
+      const monthsToTarget = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30)));
+      futureMonths = Math.max(12, monthsToTarget + 1);
     }
 
-    const totalMonths = Math.max(12, targetMonthIndex ? targetMonthIndex + 1 : 12);
+    const projectionData: { month: string; currentPace: number; neededPace: number | null }[] = [];
 
-    let y = now.getFullYear();
-    let m = now.getMonth() + 1;
+    let neededVelocity: number | null = null;
+    if (g.targetDate && remaining > 0) {
+      const targetD = new Date(g.targetDate);
+      const monthsLeft = Math.max(1, Math.round((targetD.getTime() - now.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+      neededVelocity = remaining / monthsLeft;
+    }
 
-    const projection = [];
-    for (let i = 0; i < totalMonths; i++) {
-      const projMonth = `${y}-${String(m).padStart(2, "0")}`;
-      const projBalance = Math.min(current + velocity * i, target > 0 ? target : Infinity);
+    let py = now.getFullYear();
+    let pm = now.getMonth() + 1;
+    for (let i = 0; i < futureMonths; i++) {
+      const projMonth = `${py}-${String(pm).padStart(2, "0")}`;
+      const paceBalance = Math.min(current + velocity * i, target > 0 ? target : Infinity);
+      const neededBalance = neededVelocity !== null
+        ? Math.min(current + neededVelocity * i, target > 0 ? target : Infinity)
+        : null;
 
-      let neededBalance: number | null = null;
-      if (targetMonthIndex !== null && targetMonthIndex > 0) {
-        const neededVelocity = remaining / targetMonthIndex;
-        neededBalance = Math.min(current + neededVelocity * i, target > 0 ? target : Infinity);
-      }
-
-      projection.push({
+      projectionData.push({
         month: projMonth,
-        projectedBalance: Math.round(projBalance * 100) / 100,
-        neededBalance: neededBalance !== null ? Math.round(neededBalance * 100) / 100 : null,
-        targetAmount: Math.round(target * 100) / 100,
+        currentPace: Math.round(paceBalance * 100) / 100,
+        neededPace: neededBalance !== null ? Math.round(neededBalance * 100) / 100 : null,
       });
-      m++;
-      if (m > 12) { m = 1; y++; }
+      pm++;
+      if (pm > 12) { pm = 1; py++; }
     }
 
-    res.json(projection);
+    const allMonths = new Set<string>();
+    historyData.forEach(h => allMonths.add(h.month));
+    projectionData.forEach(p => allMonths.add(p.month));
+
+    const historyMap = new Map(historyData.map(h => [h.month, h.actual]));
+    const projMap = new Map(projectionData.map(p => [p.month, p]));
+
+    const combined = [...allMonths].sort().map(month => ({
+      month,
+      actual: historyMap.get(month) ?? null,
+      currentPace: projMap.get(month)?.currentPace ?? null,
+      neededPace: projMap.get(month)?.neededPace ?? null,
+      targetAmount: target,
+    }));
+
+    res.json(combined);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get goal projection");
     res.status(500).json({ error: "Internal error" });

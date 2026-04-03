@@ -483,7 +483,7 @@ paths:
     get:
       operationId: getGoalProjectionById
       tags: [goals]
-      summary: Get 12-month projection for a specific goal
+      summary: Get goal projection with history and forward projections
       parameters:
         - name: id
           in: path
@@ -1164,16 +1164,19 @@ components:
       properties:
         month:
           type: string
-        projectedBalance:
-          type: string
-        neededBalance:
-          type: string
+        actual:
+          type: number
+          nullable: true
+        currentPace:
+          type: number
+          nullable: true
+        neededPace:
+          type: number
           nullable: true
         targetAmount:
-          type: string
+          type: number
       required:
         - month
-        - projectedBalance
         - targetAmount
 
     MonthlyTrendPoint:

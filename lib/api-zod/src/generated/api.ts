@@ -412,7 +412,7 @@ export const GetGoalsWaterfallResponse = zod.object({
 });
 
 /**
- * @summary Get 12-month projection for a specific goal
+ * @summary Get goal projection with history and forward projections
  */
 export const GetGoalProjectionByIdParams = zod.object({
   id: zod.coerce.number(),
@@ -420,9 +420,10 @@ export const GetGoalProjectionByIdParams = zod.object({
 
 export const GetGoalProjectionByIdResponseItem = zod.object({
   month: zod.string(),
-  projectedBalance: zod.string(),
-  neededBalance: zod.string().nullish(),
-  targetAmount: zod.string(),
+  actual: zod.number().nullish(),
+  currentPace: zod.number().nullish(),
+  neededPace: zod.number().nullish(),
+  targetAmount: zod.number(),
 });
 export const GetGoalProjectionByIdResponse = zod.array(
   GetGoalProjectionByIdResponseItem,

@@ -2125,7 +2125,7 @@ export function useGetGoalsWaterfall<
 }
 
 /**
- * @summary Get 12-month projection for a specific goal
+ * @summary Get goal projection with history and forward projections
  */
 export const getGetGoalProjectionByIdUrl = (id: number) => {
   return `/api/goals/${id}/projection`;
@@ -2186,7 +2186,7 @@ export type GetGoalProjectionByIdQueryResult = NonNullable<
 export type GetGoalProjectionByIdQueryError = ErrorType<unknown>;
 
 /**
- * @summary Get 12-month projection for a specific goal
+ * @summary Get goal projection with history and forward projections
  */
 
 export function useGetGoalProjectionById<
