@@ -554,7 +554,7 @@ export default function Dashboard() {
             ) : (
               <div>
                 <div className={`text-4xl font-bold tabular-nums tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-                  {formatCurrency(netWorth)}
+                  {formatCurrency(Math.abs(netWorth))}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
                   <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -564,9 +564,20 @@ export default function Dashboard() {
               </div>
             )}
             <div className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
-              <span>Banks: {formatCurrency(totalBank)}</span>
-              <span>CC: -{formatCurrency(totalCcOutstanding)}</span>
-              {totalLoanOutstanding > 0 && <span>Loans: -{formatCurrency(totalLoanOutstanding)}</span>}
+              <span className="flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                {formatCurrency(totalBank)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <CreditCard className="w-3.5 h-3.5 text-destructive" />
+                -{formatCurrency(totalCcOutstanding)}
+              </span>
+              {totalLoanOutstanding > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <Landmark className="w-3.5 h-3.5 text-amber-500" />
+                  -{formatCurrency(totalLoanOutstanding)}
+                </span>
+              )}
             </div>
           </CardContent>
         </Card>
