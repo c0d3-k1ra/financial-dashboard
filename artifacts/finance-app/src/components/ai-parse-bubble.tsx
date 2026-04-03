@@ -840,7 +840,7 @@ export function AiParseBubble() {
     <div ref={containerRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 md:bottom-8 md:right-8" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {isOpen && (
         <div className="w-[calc(100vw-3rem)] max-w-md animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="glass-3 chat-panel-light rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
+          <div className="glass-3 chat-panel-light chat-panel-dark rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
             <div className="flex items-center justify-between p-3 border-b border-[var(--divider-color)]">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
@@ -873,7 +873,7 @@ export function AiParseBubble() {
                 if (msg.type === "user") {
                   return (
                     <div key={msg.id} className="flex justify-end">
-                      <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-transparent dark:to-transparent border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm">
+                      <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-transparent dark:to-transparent border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
                         <p className="text-sm">{msg.content}</p>
                       </div>
                     </div>
@@ -894,7 +894,7 @@ export function AiParseBubble() {
                   return (
                     <div key={msg.id} className="flex justify-start">
                       <div className="max-w-[95%] w-full space-y-2">
-                        <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
+                        <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
                           <p className="text-sm">{msg.content}</p>
                         </div>
                         {msg.transaction && renderConfirmationCard(msg)}
@@ -906,7 +906,7 @@ export function AiParseBubble() {
                 return (
                   <div key={msg.id} className="flex justify-start">
                     <div className="max-w-[85%] space-y-2">
-                      <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
+                      <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
                         <p className="text-sm">{msg.content}</p>
                       </div>
                       {msg.options && msg.options.length > 0 && (
@@ -916,7 +916,7 @@ export function AiParseBubble() {
                               key={i}
                               onClick={() => handleOptionClick(opt)}
                               disabled={isProcessing}
-                              className="chat-pill-light px-3 py-1.5 text-xs rounded-full border dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-300 transition-colors disabled:opacity-50 backdrop-blur-sm font-medium"
+                              className="chat-pill-light px-3 py-1.5 text-xs rounded-full border dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-300 transition-colors disabled:opacity-50 backdrop-blur-sm font-medium pill-button-dark"
                             >
                               {opt.label}
                             </button>

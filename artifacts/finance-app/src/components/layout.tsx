@@ -18,6 +18,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`min-h-[100dvh] ${theme.rootClassName} text-foreground flex flex-col relative`}>
+      {theme.id === "glass-ui" && (
+        <div className="ambient-orb-teal" aria-hidden="true" style={{
+          position: "fixed",
+          width: "20vw",
+          height: "20vw",
+          left: "10%",
+          top: "50%",
+          borderRadius: "50%",
+          pointerEvents: "none",
+          zIndex: 0,
+          filter: "blur(120px)",
+          background: "radial-gradient(circle, rgba(45, 212, 191, 0.02) 0%, transparent 70%)",
+        }} />
+      )}
       <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`}>
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">

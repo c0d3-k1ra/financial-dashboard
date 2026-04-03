@@ -453,7 +453,7 @@ export default function Dashboard() {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Financial Cockpit</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight dark-text-primary dark-heading-shadow">Financial Cockpit</h1>
         <div className="flex items-center gap-2 flex-wrap">
           <Button size="sm" variant="outline" className="text-xs uppercase tracking-wider" onClick={() => setIsTransferOpen(true)}>
             <ArrowLeftRight className="w-4 h-4 mr-1.5" /> Transfer
@@ -493,7 +493,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <div>
-                  <div className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground">
+                  <div className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground dark-text-primary dark-heading-shadow">
                     {formatCurrency(summary?.netLiquidity || 0)}
                   </div>
                   <div className={`flex items-center gap-1.5 mt-2 text-sm tabular-nums ${liquidityHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
@@ -532,7 +532,7 @@ export default function Dashboard() {
               <Skeleton className="h-10 w-40" />
             ) : (
               <div>
-                <div className={`text-4xl font-bold tabular-nums tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                <div className={`text-4xl font-bold tabular-nums tracking-tight dark-heading-shadow ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                   {formatCurrency(Math.abs(netWorth))}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
@@ -646,15 +646,15 @@ export default function Dashboard() {
                 <CardTitle className="text-lg">Spend by Category</CardTitle>
                 <CardDescription>Expense breakdown for this billing cycle</CardDescription>
               </div>
-              <div className="flex rounded-lg border border-border/50 overflow-hidden">
+              <div className="flex rounded-lg border border-border/50 dark:border-[rgba(255,255,255,0.08)] overflow-hidden">
                 {([["all", "All"], ["cc", "CC"], ["non_cc", "Non-CC"]] as const).map(([value, label]) => (
                   <button
                     key={value}
                     onClick={() => setSpendAccountFilter(value)}
                     className={`px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
                       spendAccountFilter === value
-                        ? "bg-primary text-primary-foreground font-bold shadow-sm"
-                        : "bg-secondary/30 text-muted-foreground hover:bg-secondary/60"
+                        ? "bg-primary text-primary-foreground font-bold shadow-sm dark:filter-chip-active"
+                        : "bg-secondary/30 text-muted-foreground hover:bg-secondary/60 dark:filter-chip-inactive"
                     }`}
                   >
                     {label}
