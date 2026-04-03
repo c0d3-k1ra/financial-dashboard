@@ -542,7 +542,12 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
           <Skeleton className="w-full h-full" />
         ) : projection && projection.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={projection} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <LineChart data={projection.map(p => ({
+              month: p.month,
+              projectedBalance: Number(p.projectedBalance),
+              neededBalance: p.neededBalance != null ? Number(p.neededBalance) : null,
+              targetAmount: Number(p.targetAmount),
+            }))} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="month"

@@ -301,9 +301,9 @@ router.get("/goals/:id/projection", async (req, res) => {
 
       projection.push({
         month: projMonth,
-        projectedBalance: projBalance.toFixed(2),
-        neededBalance: neededBalance !== null ? neededBalance.toFixed(2) : null,
-        targetAmount: target.toFixed(2),
+        projectedBalance: Math.round(projBalance * 100) / 100,
+        neededBalance: neededBalance !== null ? Math.round(neededBalance * 100) / 100 : null,
+        targetAmount: Math.round(target * 100) / 100,
       });
       m++;
       if (m > 12) { m = 1; y++; }
