@@ -159,6 +159,7 @@ const CHAT_MIN_HEIGHT = 200;
 
 function useVisualViewportHeight() {
   const [vpHeight, setVpHeight] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return null;
     return window.visualViewport?.height ?? null;
   });
   useEffect(() => {
