@@ -1,0 +1,222 @@
+# Task: Frosted Glass Theme Verification — Dark & Light
+
+## Context
+SurplusEngine has implemented a frosted glass UI in both dark and light themes. This task is a verification pass — go through every page and component in BOTH themes, check for visual bugs, contrast failures, broken frost effects, and violations of the frosted glass principles. Fix everything found.
+
+Run every check below in dark theme first, then switch to light theme and run the same checks again.
+
+---
+
+## 1. Theme Switching Sanity
+
+- [ ] Toggle between dark and light theme via Settings. Confirm the switch is instant with no flash of unstyled content, no layout shift, no color flicker.
+- [ ] Set system preference to dark mode. Load the app fresh. Confirm it defaults to dark theme.
+- [ ] Set system preference to light mode. Load the app fresh. Confirm it defaults to light theme.
+- [ ] Switch theme mid-session on every page (Dashboard, Transactions, Budget, Goals, Accounts, Settings). Confirm no page requires a reload to render the new theme correctly.
+- [ ] Confirm no hardcoded color values anywhere — everything must respond to the theme toggle. Look for any element that stays dark in light theme or stays light in dark theme.
+
+---
+
+## 2. Frosted Glass Material Consistency
+
+Run on every page in both themes:
+
+- [ ] **No shine violations.** Scan every card, panel, and surface for `border-top` highlights, `inset` box-shadows, or gradient sheens. None should exist. If any surface has a shiny top edge or a glossy inner glow, remove it.
+- [ ] **No glow violations.** Scan for luminous `box-shadow` effects (`0 0 Xpx rgba(color, opacity)` with colored spread). None should exist on any element. If buttons, pills, or cards emit a colored glow on hover, remove it.
+- [ ] **No gradient violations.** Check every button, badge, pill, and progress bar fill. None should use `linear-gradient` or `radial-gradient`. All should be flat tinted frost (solid `rgba` background). If any interactive element has a gradient, replace with flat frosted tint.
+- [ ] **Border check.** Confirm borders on all cards and panels are ≤ 0.06 opacity (dark theme: `rgba(255,255,255, ≤0.06)`, light theme: `rgba(0,0,0, ≤0.06)` or `rgba(255,255,255, ≤0.60)`). If any border is visually prominent or sharp, reduce its opacity or remove it.
+- [ ] **Same material check.** Look for any element that breaks the frosted glass illusion — opaque panels, solid-colored buttons, flat rectangles with no frost treatment. Every visible surface should either be frosted glass or be visible through frosted glass.
+- [ ] **Corner radius check.** Confirm no element has sharp corners (<12px radius). Cards and major panels should use 20-24px. Inputs, dropdowns, badges should use 8-14px. Nothing should be square.
+- [ ] **Backdrop-filter active.** Open Chrome DevTools → Layers panel. Confirm `backdrop-filter` is actually rendering on Layer 1, 2, and 3 elements. If any frosted element looks like a solid flat panel, the blur likely isn't applying — fix the CSS.
+
+---
+
+## 3. Background & Ambient Washes
+
+- [ ] Scroll the page fully in both themes. Confirm the ambient color washes (blurred orbs) stay fixed and do NOT scroll with content.
+- [ ] On a long page (Dashboard, Transactions), confirm you can faintly see color bleeding through the frosted cards — the cards should not look like solid opaque panels. If no color bleeds through, the frost opacity is too high or the ambient washes are too faint. Adjust.
+- [ ] **Dark theme:** Background should feel like a deep, subtly colorful space — not flat black. If it looks like a plain #000 or #111 background, the gradient and washes aren't rendering.
+- [ ] **Light theme:** Background should feel warm and tinted — not stark white. If it looks like plain #fff or #f5f5f5, the gradient and washes aren't rendering.
+- [ ] Resize the browser to different widths (mobile, tablet, desktop). Confirm ambient washes scale reasonably and don't create awkward color pooling at small sizes.
+
+---
+
+## 4. Text Contrast — CRITICAL
+
+Run on EVERY page, in BOTH themes. Use Chrome DevTools Accessibility audit or manually inspect.
+
+- [ ] **Primary text** (headings, amounts, key labels) must pass WCAG AA (4.5:1 contrast ratio) against the frosted card background at its lightest/darkest point.
+- [ ] **Secondary text** (subtitles, descriptions) must pass 4.5:1 against frosted backgrounds.
+- [ ] **Muted text** (placeholders, timestamps) must pass 3:1 minimum against frosted backgrounds.
+- [ ] **Currency amounts** (₹ values) — check every amount across Dashboard summary cards, Transactions table, Budget commitments, Accounts cards, Loan details. All must be clearly readable.
+- [ ] **Badge text** — check every category badge and status badge. Text must be clearly readable against the badge's tinted frost background. Common failure: light theme badges with 500-weight text colors that don't contrast against the tinted background. Fix by using 700-weight (darker) colors in light theme.
+- [ ] **Chart axis labels and legends** — these are commonly too faint on frosted surfaces. Verify all chart text is readable.
+- [ ] **Text on the darkest/lightest frost.** Cards near an ambient wash will have more color bleed. Test text readability on the card closest to each ambient orb position. If text fails there, darken text (light theme) or brighten text (dark theme).
+- [ ] Confirm NO text shadows exist anywhere. Text shadows are a glossy effect. If found, remove them.
+
+---
+
+## 5. Badge Visibility Audit
+
+Check every badge type across the app in both themes:
+
+- [ ] **Category badges on Transactions page.** Scroll through transactions and confirm every category badge (Food, Drinks, Transportation, Shopping, Subscriptions, Father, Term Insurance, Spa, Electricity, Grocery, Medical, Personal, Gifts, SIP, Loan EMI) is visually distinct and readable.
+- [ ] **Category badges on Dashboard** (Spend by Category section). Confirm all badges are readable in the donut chart legend.
+- [ ] **Category badges in Settings** (Category Manager list). Confirm Expense and Income type badges are readable.
+- [ ] **Status badges** — Paid/Pending on Budget page, At Risk on Goals page, Surplus on Accounts page. Confirm all are readable and color-coded correctly.
+- [ ] **Expense / Income type badges** in Settings. Confirm these don't vanish into the frosted background.
+- [ ] **Dark theme check:** Badge text should use 400-weight (lighter) color variants. If badge text uses 700-weight (dark) colors, it will be invisible on dark frost.
+- [ ] **Light theme check:** Badge text should use 700-weight (darker) color variants. If badge text uses 400-weight (light) colors, it will be invisible on light frost.
+- [ ] **No borders on badges.** Frosted badges are border-free. If any badge has a visible border, remove it.
+
+---
+
+## 6. Navigation Bar
+
+- [ ] Scroll a long page (Dashboard, Transactions). Confirm content scrolls behind the nav bar and is visible as blurred shapes through the frosted nav. If content just disappears behind an opaque bar, the nav's backdrop-filter isn't working.
+- [ ] Confirm active nav pill is visually distinct from inactive items in both themes. The active state must be immediately obvious — not a subtle difference.
+- [ ] Hover over each nav item. Confirm a gentle frost tint appears on hover with a 0.3s transition. No snappy/instant transitions.
+- [ ] Confirm NO box-shadow on the nav bar. Separation should come from the faint bottom border and frost density only.
+
+---
+
+## 7. Form Elements
+
+### Inputs
+- [ ] Check every input field across Settings (billing cycle, category name), Budget (planned amounts), and Transactions (search). Confirm they have a flat frosted appearance — no inset shadows, no recessed look.
+- [ ] Focus each input. Confirm the focus state is a subtle border color shift + background clearing — NO focus ring glow (`box-shadow: 0 0 0 3px ...`).
+- [ ] Confirm placeholder text is readable but muted in both themes.
+- [ ] Confirm the transition on focus is 0.3s, not instant.
+
+### Dropdowns
+- [ ] Open every dropdown (category filter, time filter, account filter, billing cycle start day, currency selector). Confirm the dropdown menu uses Layer 3 frost.
+- [ ] Hover over dropdown options. Confirm a subtle frost tint appears, not a solid background color.
+- [ ] Confirm the selected option has a slightly denser tint than the hover state.
+
+### Buttons
+- [ ] **Primary buttons** (+ ADD, + LOG TRANSACTION, + ADD ACCOUNT, + CREATE GOAL, Log It). Confirm all are flat tinted frost with accent-colored text. NO gradient. NO box-shadow. NO translateY on hover.
+- [ ] **Secondary buttons** (TRANSFER, END CYCLE, PROCESS EMIS, Edit, Cancel). Confirm these are neutral frost with subtle border.
+- [ ] **Destructive hover** (delete/trash icons). Confirm a red frost tint appears on hover. No glow.
+- [ ] Confirm all button hover transitions are 0.3s.
+
+---
+
+## 8. Tables
+
+- [ ] **Transactions table:** Confirm row hover is a faint tint (blue on light, white on dark), not a solid gray bar.
+- [ ] **Transactions table:** Confirm alternate row striping is barely perceptible — it should be so subtle you're not sure it's there.
+- [ ] **Transactions table:** Confirm row borders are nearly invisible — they're structural guides, not visual dividers.
+- [ ] **Category Manager table** (Settings): Same hover, striping, and border checks.
+- [ ] **Balance Adjustment rows** (if visible): Confirm reduced opacity (~0.40), italic text, and dashed left border. They should look distinctly muted compared to real transactions.
+- [ ] Confirm table header row has a very faint frosted background that separates it from the body. Not a solid colored bar.
+
+---
+
+## 9. Charts & Progress Bars
+
+- [ ] **Dashboard charts** (Monthly Flow, Category Trend, Income vs Expenses, CC Spend). Confirm gridlines are very faint (barely visible structure lines, not a prominent grid).
+- [ ] **Chart tooltips** on hover. Confirm they use Layer 3 frost — not opaque flat tooltips.
+- [ ] **Chart colors.** In dark theme, confirm line/bar colors are 400-range (bright but not neon). In light theme, confirm 500-600 range (saturated enough to read on bright frost). If any chart line is hard to see, increase its saturation.
+- [ ] **Progress bars** (Budget items, Loan repayment, Goal progress, Cycle progress, Monthly Burn Rate). Confirm:
+  - Track is a very subtle frosted indent — not a dark/light solid bar
+  - Fill is a flat solid color with reduced opacity (~0.7-0.8) — no gradient, no inset highlight, no glow
+  - Fill appears to be behind/within the frost, not sitting on top
+
+---
+
+## 10. Conversational Chat Panel
+
+- [ ] Open the chat panel. Confirm it uses Layer 3 frost (densest) with 24px top border-radius.
+- [ ] Confirm the slide-up animation is 400ms with a decelerating curve — it should feel like a heavy frosted panel gliding into position, not snapping.
+- [ ] **User bubbles** should be accent-tinted frost (green on dark, blue on light) — NOT opaque colored blocks. You should faintly see the chat panel surface through them.
+- [ ] **AI bubbles** should be neutral frost — slightly different density from the panel surface but the same material.
+- [ ] Confirm NO borders on any chat bubbles. Bubbles are defined by their fill, not edges.
+- [ ] **Quick-reply pills** — tap area should be comfortable (36px+ height). Confirm they have no borders, no shadows. On hover, confirm a subtle accent tint appears.
+- [ ] **Confirmation card** — confirm it's frosted, not a solid white/dark card floating in the chat.
+- [ ] **Warning notes** (budget, anomaly, duplicate) — confirm they're visible against the confirmation card's frost. Amber tint should be readable in both themes.
+- [ ] **Chat input bar** — confirm the input field has frosted styling and the focus state is a gentle border shift, not a glow.
+- [ ] Close and reopen the chat panel. If mid-conversation state should persist, confirm it does.
+
+---
+
+## 11. Accounts Page Specifics
+
+- [ ] **Credit card utilization rings** — confirm the ring colors are readable on frosted card backgrounds in both themes.
+- [ ] **Due date text** — confirm due dates are readable (this is commonly too muted on frost). Check ordinal suffixes while here (31st not 31th, 21st not 21th).
+- [ ] **Loan progress bar** — confirm the multi-segment bar (principal vs interest) is distinguishable in both themes.
+- [ ] **Net Worth card** — the large negative number in red. Confirm red is readable on frost in both themes. Light theme red should be 700-weight (dark red), dark theme should be 400-weight (bright red).
+
+---
+
+## 12. Transitions & Motion
+
+- [ ] Confirm ALL transitions (hover, focus, panel open, page load) run at 0.3s or slower. Clock any transition that feels snappy/instant — it's too fast for frosted aesthetic.
+- [ ] **Page load card cascade:** Navigate to Dashboard. Cards should fade in staggered over ~400ms each with 60ms delay between cards. If everything appears instantly, the stagger animation is missing.
+- [ ] **Chat panel slide:** Should be 400ms with deceleration. If it snaps open instantly or linearly, fix the easing.
+- [ ] **Press/active states:** These are the ONE exception — 0.15s is correct for press feedback. Confirm they're faster than hovers.
+- [ ] Set Chrome to `prefers-reduced-motion: reduce`. Confirm all animations are disabled except opacity fades.
+
+---
+
+## 13. Responsive Checks
+
+Run in both themes at these breakpoints: 1440px (desktop), 1024px (tablet landscape), 768px (tablet portrait), 375px (mobile).
+
+- [ ] Confirm card grids reflow correctly — no cards overflowing or getting cut off.
+- [ ] Confirm frosted effects still render on mobile. Some mobile browsers have performance issues with heavy `backdrop-filter`. If frost disappears on mobile, the `@supports` fallback should kick in with a solid semi-transparent background.
+- [ ] Confirm the chat panel works on mobile — 50% viewport height should still leave room to see the page behind it.
+- [ ] Confirm ambient washes don't create distracting color pools on small viewports. If they do, reduce the orb sizes or opacity at smaller breakpoints.
+- [ ] Confirm all touch targets are 36px+ on mobile.
+
+---
+
+## 14. Performance
+
+- [ ] Open Chrome DevTools → Performance. Record a scroll through the Dashboard page in both themes. Confirm frame rate stays above 30fps. If it drops, check:
+  - Are there more than 2 nested `backdrop-filter` layers? (Max should be 2)
+  - Are any `backdrop-filter` elements animating their blur value? (They shouldn't — only background/opacity should animate)
+  - Is `will-change: backdrop-filter` set on elements that transition?
+- [ ] Open DevTools → Rendering → Paint flashing. Scroll through pages. Confirm no excessive repaint rectangles on frosted elements during scroll.
+- [ ] Test on throttled CPU (4x slowdown in DevTools). If the app becomes sluggish, reduce Layer 1 blur from 60px to 40px and retest.
+- [ ] Confirm the `@supports (backdrop-filter: blur(1px))` fallback renders a clean solid semi-transparent background in browsers without backdrop-filter support.
+
+---
+
+## 15. Cross-Component Consistency Matrix
+
+This is the final gut-check. For each row, confirm the element looks correct across all pages where it appears, in both themes:
+
+| Element | Dashboard | Transactions | Budget | Goals | Accounts | Settings |
+|---------|-----------|-------------|--------|-------|----------|----------|
+| Card frost | | | | | | |
+| Card hover | | | | | | |
+| Text primary | | | | | | |
+| Text secondary | | | | | | |
+| Currency amounts | | | | | | |
+| Category badges | | | | | | |
+| Status badges | | | | | | |
+| Buttons primary | | | | | | |
+| Buttons secondary | | | | | | |
+| Input fields | | | | | | |
+| Dropdowns | | | | | | |
+| Progress bars | | | | | | |
+| Dividers | | | | | | |
+| Icons default | | | | | | |
+| Icons hover | | | | | | |
+| Chart elements | | | | | | |
+| Nav bar active | | | | | | |
+
+Mark each cell as pass/fail. Fix all failures before marking verification complete.
+
+---
+
+## How to Run This
+
+1. Start with dark theme. Run checks 2-12 on every page.
+2. Switch to light theme. Run checks 2-12 on every page.
+3. Run check 1 (theme switching).
+4. Run check 13 (responsive) in both themes.
+5. Run check 14 (performance) in both themes.
+6. Fill in check 15 (consistency matrix) for both themes.
+7. Fix all failures found.
+8. Re-run failed checks after fixes to confirm resolution.
