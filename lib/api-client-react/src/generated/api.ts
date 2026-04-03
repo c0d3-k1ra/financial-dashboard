@@ -55,6 +55,8 @@ import type {
   LivingExpensesPoint,
   MonthlyConfig,
   MonthlyTrendPoint,
+  ParseNaturalTransactionRequest,
+  ParseNaturalTransactionResponse,
   ProcessEmis,
   ProcessEmis200,
   ProjectionPoint,
@@ -336,6 +338,96 @@ export const useCreateTransaction = <
   TContext
 > => {
   return useMutation(getCreateTransactionMutationOptions(options));
+};
+
+/**
+ * @summary Parse a natural language transaction description using AI
+ */
+export const getParseNaturalTransactionUrl = () => {
+  return `/api/transactions/parse-natural`;
+};
+
+export const parseNaturalTransaction = async (
+  parseNaturalTransactionRequest: ParseNaturalTransactionRequest,
+  options?: RequestInit,
+): Promise<ParseNaturalTransactionResponse> => {
+  return customFetch<ParseNaturalTransactionResponse>(
+    getParseNaturalTransactionUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(parseNaturalTransactionRequest),
+    },
+  );
+};
+
+export const getParseNaturalTransactionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof parseNaturalTransaction>>,
+    TError,
+    { data: BodyType<ParseNaturalTransactionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof parseNaturalTransaction>>,
+  TError,
+  { data: BodyType<ParseNaturalTransactionRequest> },
+  TContext
+> => {
+  const mutationKey = ["parseNaturalTransaction"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof parseNaturalTransaction>>,
+    { data: BodyType<ParseNaturalTransactionRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return parseNaturalTransaction(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ParseNaturalTransactionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof parseNaturalTransaction>>
+>;
+export type ParseNaturalTransactionMutationBody =
+  BodyType<ParseNaturalTransactionRequest>;
+export type ParseNaturalTransactionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Parse a natural language transaction description using AI
+ */
+export const useParseNaturalTransaction = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof parseNaturalTransaction>>,
+    TError,
+    { data: BodyType<ParseNaturalTransactionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof parseNaturalTransaction>>,
+  TError,
+  { data: BodyType<ParseNaturalTransactionRequest> },
+  TContext
+> => {
+  return useMutation(getParseNaturalTransactionMutationOptions(options));
 };
 
 /**

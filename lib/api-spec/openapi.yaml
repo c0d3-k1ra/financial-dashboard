@@ -108,6 +108,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/Transaction"
 
+  /transactions/parse-natural:
+    post:
+      operationId: parseNaturalTransaction
+      tags: [transactions]
+      summary: Parse a natural language transaction description using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParseNaturalTransactionRequest"
+      responses:
+        "200":
+          description: Parsed transaction fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ParseNaturalTransactionResponse"
+
   /transactions/{id}:
     put:
       operationId: updateTransaction
@@ -1687,3 +1706,68 @@ components:
       required:
         - canUndo
         - month
+
+    ParseNaturalTransactionRequest:
+      type: object
+      properties:
+        text:
+          type: string
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - name
+              - type
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - id
+              - name
+              - type
+      required:
+        - text
+        - categories
+        - accounts
+
+    ParseNaturalTransactionResponse:
+      type: object
+      properties:
+        transactionType:
+          type: string
+          nullable: true
+        amount:
+          type: string
+          nullable: true
+        date:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        accountId:
+          type: integer
+          nullable: true
+        fromAccountId:
+          type: integer
+          nullable: true
+        toAccountId:
+          type: integer
+          nullable: true

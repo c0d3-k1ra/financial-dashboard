@@ -5,7 +5,21 @@ import {
   ListTransactionsQueryParams,
   CreateTransactionBody,
   UpdateTransactionParams,
+  ParseNaturalTransactionBody,
 } from "@workspace/api-zod";
+let anthropicClient: Awaited<ReturnType<typeof import("@workspace/integrations-anthropic-ai")>>["anthropic"] | null = null;
+
+async function getAnthropicClient() {
+  if (!anthropicClient) {
+    try {
+      const mod = await import("@workspace/integrations-anthropic-ai");
+      anthropicClient = mod.anthropic;
+    } catch {
+      throw new Error("AI integration is not configured. Please ensure Anthropic environment variables are set.");
+    }
+  }
+  return anthropicClient;
+}
 
 const router: IRouter = Router();
 
@@ -246,6 +260,92 @@ router.delete("/transactions/:id", async (req, res) => {
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete transaction");
     res.status(500).json({ error: "Internal error" });
+  }
+});
+
+router.post("/transactions/parse-natural", async (req, res) => {
+  try {
+    const data = ParseNaturalTransactionBody.parse(req.body);
+    const { text, categories: userCategories, accounts: userAccounts } = data;
+
+    const categoryList = userCategories.length > 0
+      ? userCategories.map((c) => `${c.name} (${c.type})`).join(", ")
+      : "None";
+
+    const accountList = userAccounts.length > 0
+      ? userAccounts.map((a) => `${a.name} (id: ${a.id}, type: ${a.type})`).join(", ")
+      : "None";
+
+    const today = new Date().toISOString().split("T")[0];
+    const dayOfWeek = new Date().toLocaleDateString("en-US", { weekday: "long" });
+
+    const systemPrompt = `You are a financial transaction parser. Extract structured transaction data from natural language input.
+
+Today is ${dayOfWeek}, ${today}.
+
+The user's available categories are: ${categoryList}
+The user's available accounts are: ${accountList}
+
+Rules:
+1. Determine if this is an Income, Expense, or Transfer transaction.
+2. For transfers, look for keywords like "transfer", "move", "send money from X to Y", "pay X from Y".
+3. Resolve relative dates: "today" = ${today}, "yesterday" = one day before today, "last Friday" = the most recent past Friday, "on the 15th" = the 15th of the current month (or previous month if the 15th hasn't occurred yet).
+4. Match category names and account names against the provided lists. Use exact names from the lists.
+5. If you cannot confidently determine a field, set it to null.
+6. Amount should be a string number without currency symbols.
+7. For transfers, identify fromAccountId and toAccountId from the account list by matching names.
+
+Respond with ONLY a valid JSON object (no markdown, no explanation) in this format:
+{
+  "transactionType": "Income" | "Expense" | "Transfer",
+  "amount": "string number or null",
+  "date": "YYYY-MM-DD or null",
+  "description": "string or null",
+  "category": "exact category name or null",
+  "accountId": number or null,
+  "fromAccountId": number or null,
+  "toAccountId": number or null
+}
+
+For Income/Expense: set accountId to the matched account id, leave fromAccountId and toAccountId as null.
+For Transfer: set fromAccountId and toAccountId, leave accountId as null. Set category to "Transfer".`;
+
+    const ai = await getAnthropicClient();
+    const message = await ai.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 8192,
+      messages: [{ role: "user", content: text.trim() }],
+      system: systemPrompt,
+    });
+
+    const block = message.content[0];
+    if (block.type !== "text") {
+      res.status(500).json({ error: "Unexpected AI response format" });
+      return;
+    }
+
+    let parsed;
+    try {
+      parsed = JSON.parse(block.text);
+    } catch {
+      req.log.error({ rawResponse: block.text }, "Failed to parse AI response as JSON");
+      res.status(500).json({ error: "AI returned invalid response. Please try rephrasing." });
+      return;
+    }
+
+    res.json({
+      transactionType: parsed.transactionType ?? null,
+      amount: parsed.amount ?? null,
+      date: parsed.date ?? null,
+      description: parsed.description ?? null,
+      category: parsed.category ?? null,
+      accountId: parsed.accountId ?? null,
+      fromAccountId: parsed.fromAccountId ?? null,
+      toAccountId: parsed.toAccountId ?? null,
+    });
+  } catch (e) {
+    req.log.error({ err: e }, "Failed to parse natural language transaction");
+    res.status(500).json({ error: "Failed to parse transaction. Please try again." });
   }
 });
 

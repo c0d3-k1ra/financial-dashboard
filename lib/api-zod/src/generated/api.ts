@@ -52,6 +52,37 @@ export const CreateTransactionBody = zod.object({
 });
 
 /**
+ * @summary Parse a natural language transaction description using AI
+ */
+export const ParseNaturalTransactionBody = zod.object({
+  text: zod.string(),
+  categories: zod.array(
+    zod.object({
+      name: zod.string(),
+      type: zod.string(),
+    }),
+  ),
+  accounts: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      type: zod.string(),
+    }),
+  ),
+});
+
+export const ParseNaturalTransactionResponse = zod.object({
+  transactionType: zod.string().nullish(),
+  amount: zod.string().nullish(),
+  date: zod.string().nullish(),
+  description: zod.string().nullish(),
+  category: zod.string().nullish(),
+  accountId: zod.number().nullish(),
+  fromAccountId: zod.number().nullish(),
+  toAccountId: zod.number().nullish(),
+});
+
+/**
  * @summary Update a transaction
  */
 export const UpdateTransactionParams = zod.object({

@@ -344,6 +344,34 @@ export interface CanUndoSurplusResult {
   transferCount?: number;
 }
 
+export type ParseNaturalTransactionRequestCategoriesItem = {
+  name: string;
+  type: string;
+};
+
+export type ParseNaturalTransactionRequestAccountsItem = {
+  id: number;
+  name: string;
+  type: string;
+};
+
+export interface ParseNaturalTransactionRequest {
+  text: string;
+  categories: ParseNaturalTransactionRequestCategoriesItem[];
+  accounts: ParseNaturalTransactionRequestAccountsItem[];
+}
+
+export interface ParseNaturalTransactionResponse {
+  transactionType?: string | null;
+  amount?: string | null;
+  date?: string | null;
+  description?: string | null;
+  category?: string | null;
+  accountId?: number | null;
+  fromAccountId?: number | null;
+  toAccountId?: number | null;
+}
+
 export type ListTransactionsParams = {
   month?: string;
   search?: string;

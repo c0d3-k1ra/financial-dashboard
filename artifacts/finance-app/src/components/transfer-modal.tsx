@@ -11,6 +11,7 @@ import * as z from "zod";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 const formSchema = z.object({
   fromAccountId: z.string().min(1, "Select source account"),
@@ -25,9 +26,16 @@ type FormValues = z.infer<typeof formSchema>;
 interface TransferModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialValues?: {
+    fromAccountId?: string;
+    toAccountId?: string;
+    amount?: string;
+    date?: string;
+    description?: string;
+  };
 }
 
-export default function TransferModal({ open, onOpenChange }: TransferModalProps) {
+export default function TransferModal({ open, onOpenChange, initialValues }: TransferModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: accounts } = useListAccounts({ query: { queryKey: getListAccountsQueryKey() } });
@@ -43,6 +51,26 @@ export default function TransferModal({ open, onOpenChange }: TransferModalProps
       description: "",
     },
   });
+
+  useEffect(() => {
+    if (open && initialValues) {
+      form.reset({
+        fromAccountId: initialValues.fromAccountId || "",
+        toAccountId: initialValues.toAccountId || "",
+        amount: initialValues.amount || "",
+        date: initialValues.date || new Date().toISOString().split("T")[0],
+        description: initialValues.description || "",
+      });
+    } else if (open && !initialValues) {
+      form.reset({
+        fromAccountId: "",
+        toAccountId: "",
+        amount: "",
+        date: new Date().toISOString().split("T")[0],
+        description: "",
+      });
+    }
+  }, [open, initialValues]);
 
   const onSubmit = (data: FormValues) => {
     if (data.fromAccountId === data.toAccountId) {

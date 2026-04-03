@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import {
   useListTransactions,
   getListTransactionsQueryKey,
@@ -11,6 +11,7 @@ import {
   getListAccountsQueryKey,
   getGetDashboardSummaryQueryKey,
   getGetMonthlySurplusQueryKey,
+  useParseNaturalTransaction,
 } from "@workspace/api-client-react";
 import type { Transaction } from "@workspace/api-client-react";
 
@@ -27,12 +28,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Search, Trash2, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight } from "lucide-react";
+import { Plus, Search, Trash2, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, Sparkles, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryBadge } from "@/components/category-badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import TransferModal from "@/components/transfer-modal";
 
 const formSchema = z.object({
   date: z.string().min(1, "Date is required"),
@@ -62,6 +64,65 @@ export default function Transactions() {
   const [newCatName, setNewCatName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [nlInput, setNlInput] = useState("");
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [transferInitialValues, setTransferInitialValues] = useState<{
+    fromAccountId?: string;
+    toAccountId?: string;
+    amount?: string;
+    date?: string;
+    description?: string;
+  } | undefined>(undefined);
+  const nlInputRef = useRef<HTMLInputElement>(null);
+
+  const parseTx = useParseNaturalTransaction();
+
+  const handleNlParse = () => {
+    const trimmed = nlInput.trim();
+    if (!trimmed) return;
+
+    parseTx.mutate(
+      {
+        data: {
+          text: trimmed,
+          categories: (categories ?? []).map((c) => ({ name: c.name, type: c.type })),
+          accounts: (accounts ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type })),
+        },
+      },
+      {
+        onSuccess: (result) => {
+          setNlInput("");
+          if (result.transactionType === "Transfer") {
+            setTransferInitialValues({
+              fromAccountId: result.fromAccountId ? String(result.fromAccountId) : undefined,
+              toAccountId: result.toAccountId ? String(result.toAccountId) : undefined,
+              amount: result.amount || undefined,
+              date: result.date || undefined,
+              description: result.description || undefined,
+            });
+            setIsTransferOpen(true);
+          } else {
+            form.reset({
+              date: result.date || new Date().toISOString().split("T")[0],
+              amount: result.amount || "",
+              description: result.description || "",
+              type: (result.transactionType as "Income" | "Expense") || "Expense",
+              category: result.category || "",
+              accountId: result.accountId ? String(result.accountId) : "",
+            });
+            setIsDialogOpen(true);
+          }
+        },
+        onError: (err) => {
+          toast({
+            title: "Failed to parse transaction",
+            description: getApiErrorMessage(err),
+            variant: "destructive",
+          });
+        },
+      }
+    );
+  };
 
   const dateRangeParams = useMemo(() => {
     if (dateRange === "custom") {
@@ -350,6 +411,41 @@ export default function Transactions() {
         />
       </div>
 
+      <div className="relative">
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1">
+            <Sparkles className="absolute left-3 top-2.5 h-4 w-4 text-amber-400" />
+            <Input
+              ref={nlInputRef}
+              placeholder='e.g. "Spent 450 at Starbucks yesterday from HDFC" or "Transfer 10000 from SBI to HDFC"'
+              className="pl-9 pr-4 bg-background/50 border-amber-500/30 focus-visible:ring-amber-500/30"
+              value={nlInput}
+              onChange={(e) => setNlInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleNlParse(); } }}
+              disabled={parseTx.isPending}
+            />
+          </div>
+          <Button
+            onClick={handleNlParse}
+            disabled={parseTx.isPending || !nlInput.trim()}
+            className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+            size="sm"
+          >
+            {parseTx.isPending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                <span className="hidden sm:inline">Parsing...</span>
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4 mr-1" />
+                <span className="hidden sm:inline">Parse</span>
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
       <div className="bg-card/50 backdrop-blur rounded-xl border border-border/60 p-4 md:p-6 flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="relative flex-1 max-w-md">
@@ -505,6 +601,12 @@ export default function Transactions() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TransferModal
+        open={isTransferOpen}
+        onOpenChange={setIsTransferOpen}
+        initialValues={transferInitialValues}
+      />
     </div>
   );
 }

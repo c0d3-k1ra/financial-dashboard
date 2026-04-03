@@ -30,8 +30,9 @@ artifacts-monorepo/
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config
 │   ├── api-client-react/   # Generated React Query hooks
 │   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-│       └── src/test-seed.ts # Comprehensive test seed data script
+│   ├── db/                 # Drizzle ORM schema + DB connection
+│   │   └── src/test-seed.ts # Comprehensive test seed data script
+│   └── integrations-anthropic-ai/ # Anthropic AI SDK client (Replit AI Integrations)
 ├── scripts/                # Utility scripts (single workspace package)
 │   └── src/                # Individual .ts scripts
 ├── pnpm-workspace.yaml     # pnpm workspace
