@@ -594,10 +594,10 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
                   type="monotone"
                   dataKey="actual"
                   name="actual"
-                  stroke="#10b981"
+                  stroke="hsl(var(--chart-1))"
                   strokeWidth={3}
-                  dot={{ r: 4, fill: "hsl(var(--background))", stroke: "#10b981", strokeWidth: 2 }}
-                  activeDot={{ r: 6, fill: "#10b981", stroke: "hsl(var(--background))" }}
+                  dot={{ r: 4, fill: "hsl(var(--background))", stroke: "hsl(var(--chart-1))", strokeWidth: 2 }}
+                  activeDot={{ r: 6, fill: "hsl(var(--chart-1))", stroke: "hsl(var(--background))" }}
                   connectNulls
                 />
               )}
@@ -618,7 +618,7 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
                   type="monotone"
                   dataKey="neededPace"
                   name="neededPace"
-                  stroke="#eab308"
+                  stroke="hsl(var(--chart-4))"
                   strokeWidth={2}
                   strokeDasharray="4 4"
                   dot={false}

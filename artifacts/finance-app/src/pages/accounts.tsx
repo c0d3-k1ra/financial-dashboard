@@ -640,14 +640,14 @@ export default function Accounts() {
                     <span className="text-sm font-bold font-mono text-emerald-500">
                       {formatCurrency(bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${bankOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${bankOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {bankOpen && (
                   <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <TooltipProvider delayDuration={300}>
                     {bankAccounts.map((account) => (
-                      <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-200">
+                      <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-300">
                         <CardContent className="pt-4 pb-3 px-4">
                           <div className="flex justify-between items-start">
                             <div className="min-w-0 flex-1">
@@ -710,7 +710,7 @@ export default function Accounts() {
                     <span className="text-sm font-bold font-mono text-red-500">
                       {formatCurrency(Math.abs(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${ccOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${ccOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {ccOpen && (
@@ -729,13 +729,13 @@ export default function Accounts() {
                         availableLimit = Math.max(0, limit - outstanding);
                       }
                       const usedPct = limit && limit > 0 ? (outstanding / limit) * 100 : 0;
-                      const strokeColor = usedPct <= 30 ? "#10b981" : usedPct <= 50 ? "#eab308" : "#ef4444";
+                      const strokeColor = usedPct <= 30 ? "hsl(var(--chart-1))" : usedPct <= 50 ? "hsl(var(--chart-4))" : "hsl(var(--chart-3))";
                       const radius = 22;
                       const circumference = 2 * Math.PI * radius;
                       const strokeDash = (Math.min(usedPct, 100) / 100) * circumference;
 
                       return (
-                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-red-500/5 transition-all duration-200">
+                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-red-500/5 transition-all duration-300">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex items-center justify-between mb-3">
                               <div className="min-w-0 flex-1">
@@ -831,7 +831,7 @@ export default function Accounts() {
                     <span className="text-sm font-bold font-mono text-red-500">
                       {formatCurrency(Math.abs(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
                     </span>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${loanOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${loanOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
                 {loanOpen && (
@@ -874,7 +874,7 @@ export default function Accounts() {
                       }
 
                       return (
-                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-amber-500/5 transition-all duration-200">
+                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-amber-500/5 transition-all duration-300">
                           <CardContent className="pt-4 pb-3 px-4">
                             <div className="flex justify-between items-start mb-2">
                               <div className="min-w-0 flex-1">
@@ -947,7 +947,7 @@ export default function Accounts() {
                               <div className="mt-3">
                                 <div className="flex justify-between text-[10px] font-mono mb-1.5">
                                   <span className="text-muted-foreground/50">{Math.round(paidPct)}% repaid</span>
-                                  <span className="font-semibold" style={{ color: paidPct > 60 ? "#10b981" : paidPct > 30 ? "#eab308" : "#f59e0b" }}>{Math.round(paidPct)}%</span>
+                                  <span className="font-semibold" style={{ color: paidPct > 60 ? "hsl(var(--chart-1))" : paidPct > 30 ? "hsl(var(--chart-4))" : "hsl(var(--chart-4))" }}>{Math.round(paidPct)}%</span>
                                 </div>
                                 <div className="w-full h-3 bg-secondary rounded-full overflow-hidden flex">
                                   {principalPortion > 0 && (

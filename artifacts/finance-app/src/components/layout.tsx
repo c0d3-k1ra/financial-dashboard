@@ -31,7 +31,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           pointerEvents: "none",
           zIndex: 0,
           filter: "blur(120px)",
-          background: "radial-gradient(circle, rgba(45, 212, 191, 0.02) 0%, transparent 70%)",
+          background: "radial-gradient(circle, rgba(45, 212, 191, 0.05) 0%, transparent 70%)",
         }} />
       )}
       <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`}>
@@ -51,7 +51,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
                     isActive 
                       ? "nav-link-active text-foreground shadow-sm" 
                       : "text-muted-foreground hover:text-foreground nav-link-hover"
@@ -75,7 +75,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 whitespace-nowrap ${
                     isActive 
                       ? "nav-link-active text-foreground nav-link-active-border shadow-sm" 
                       : "text-muted-foreground bg-transparent border border-transparent hover:text-foreground nav-link-hover nav-link-hover-border"
