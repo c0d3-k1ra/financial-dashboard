@@ -798,7 +798,7 @@ The "options" field is only needed when type is "question" and you're asking abo
 
     const ai = await getAnthropicClient();
     const message = await ai.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5",
       max_tokens: 2048,
       messages: aiMessages,
       system: systemPrompt,

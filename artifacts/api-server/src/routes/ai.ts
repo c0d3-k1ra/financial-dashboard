@@ -175,7 +175,7 @@ For add_savings_goal:
 
     const ai = await getAnthropicClient();
     const message = await ai.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5",
       max_tokens: 8192,
       messages: [{ role: "user", content: text.trim() }],
       system: systemPrompt,
