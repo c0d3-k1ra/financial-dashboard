@@ -13,4 +13,6 @@ export interface CcDueItem {
   billingDueDay?: number | null;
   daysUntilDue?: number | null;
   creditLimit?: string | null;
+  remainingLimit?: string | null;
+  sharedLimitGroup?: string | null;
 }

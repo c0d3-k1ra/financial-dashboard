@@ -1221,6 +1221,9 @@ components:
           nullable: true
         useInSurplus:
           type: boolean
+        sharedLimitGroup:
+          type: string
+          nullable: true
       required:
         - id
         - name
@@ -1256,6 +1259,9 @@ components:
           nullable: true
         useInSurplus:
           type: boolean
+        sharedLimitGroup:
+          type: string
+          nullable: true
       required:
         - name
         - type
@@ -1647,6 +1653,12 @@ components:
           type: integer
           nullable: true
         creditLimit:
+          type: string
+          nullable: true
+        remainingLimit:
+          type: string
+          nullable: true
+        sharedLimitGroup:
           type: string
           nullable: true
       required:

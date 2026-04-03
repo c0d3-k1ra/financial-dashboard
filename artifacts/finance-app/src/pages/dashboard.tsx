@@ -558,10 +558,26 @@ export default function Dashboard() {
                     <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="text-sm font-medium">{cc.name}</p>
+                          <p className="text-sm font-medium">
+                            {cc.name}
+                            {cc.sharedLimitGroup && (
+                              <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{cc.sharedLimitGroup}</span>
+                            )}
+                          </p>
                           <p className="text-lg font-bold font-mono mt-0.5">
                             {formatCurrency(cc.outstanding)}
                           </p>
+                          {cc.remainingLimit != null && (
+                            <p className={`text-xs font-mono mt-0.5 ${
+                              cc.creditLimit ? (
+                                Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.5 ? "text-emerald-500" :
+                                Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.2 ? "text-yellow-500" :
+                                "text-destructive"
+                              ) : "text-muted-foreground"
+                            }`}>
+                              Available: {formatCurrency(cc.remainingLimit)}
+                            </p>
+                          )}
                         </div>
                         {cc.daysUntilDue !== null && cc.daysUntilDue !== undefined ? (
                           <div className={`flex items-center gap-1 text-xs font-mono px-2 py-1 rounded ${

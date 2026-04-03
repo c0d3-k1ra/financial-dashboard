@@ -143,7 +143,46 @@ router.get("/analytics/cc-dues", async (req, res) => {
       .where(eq(accountsTable.type, "credit_card"));
 
     const today = new Date();
-    const currentDay = today.getDate();
+
+    const getNextDueDate = (fromDate: Date, day: number): Date => {
+      let year = fromDate.getFullYear();
+      let month = fromDate.getMonth();
+      const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
+      const clampedDay = Math.min(day, daysInCurrentMonth);
+      if (fromDate.getDate() <= clampedDay) {
+        return new Date(year, month, clampedDay);
+      }
+      month++;
+      if (month > 11) { month = 0; year++; }
+      const daysInNextMonth = new Date(year, month + 1, 0).getDate();
+      return new Date(year, month, Math.min(day, daysInNextMonth));
+    };
+
+    const groupOutstandings: Record<string, number> = {};
+    for (const account of ccAccounts) {
+      if (account.sharedLimitGroup) {
+        const group = account.sharedLimitGroup;
+        groupOutstandings[group] = (groupOutstandings[group] || 0) + Math.abs(Number(account.currentBalance));
+      }
+    }
+
+    const settings = await getAppSettings();
+    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const { startDate: cycleStartStr, endDate: cycleEndStr } = getCycleDates(currentMonth, settings.billingCycleDay);
+    const todayStr = today.toISOString().split("T")[0];
+
+    const currentCyclePayments = new Map<number, boolean>();
+    for (const account of ccAccounts) {
+      if (!account.billingDueDay) continue;
+
+      const payments = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(transactionsTable)
+        .where(
+          sql`${transactionsTable.type} = 'Transfer' AND ${transactionsTable.toAccountId} = ${account.id} AND ${transactionsTable.date}::text >= ${cycleStartStr} AND ${transactionsTable.date}::text <= ${todayStr}`
+        );
+      currentCyclePayments.set(account.id, Number(payments[0].count) > 0);
+    }
 
     const result = ccAccounts.map((account) => {
       const outstanding = Math.abs(Number(account.currentBalance));
@@ -151,22 +190,28 @@ router.get("/analytics/cc-dues", async (req, res) => {
 
       if (account.billingDueDay) {
         const dueDay = account.billingDueDay;
-        const getNextDueDate = (fromDate: Date, day: number): Date => {
-          let year = fromDate.getFullYear();
-          let month = fromDate.getMonth();
-          const daysInCurrentMonth = new Date(year, month + 1, 0).getDate();
-          const clampedDay = Math.min(day, daysInCurrentMonth);
-          if (fromDate.getDate() <= clampedDay) {
-            return new Date(year, month, clampedDay);
-          }
-          month++;
-          if (month > 11) { month = 0; year++; }
-          const daysInNextMonth = new Date(year, month + 1, 0).getDate();
-          return new Date(year, month, Math.min(day, daysInNextMonth));
-        };
-        const nextDue = getNextDueDate(today, dueDay);
+        const paidThisCycle = currentCyclePayments.get(account.id) || false;
+
+        let nextDue: Date;
+        if (paidThisCycle) {
+          let nextMonth = today.getMonth() + 1;
+          let nextYear = today.getFullYear();
+          if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+          const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
+          nextDue = new Date(nextYear, nextMonth, Math.min(dueDay, daysInNextMonth));
+        } else {
+          nextDue = getNextDueDate(today, dueDay);
+        }
         const diffMs = nextDue.getTime() - today.getTime();
         daysUntilDue = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+      }
+
+      let remainingLimit: string | null = null;
+      if (account.sharedLimitGroup && account.creditLimit) {
+        const groupTotal = groupOutstandings[account.sharedLimitGroup] || 0;
+        remainingLimit = Math.max(0, Number(account.creditLimit) - groupTotal).toFixed(2);
+      } else if (account.creditLimit) {
+        remainingLimit = Math.max(0, Number(account.creditLimit) - outstanding).toFixed(2);
       }
 
       return {
@@ -176,6 +221,8 @@ router.get("/analytics/cc-dues", async (req, res) => {
         billingDueDay: account.billingDueDay,
         daysUntilDue,
         creditLimit: account.creditLimit,
+        remainingLimit,
+        sharedLimitGroup: account.sharedLimitGroup,
       };
     });
 

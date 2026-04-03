@@ -17,4 +17,5 @@ export interface CreateAccount {
   loanTenure?: number | null;
   interestRate?: string | null;
   useInSurplus?: boolean;
+  sharedLimitGroup?: string | null;
 }

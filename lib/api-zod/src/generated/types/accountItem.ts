@@ -18,4 +18,5 @@ export interface AccountItem {
   loanTenure?: number | null;
   interestRate?: string | null;
   useInSurplus?: boolean;
+  sharedLimitGroup?: string | null;
 }

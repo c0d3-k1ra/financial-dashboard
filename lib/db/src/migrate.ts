@@ -166,6 +166,10 @@ export async function runStartupMigrations() {
   `);
 
   await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "shared_limit_group" text
+  `);
+
+  await db.execute(sql`
     UPDATE "budget_goals" bg
     SET "planned_amount" = a."emi_amount"
     FROM "categories" c, "accounts" a

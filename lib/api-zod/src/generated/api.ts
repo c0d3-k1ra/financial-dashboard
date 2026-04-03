@@ -493,6 +493,7 @@ export const ListAccountsResponseItem = zod.object({
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
   useInSurplus: zod.boolean().optional(),
+  sharedLimitGroup: zod.string().nullish(),
 });
 export const ListAccountsResponse = zod.array(ListAccountsResponseItem);
 
@@ -510,6 +511,7 @@ export const CreateAccountBody = zod.object({
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
   useInSurplus: zod.boolean().optional(),
+  sharedLimitGroup: zod.string().nullish(),
 });
 
 /**
@@ -530,6 +532,7 @@ export const UpdateAccountBody = zod.object({
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
   useInSurplus: zod.boolean().optional(),
+  sharedLimitGroup: zod.string().nullish(),
 });
 
 export const UpdateAccountResponse = zod.object({
@@ -544,6 +547,7 @@ export const UpdateAccountResponse = zod.object({
   loanTenure: zod.number().nullish(),
   interestRate: zod.string().nullish(),
   useInSurplus: zod.boolean().optional(),
+  sharedLimitGroup: zod.string().nullish(),
 });
 
 /**
@@ -715,6 +719,8 @@ export const GetCcDuesResponseItem = zod.object({
   billingDueDay: zod.number().nullish(),
   daysUntilDue: zod.number().nullish(),
   creditLimit: zod.string().nullish(),
+  remainingLimit: zod.string().nullish(),
+  sharedLimitGroup: zod.string().nullish(),
 });
 export const GetCcDuesResponse = zod.array(GetCcDuesResponseItem);
 

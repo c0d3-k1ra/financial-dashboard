@@ -135,6 +135,7 @@ export interface AccountItem {
   loanTenure?: number | null;
   interestRate?: string | null;
   useInSurplus?: boolean;
+  sharedLimitGroup?: string | null;
 }
 
 export interface CreateAccount {
@@ -148,6 +149,7 @@ export interface CreateAccount {
   loanTenure?: number | null;
   interestRate?: string | null;
   useInSurplus?: boolean;
+  sharedLimitGroup?: string | null;
 }
 
 export interface CategoryItem {
@@ -318,6 +320,8 @@ export interface CcDueItem {
   billingDueDay?: number | null;
   daysUntilDue?: number | null;
   creditLimit?: string | null;
+  remainingLimit?: string | null;
+  sharedLimitGroup?: string | null;
 }
 
 export interface UndoSurplusRequest {

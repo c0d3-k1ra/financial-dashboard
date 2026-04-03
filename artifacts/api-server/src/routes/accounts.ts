@@ -44,13 +44,27 @@ router.post("/accounts", async (req, res) => {
         return;
       }
     }
+    const sharedLimitGroup = data.type === "credit_card" ? (data.sharedLimitGroup || null) : null;
+
+    let creditLimit = data.creditLimit || null;
+    if (sharedLimitGroup && !creditLimit) {
+      const [existing] = await db
+        .select({ creditLimit: accountsTable.creditLimit })
+        .from(accountsTable)
+        .where(sql`${accountsTable.sharedLimitGroup} = ${sharedLimitGroup} AND ${accountsTable.creditLimit} IS NOT NULL`)
+        .limit(1);
+      if (existing?.creditLimit) {
+        creditLimit = existing.creditLimit;
+      }
+    }
+
     const [created] = await db
       .insert(accountsTable)
       .values({
         name: data.name,
         type: data.type,
         currentBalance: data.currentBalance || "0",
-        creditLimit: data.creditLimit || null,
+        creditLimit,
         billingDueDay: data.billingDueDay ?? null,
         emiAmount: data.type === "loan" ? (data.emiAmount || null) : null,
         emiDay: data.type === "loan" ? (data.emiDay ?? null) : null,
@@ -58,8 +72,17 @@ router.post("/accounts", async (req, res) => {
         interestRate: data.type === "loan" ? (data.interestRate || null) : null,
         linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
         useInSurplus: data.useInSurplus ?? false,
+        sharedLimitGroup,
       })
       .returning();
+
+    if (sharedLimitGroup && data.creditLimit != null) {
+      await db
+        .update(accountsTable)
+        .set({ creditLimit: data.creditLimit || "0" })
+        .where(sql`${accountsTable.sharedLimitGroup} = ${sharedLimitGroup} AND ${accountsTable.id} != ${created.id}`);
+    }
+
     res.status(201).json(created);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create account");
@@ -97,13 +120,27 @@ router.put("/accounts/:id", async (req, res) => {
         return;
       }
     }
+    const sharedLimitGroup = data.type === "credit_card" ? (data.sharedLimitGroup || null) : null;
+
+    let creditLimit = data.creditLimit || null;
+    if (sharedLimitGroup && !creditLimit) {
+      const [existing] = await db
+        .select({ creditLimit: accountsTable.creditLimit })
+        .from(accountsTable)
+        .where(sql`${accountsTable.sharedLimitGroup} = ${sharedLimitGroup} AND ${accountsTable.creditLimit} IS NOT NULL AND ${accountsTable.id} != ${id}`)
+        .limit(1);
+      if (existing?.creditLimit) {
+        creditLimit = existing.creditLimit;
+      }
+    }
+
     const [updated] = await db
       .update(accountsTable)
       .set({
         name: data.name,
         type: data.type,
         currentBalance: data.currentBalance || "0",
-        creditLimit: data.creditLimit || null,
+        creditLimit,
         billingDueDay: data.billingDueDay ?? null,
         emiAmount: data.type === "loan" ? (data.emiAmount || null) : null,
         emiDay: data.type === "loan" ? (data.emiDay ?? null) : null,
@@ -111,6 +148,7 @@ router.put("/accounts/:id", async (req, res) => {
         interestRate: data.type === "loan" ? (data.interestRate || null) : null,
         linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
         useInSurplus: data.useInSurplus ?? false,
+        sharedLimitGroup,
       })
       .where(eq(accountsTable.id, id))
       .returning();
@@ -118,6 +156,14 @@ router.put("/accounts/:id", async (req, res) => {
       res.status(404).json({ error: "Not found" });
       return;
     }
+
+    if (sharedLimitGroup && data.creditLimit != null) {
+      await db
+        .update(accountsTable)
+        .set({ creditLimit: data.creditLimit || "0" })
+        .where(sql`${accountsTable.sharedLimitGroup} = ${sharedLimitGroup} AND ${accountsTable.id} != ${id}`);
+    }
+
     res.json(updated);
   } catch (e) {
     req.log.error({ err: e }, "Failed to update account");

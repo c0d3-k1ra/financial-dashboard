@@ -15,6 +15,7 @@ export const accountsTable = pgTable("accounts", {
   interestRate: numeric("interest_rate", { precision: 5, scale: 2 }),
   linkedAccountId: integer("linked_account_id"),
   useInSurplus: boolean("use_in_surplus").notNull().default(false),
+  sharedLimitGroup: text("shared_limit_group"),
 });
 
 export const insertAccountSchema = createInsertSchema(accountsTable).omit({ id: true });

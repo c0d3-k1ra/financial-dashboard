@@ -24,7 +24,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw, Pencil, Landmark } from "lucide-react";
+import { Plus, Trash2, Wallet, CreditCard, TrendingUp, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -40,6 +40,7 @@ const formSchema = z.object({
   interestRate: z.string().optional(),
   linkedAccountId: z.string().optional(),
   useInSurplus: z.boolean().optional(),
+  sharedLimitGroup: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -61,7 +62,11 @@ export default function Accounts() {
   const [editInterestRate, setEditInterestRate] = useState("");
   const [editLinkedAccountId, setEditLinkedAccountId] = useState("");
   const [editUseInSurplus, setEditUseInSurplus] = useState(false);
+  const [editSharedLimitGroup, setEditSharedLimitGroup] = useState("");
   const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
+  const [bankOpen, setBankOpen] = useState(true);
+  const [ccOpen, setCcOpen] = useState(false);
+  const [loanOpen, setLoanOpen] = useState(false);
 
   const { data: accounts, isLoading } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
@@ -92,6 +97,7 @@ export default function Accounts() {
     setEditInterestRate(acct.interestRate ? String(acct.interestRate) : "");
     setEditLinkedAccountId(acct.linkedAccountId ? String(acct.linkedAccountId) : "");
     setEditUseInSurplus(acct.useInSurplus ?? false);
+    setEditSharedLimitGroup(acct.sharedLimitGroup ?? "");
   };
 
   const handleEdit = () => {
@@ -111,6 +117,7 @@ export default function Accounts() {
           interestRate: editTarget.type === "loan" ? editInterestRate || null : null,
           linkedAccountId: editTarget.type === "loan" && editLinkedAccountId ? Number(editLinkedAccountId) : null,
           useInSurplus: editTarget.type === "bank" ? editUseInSurplus : false,
+          sharedLimitGroup: editTarget.type === "credit_card" ? editSharedLimitGroup || null : null,
         },
       },
       {
@@ -153,7 +160,7 @@ export default function Accounts() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "", useInSurplus: false },
+    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "", useInSurplus: false, sharedLimitGroup: "" },
   });
 
   const watchType = form.watch("type");
@@ -161,6 +168,7 @@ export default function Accounts() {
   const bankAccounts = accounts?.filter((a) => a.type === "bank") ?? [];
   const ccAccounts = accounts?.filter((a) => a.type === "credit_card") ?? [];
   const loanAccounts = accounts?.filter((a) => a.type === "loan") ?? [];
+  const existingGroups = [...new Set(ccAccounts.map((a) => a.sharedLimitGroup).filter(Boolean))] as string[];
   const totalBank = bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0);
   const totalCcOutstanding = ccAccounts.reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
   const totalLoanOutstanding = loanAccounts.reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
@@ -181,6 +189,7 @@ export default function Accounts() {
           interestRate: data.type === "loan" ? data.interestRate || null : null,
           linkedAccountId: data.type === "loan" && data.linkedAccountId ? Number(data.linkedAccountId) : null,
           useInSurplus: data.type === "bank" ? (data.useInSurplus ?? false) : false,
+          sharedLimitGroup: data.type === "credit_card" ? data.sharedLimitGroup || null : null,
         },
       },
       {
@@ -245,6 +254,7 @@ export default function Accounts() {
   };
 
   const allAccounts = [...bankAccounts, ...ccAccounts, ...loanAccounts];
+  const nonCcAccounts = [...bankAccounts, ...loanAccounts];
 
   const getAccountIcon = (type: string) => {
     if (type === "bank") return <Wallet className="w-4 h-4 text-emerald-500" />;
@@ -387,6 +397,31 @@ export default function Accounts() {
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={form.control}
+                        name="sharedLimitGroup"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Shared Limit Group</FormLabel>
+                            <FormControl>
+                              <div>
+                                <Input
+                                  className="font-mono"
+                                  placeholder="Type group name or leave empty"
+                                  list="shared-limit-groups"
+                                  {...field}
+                                />
+                                <datalist id="shared-limit-groups">
+                                  {existingGroups.map((g) => (
+                                    <option key={g} value={g} />
+                                  ))}
+                                </datalist>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </>
                   )}
                   {watchType === "loan" && (
@@ -518,270 +553,255 @@ export default function Accounts() {
         </div>
       ) : (
         <>
-          <div className="hidden md:block bg-card/50 backdrop-blur rounded-xl border border-border/60 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-border/50 hover:bg-transparent">
-                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Name</TableHead>
-                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Type</TableHead>
-                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Balance</TableHead>
-                  <TableHead className="text-xs font-mono uppercase tracking-wider text-muted-foreground text-right">Details</TableHead>
-                  <TableHead className="w-12"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {allAccounts.map((account) => (
-                  <TableRow key={account.id} className="border-border/30">
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        {getAccountIcon(account.type)}
-                        {account.name}
-                        {account.useInSurplus && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">Surplus</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono bg-secondary text-secondary-foreground border border-border/50">
-                        {getAccountLabel(account.type)}
-                      </span>
-                    </TableCell>
-                    <TableCell className={`text-right font-mono font-bold ${account.type === "bank" ? "text-emerald-500" : account.type === "loan" ? "text-amber-500" : ""}`}>
-                      {formatCurrency(account.currentBalance)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-muted-foreground text-xs">
-                      {account.type === "credit_card" && account.creditLimit && (
-                        <span>Limit: {formatCurrency(account.creditLimit)}</span>
-                      )}
-                      {account.type === "credit_card" && account.billingDueDay && (
-                        <span className="ml-2">Due: {account.billingDueDay}th</span>
-                      )}
-                      {account.type === "loan" && account.emiAmount && (
-                        <span>EMI: {formatCurrency(account.emiAmount)}</span>
-                      )}
-                      {account.type === "loan" && account.interestRate && (
-                        <span className="ml-2">@ {account.interestRate}%</span>
-                      )}
-                      {account.type === "bank" && "—"}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
-                          title="Reconcile"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => openEdit(account.id)}
-                          title="Edit"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                          onClick={() => setDeleteAccountId(account.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="md:hidden space-y-4">
+          <div className="space-y-4">
             {bankAccounts.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Wallet className="w-5 h-5 text-emerald-500" /> Bank Accounts
-                </h2>
-                <div className="space-y-3">
-                  {bankAccounts.map((account) => (
-                    <Card key={account.id} className="bg-card/50 backdrop-blur border-border/60">
-                      <CardContent className="pt-4 pb-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-sm">{account.name}</p>
-                              {account.useInSurplus && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">Surplus</span>
-                              )}
+              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur overflow-hidden">
+                <button
+                  onClick={() => setBankOpen(!bankOpen)}
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Wallet className="w-5 h-5 text-emerald-500" />
+                    <span className="font-semibold text-sm">Bank Accounts</span>
+                    <span className="text-xs text-muted-foreground/60 font-mono">{bankAccounts.length}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold font-mono text-emerald-500">
+                      {formatCurrency(bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${bankOpen ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {bankOpen && (
+                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {bankAccounts.map((account) => (
+                      <Card key={account.id} className="bg-background/40 border-border/40 hover:border-border/70 transition-colors">
+                        <CardContent className="pt-4 pb-3 px-4">
+                          <div className="flex justify-between items-start">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <p className="font-semibold text-sm truncate">{account.name}</p>
+                                {account.useInSurplus && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-medium">Surplus</span>
+                                )}
+                              </div>
+                              <p className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</p>
                             </div>
-                            <p className="text-xl font-bold font-mono mt-0.5 text-emerald-500">
-                              {formatCurrency(account.currentBalance)}
-                            </p>
+                            <div className="flex items-center gap-0.5 ml-2">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                <RefreshCw className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                <Pencil className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => openEdit(account.id)}
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => setDeleteAccountId(account.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
             {ccAccounts.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <CreditCard className="w-5 h-5 text-destructive" /> Credit Cards
-                </h2>
-                <div className="space-y-3">
-                  {ccAccounts.map((account) => (
-                    <Card key={account.id} className="bg-card/50 backdrop-blur border-border/60">
-                      <CardContent className="pt-4 pb-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium text-sm">{account.name}</p>
-                            <p className="text-xl font-bold font-mono mt-0.5">{formatCurrency(account.currentBalance)}</p>
-                            {account.creditLimit && (
-                              <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                                Limit: {formatCurrency(account.creditLimit)}
-                              </p>
-                            )}
-                            {account.billingDueDay && (
-                              <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                                Due: {account.billingDueDay}th of each month
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => openEdit(account.id)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => setDeleteAccountId(account.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur overflow-hidden">
+                <button
+                  onClick={() => setCcOpen(!ccOpen)}
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="w-5 h-5 text-destructive" />
+                    <span className="font-semibold text-sm">Credit Cards</span>
+                    <span className="text-xs text-muted-foreground/60 font-mono">{ccAccounts.length}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold font-mono">
+                      {formatCurrency(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${ccOpen ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {ccOpen && (
+                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {ccAccounts.map((account) => {
+                      const outstanding = Math.abs(Number(account.currentBalance));
+                      const limit = account.creditLimit ? Number(account.creditLimit) : null;
+                      let availableLimit: number | null = null;
+                      if (account.sharedLimitGroup && limit != null) {
+                        const groupTotal = ccAccounts
+                          .filter((a) => a.sharedLimitGroup === account.sharedLimitGroup)
+                          .reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
+                        availableLimit = Math.max(0, limit - groupTotal);
+                      } else if (limit != null) {
+                        availableLimit = Math.max(0, limit - outstanding);
+                      }
+                      const usedPct = limit && limit > 0 ? (outstanding / limit) * 100 : 0;
+                      const strokeColor = usedPct < 50 ? "#10b981" : usedPct < 80 ? "#eab308" : "#ef4444";
+                      const radius = 36;
+                      const circumference = 2 * Math.PI * radius;
+                      const strokeDash = (Math.min(usedPct, 100) / 100) * circumference;
+
+                      return (
+                        <Card key={account.id} className="bg-background/40 border-border/40 hover:border-border/70 transition-colors">
+                          <CardContent className="pt-4 pb-3 px-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm truncate">{account.name}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  {account.sharedLimitGroup && (
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-medium">{account.sharedLimitGroup}</span>
+                                  )}
+                                  {account.billingDueDay && (
+                                    <span className="text-[10px] text-muted-foreground/60 font-mono">Due {account.billingDueDay}th</span>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-0.5 ml-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-4">
+                              {limit != null && (
+                                <div className="relative flex-shrink-0">
+                                  <svg width="80" height="80" viewBox="0 0 88 88">
+                                    <circle cx="44" cy="44" r={radius} fill="none" stroke="currentColor" strokeWidth="6" className="text-secondary" />
+                                    <circle cx="44" cy="44" r={radius} fill="none" stroke={strokeColor} strokeWidth="6" strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 44 44)" className="transition-all duration-500" />
+                                  </svg>
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className="text-xs font-bold font-mono" style={{ color: strokeColor }}>{Math.round(usedPct)}%</span>
+                                    <span className="text-[9px] text-muted-foreground/60">used</span>
+                                  </div>
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-medium">Outstanding</p>
+                                <p className="text-lg font-bold font-mono">{formatCurrency(account.currentBalance)}</p>
+                                {limit != null && (
+                                  <div className="mt-1.5 space-y-0.5">
+                                    <div className="flex justify-between text-[11px] font-mono">
+                                      <span className="text-muted-foreground/60">Available</span>
+                                      <span className={usedPct < 50 ? "text-emerald-500" : usedPct < 80 ? "text-yellow-500" : "text-destructive"}>{formatCurrency(availableLimit ?? 0)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-[11px] font-mono">
+                                      <span className="text-muted-foreground/60">Limit</span>
+                                      <span className="text-muted-foreground">{formatCurrency(limit)}</span>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
             {loanAccounts.length > 0 && (
-              <div>
-                <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                  <Landmark className="w-5 h-5 text-amber-500" /> Loans
-                </h2>
-                <div className="space-y-3">
-                  {loanAccounts.map((account) => (
-                    <Card key={account.id} className="bg-card/50 backdrop-blur border-border/60">
-                      <CardContent className="pt-4 pb-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium text-sm">{account.name}</p>
-                            <p className="text-xl font-bold font-mono mt-0.5 text-amber-500">{formatCurrency(account.currentBalance)}</p>
-                            {account.emiAmount && (
-                              <p className="text-xs font-mono text-muted-foreground mt-0.5">
-                                EMI: {formatCurrency(account.emiAmount)}/mo
-                              </p>
-                            )}
-                            <div className="flex gap-3 mt-0.5 flex-wrap">
-                              {account.interestRate && (
-                                <p className="text-xs font-mono text-muted-foreground">
-                                  Rate: {account.interestRate}%
-                                </p>
+              <div className="rounded-xl border border-border/60 bg-card/50 backdrop-blur overflow-hidden">
+                <button
+                  onClick={() => setLoanOpen(!loanOpen)}
+                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-secondary/30 transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Landmark className="w-5 h-5 text-amber-500" />
+                    <span className="font-semibold text-sm">Loans</span>
+                    <span className="text-xs text-muted-foreground/60 font-mono">{loanAccounts.length}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold font-mono text-amber-500">
+                      {formatCurrency(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${loanOpen ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {loanOpen && (
+                  <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {loanAccounts.map((account) => {
+                      const principal = Number(account.currentBalance);
+                      const emi = account.emiAmount ? Number(account.emiAmount) : null;
+                      const tenure = account.loanTenure ? Number(account.loanTenure) : null;
+                      let paidPct = 0;
+                      if (emi && tenure) {
+                        const totalLoan = emi * tenure;
+                        paidPct = totalLoan > 0 ? Math.max(0, Math.min(100, ((totalLoan - principal) / totalLoan) * 100)) : 0;
+                      }
+                      const barColor = paidPct > 60 ? "bg-emerald-500" : paidPct > 30 ? "bg-yellow-500" : "bg-amber-500";
+
+                      return (
+                        <Card key={account.id} className="bg-background/40 border-border/40 hover:border-border/70 transition-colors">
+                          <CardContent className="pt-4 pb-3 px-4">
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-semibold text-sm truncate">{account.name}</p>
+                                {account.emiDay && (
+                                  <span className="text-[10px] text-muted-foreground/60 font-mono">EMI on {account.emiDay}th</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-0.5 ml-2">
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                  <RefreshCw className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                            <p className="text-lg font-bold font-mono text-amber-500">{formatCurrency(account.currentBalance)}</p>
+                            <div className="mt-2 space-y-1">
+                              {emi && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">EMI</span>
+                                  <span className="text-muted-foreground">{formatCurrency(emi)}/mo</span>
+                                </div>
                               )}
-                              {account.emiDay && (
-                                <p className="text-xs font-mono text-muted-foreground">
-                                  Debit: {account.emiDay}th
-                                </p>
+                              {account.interestRate && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">Rate</span>
+                                  <span className="text-muted-foreground">{account.interestRate}%</span>
+                                </div>
                               )}
                               {account.linkedAccountId && (
-                                <p className="text-xs font-mono text-muted-foreground">
-                                  From: {accounts?.find((a) => a.id === account.linkedAccountId)?.name ?? "—"}
-                                </p>
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">From</span>
+                                  <span className="text-muted-foreground truncate ml-2">{accounts?.find((a) => a.id === account.linkedAccountId)?.name ?? "—"}</span>
+                                </div>
                               )}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}
-                            >
-                              <RefreshCw className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-primary"
-                              onClick={() => openEdit(account.id)}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                              onClick={() => setDeleteAccountId(account.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                            {emi && tenure && (
+                              <div className="mt-2.5">
+                                <div className="flex justify-between text-[10px] font-mono mb-1">
+                                  <span className="text-muted-foreground/50">{Math.round(paidPct)}% repaid</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${paidPct}%` }} />
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -851,6 +871,21 @@ export default function Accounts() {
                 <div>
                   <Label>Billing Due Day (1-31)</Label>
                   <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 15" value={editBillingDueDay} onChange={(e) => setEditBillingDueDay(e.target.value)} />
+                </div>
+                <div>
+                  <Label>Shared Limit Group</Label>
+                  <Input
+                    className="mt-1 font-mono"
+                    placeholder="Type group name or leave empty"
+                    list="edit-shared-limit-groups"
+                    value={editSharedLimitGroup}
+                    onChange={(e) => setEditSharedLimitGroup(e.target.value)}
+                  />
+                  <datalist id="edit-shared-limit-groups">
+                    {existingGroups.map((g) => (
+                      <option key={g} value={g} />
+                    ))}
+                  </datalist>
                 </div>
               </>
             )}

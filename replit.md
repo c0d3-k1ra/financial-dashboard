@@ -93,7 +93,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
   - `categories.ts` — CRUD for expense/income categories + `PATCH /api/categories/:id` (rename with cascade to transactions). Creating expense categories auto-creates budget_goals with sensible defaults via category_id FK.
   - `transfers.ts` — `POST /api/transfers` (atomic inter-account transfer)
   - `trends.ts` — `GET /api/trends/cc-spend` + `GET /api/trends/living-expenses`
-  - `analytics.ts` — `GET /api/analytics/spend-by-category` + `GET /api/analytics/category-trend` + `GET /api/analytics/cc-dues`
+  - `analytics.ts` — `GET /api/analytics/spend-by-category` + `GET /api/analytics/category-trend` + `GET /api/analytics/cc-dues` (returns remainingLimit, sharedLimitGroup, and smart due dates that shift to next month when payment detected in current billing cycle)
 - Depends on: `@workspace/db`, `@workspace/api-zod`
 - Billing cycle: 25th of previous month through 24th of current month (helper in `src/lib/billing-cycle.ts`)
 
@@ -101,7 +101,7 @@ Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` 
 
 Database layer using Drizzle ORM with PostgreSQL. Tables:
 
-- `accounts` — id, name, type (bank/credit_card), current_balance, credit_limit, billing_due_day (nullable integer 1-31 for CC payment due date)
+- `accounts` — id, name, type (bank/credit_card), current_balance, credit_limit, billing_due_day (nullable integer 1-31 for CC payment due date), shared_limit_group (nullable text — groups credit cards that share a single credit limit)
 - `categories` — id, name, type (Income/Expense)
 - `transactions` — date, amount, description, category, type (Income/Expense/Transfer), account_id, to_account_id
 - `monthly_config` — month (YYYY-MM), starting_balance
