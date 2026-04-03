@@ -18,6 +18,8 @@ import type {
 
 import type {
   AccountItem,
+  AiChatConfirm200,
+  AiChatConfirmRequest,
   AiChatRequest,
   AiChatResponse,
   AiParseRequest,
@@ -604,6 +606,92 @@ export const useAiChat = <
   TContext
 > => {
   return useMutation(getAiChatMutationOptions(options));
+};
+
+/**
+ * @summary Confirm a transaction and update merchant mappings
+ */
+export const getAiChatConfirmUrl = () => {
+  return `/api/ai/chat/confirm`;
+};
+
+export const aiChatConfirm = async (
+  aiChatConfirmRequest: AiChatConfirmRequest,
+  options?: RequestInit,
+): Promise<AiChatConfirm200> => {
+  return customFetch<AiChatConfirm200>(getAiChatConfirmUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiChatConfirmRequest),
+  });
+};
+
+export const getAiChatConfirmMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiChatConfirm>>,
+    TError,
+    { data: BodyType<AiChatConfirmRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiChatConfirm>>,
+  TError,
+  { data: BodyType<AiChatConfirmRequest> },
+  TContext
+> => {
+  const mutationKey = ["aiChatConfirm"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiChatConfirm>>,
+    { data: BodyType<AiChatConfirmRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return aiChatConfirm(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiChatConfirmMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiChatConfirm>>
+>;
+export type AiChatConfirmMutationBody = BodyType<AiChatConfirmRequest>;
+export type AiChatConfirmMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Confirm a transaction and update merchant mappings
+ */
+export const useAiChatConfirm = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiChatConfirm>>,
+    TError,
+    { data: BodyType<AiChatConfirmRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiChatConfirm>>,
+  TError,
+  { data: BodyType<AiChatConfirmRequest> },
+  TContext
+> => {
+  return useMutation(getAiChatConfirmMutationOptions(options));
 };
 
 /**

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Sparkles, Loader2, X, Send, Mic, Check, Undo2, Pencil, ArrowRight } from "lucide-react";
+import { Sparkles, Loader2, X, Send, Mic, Check, Undo2, Pencil, ArrowRight, AlertTriangle, Copy, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +7,7 @@ import { getCategoryIcon } from "@/lib/category-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useAiChat,
+  useAiChatConfirm,
   useListCategories,
   useListAccounts,
   getListAccountsQueryKey,
@@ -17,6 +18,7 @@ import {
   getGetDashboardSummaryQueryKey,
   getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
+import type { AiChatWarning } from "@workspace/api-client-react";
 
 interface ISpeechRecognitionResultItem {
   transcript: string;
@@ -93,13 +95,61 @@ interface ChatMessage {
   editableTransaction?: TransactionData;
   loggedTransactionId?: number;
   undoExpiry?: number;
+  warnings?: AiChatWarning[];
+}
+
+const CHAT_STORAGE_KEY = "ai-chat-state";
+const CHAT_IDLE_TIMEOUT = 30 * 60 * 1000;
+
+interface PersistedChatState {
+  messages: ChatMessage[];
+  lastActivityAt: number;
+}
+
+function loadPersistedChat(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+    if (!raw) return [];
+    const state: PersistedChatState = JSON.parse(raw);
+    if (Date.now() - state.lastActivityAt > CHAT_IDLE_TIMEOUT) {
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+      return [];
+    }
+    return state.messages;
+  } catch {
+    return [];
+  }
+}
+
+function persistChat(messages: ChatMessage[]) {
+  try {
+    if (messages.length === 0) {
+      localStorage.removeItem(CHAT_STORAGE_KEY);
+      return;
+    }
+    const state: PersistedChatState = {
+      messages,
+      lastActivityAt: Date.now(),
+    };
+    localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // ignore
+  }
+}
+
+function clearPersistedChat() {
+  try {
+    localStorage.removeItem(CHAT_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 export function AiParseBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [nlInput, setNlInput] = useState("");
   const [isListening, setIsListening] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => loadPersistedChat());
   const [isProcessing, setIsProcessing] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,6 +162,7 @@ export function AiParseBubble() {
   const speechSupported = !!getSpeechRecognition();
 
   const aiChat = useAiChat();
+  const aiChatConfirm = useAiChatConfirm();
   const createTx = useCreateTransaction();
   const createTransfer = useCreateTransfer();
   const deleteTx = useDeleteTransaction();
@@ -124,6 +175,10 @@ export function AiParseBubble() {
   const { data: accounts } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
   });
+
+  useEffect(() => {
+    persistChat(messages);
+  }, [messages]);
 
   const invalidateAll = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: getListTransactionsQueryKey() });
@@ -206,10 +261,7 @@ export function AiParseBubble() {
   useEffect(() => {
     if (!isOpen) {
       stopListening(true);
-      setMessages([]);
       setNlInput("");
-      undoTimersRef.current.forEach((timer) => clearTimeout(timer));
-      undoTimersRef.current.clear();
     }
   }, [isOpen, stopListening]);
 
@@ -283,6 +335,7 @@ export function AiParseBubble() {
             content: result.reply,
           },
         ]);
+        clearPersistedChat();
       } else if (result.type === "confirmation" && result.transaction) {
         setMessages((prev) => [
           ...prev,
@@ -291,6 +344,7 @@ export function AiParseBubble() {
             type: "confirmation",
             content: result.reply,
             transaction: result.transaction as TransactionData,
+            warnings: result.warnings as AiChatWarning[] | undefined,
           },
         ]);
       } else {
@@ -387,6 +441,18 @@ export function AiParseBubble() {
         createdId = result.id;
       }
 
+      try {
+        await aiChatConfirm.mutateAsync({
+          data: {
+            description: tx.description || undefined,
+            category: tx.category || undefined,
+            accountId: tx.accountId,
+          },
+        });
+      } catch {
+        // non-critical
+      }
+
       invalidateAll();
 
       const undoExpiry = Date.now() + 10000;
@@ -398,6 +464,8 @@ export function AiParseBubble() {
             : m
         )
       );
+
+      clearPersistedChat();
 
       const timer = setTimeout(() => {
         setMessages((prev) =>
@@ -474,6 +542,79 @@ export function AiParseBubble() {
   const getAccountName = (id: number | null) => {
     if (!id || !accounts) return "Unknown";
     return accounts.find((a) => a.id === id)?.name ?? "Unknown";
+  };
+
+  const renderWarnings = (warnings: AiChatWarning[]) => {
+    return (
+      <div className="space-y-2">
+        {warnings.map((warning, i) => {
+          if (warning.type === "anomaly") {
+            return (
+              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-500/20">
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-amber-300">
+                      {warning.anomalyType === "merchant"
+                        ? `This is ${warning.ratio}x your typical spend here (avg ₹${warning.averageAmount?.toLocaleString()})`
+                        : `This is ${warning.ratio}x the average for this category (avg ₹${warning.averageAmount?.toLocaleString()})`}
+                    </p>
+                    {warning.typicalAmount && (
+                      <p className="text-xs text-muted-foreground">
+                        You usually spend around ₹{warning.typicalAmount.toLocaleString()} here
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (warning.type === "budget") {
+            const pct = warning.budgetAmount
+              ? Math.round((warning.afterTransaction! / warning.budgetAmount) * 100)
+              : 0;
+            return (
+              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-500/20">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs text-amber-300">
+                      {warning.isOverBudget
+                        ? `${warning.categoryName} budget already exceeded`
+                        : `This will push ${warning.categoryName} over budget`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      ₹{warning.spentSoFar?.toLocaleString()} + this = ₹{warning.afterTransaction?.toLocaleString()} / ₹{warning.budgetAmount?.toLocaleString()} ({pct}%)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (warning.type === "duplicate") {
+            return (
+              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-500/20">
+                <div className="flex items-start gap-2">
+                  <Copy className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-xs text-amber-300">
+                      Possible duplicate detected
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Similar transaction: ₹{Number(warning.existingAmount).toLocaleString()} — "{warning.existingDescription}" on {warning.existingDate}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return null;
+        })}
+      </div>
+    );
   };
 
   const renderConfirmationCard = (msg: ChatMessage) => {
@@ -643,6 +784,8 @@ export function AiParseBubble() {
             <span>{getAccountName(tx.accountId)}</span>
           )}
         </div>
+
+        {msg.warnings && msg.warnings.length > 0 && renderWarnings(msg.warnings)}
 
         <div className="flex gap-2 pt-1">
           <Button

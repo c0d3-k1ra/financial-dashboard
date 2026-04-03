@@ -478,11 +478,53 @@ export type AiChatResponseTransaction = {
   toAccountId?: number | null;
 };
 
+export type AiChatWarningType =
+  (typeof AiChatWarningType)[keyof typeof AiChatWarningType];
+
+export const AiChatWarningType = {
+  anomaly: "anomaly",
+  budget: "budget",
+  duplicate: "duplicate",
+} as const;
+
+export type AiChatWarningAnomalyType =
+  (typeof AiChatWarningAnomalyType)[keyof typeof AiChatWarningAnomalyType];
+
+export const AiChatWarningAnomalyType = {
+  category: "category",
+  merchant: "merchant",
+} as const;
+
+export interface AiChatWarning {
+  type: AiChatWarningType;
+  anomalyType?: AiChatWarningAnomalyType;
+  currentAmount?: number;
+  averageAmount?: number;
+  ratio?: number;
+  typicalAmount?: number | null;
+  categoryName?: string;
+  budgetAmount?: number;
+  spentSoFar?: number;
+  afterTransaction?: number;
+  isOverBudget?: boolean;
+  existingId?: number;
+  existingDate?: string;
+  existingDescription?: string;
+  existingAmount?: string;
+}
+
 export interface AiChatResponse {
   reply: string;
   type: AiChatResponseType;
   options?: AiChatResponseOptionsItem[];
   transaction?: AiChatResponseTransaction;
+  warnings?: AiChatWarning[];
+}
+
+export interface AiChatConfirmRequest {
+  description?: string;
+  category?: string;
+  accountId?: number | null;
 }
 
 export type ListTransactionsParams = {
@@ -495,6 +537,10 @@ export type ListTransactionsParams = {
   accountId?: string;
   amountMin?: string;
   amountMax?: string;
+};
+
+export type AiChatConfirm200 = {
+  ok: boolean;
 };
 
 export type GetDashboardSummaryParams = {

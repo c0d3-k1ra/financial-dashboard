@@ -8,10 +8,12 @@
 import type { AiChatResponseOptionsItem } from "./aiChatResponseOptionsItem";
 import type { AiChatResponseTransaction } from "./aiChatResponseTransaction";
 import type { AiChatResponseType } from "./aiChatResponseType";
+import type { AiChatWarning } from "./aiChatWarning";
 
 export interface AiChatResponse {
   reply: string;
   type: AiChatResponseType;
   options?: AiChatResponseOptionsItem[];
   transaction?: AiChatResponseTransaction;
+  warnings?: AiChatWarning[];
 }

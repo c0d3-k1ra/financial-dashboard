@@ -179,6 +179,30 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiChatResponse"
 
+  /ai/chat/confirm:
+    post:
+      operationId: aiChatConfirm
+      tags: [transactions]
+      summary: Confirm a transaction and update merchant mappings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiChatConfirmRequest"
+      responses:
+        "200":
+          description: Confirmation acknowledged
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+
   /transactions/{id}:
     put:
       operationId: updateTransaction
@@ -2020,6 +2044,60 @@ components:
             toAccountId:
               type: integer
               nullable: true
+        warnings:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiChatWarning"
       required:
         - reply
+        - type
+
+    AiChatConfirmRequest:
+      type: object
+      properties:
+        description:
+          type: string
+        category:
+          type: string
+        accountId:
+          type: integer
+          nullable: true
+
+    AiChatWarning:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [anomaly, budget, duplicate]
+        anomalyType:
+          type: string
+          enum: [category, merchant]
+        currentAmount:
+          type: number
+        averageAmount:
+          type: number
+        ratio:
+          type: number
+        typicalAmount:
+          type: number
+          nullable: true
+        categoryName:
+          type: string
+        budgetAmount:
+          type: number
+        spentSoFar:
+          type: number
+        afterTransaction:
+          type: number
+        isOverBudget:
+          type: boolean
+        existingId:
+          type: integer
+        existingDate:
+          type: string
+        existingDescription:
+          type: string
+        existingAmount:
+          type: string
+      required:
         - type

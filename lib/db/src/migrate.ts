@@ -180,4 +180,20 @@ export async function runStartupMigrations() {
       AND a."emi_amount" > 0
       AND (bg."planned_amount" = 0 OR bg."planned_amount" IS NULL)
   `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "merchant_mappings" (
+      "id" serial PRIMARY KEY NOT NULL,
+      "keyword" text NOT NULL,
+      "category" text NOT NULL,
+      "account_id" integer REFERENCES "accounts"("id"),
+      "use_count" integer NOT NULL DEFAULT 1,
+      "last_used_at" timestamp DEFAULT now() NOT NULL
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "merchant_mappings_keyword_idx"
+    ON "merchant_mappings" ("keyword")
+  `);
 }

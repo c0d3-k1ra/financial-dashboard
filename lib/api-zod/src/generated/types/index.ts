@@ -7,6 +7,8 @@
  */
 
 export * from "./accountItem";
+export * from "./aiChatConfirm200";
+export * from "./aiChatConfirmRequest";
 export * from "./aiChatMessage";
 export * from "./aiChatMessageRole";
 export * from "./aiChatRequest";
@@ -16,6 +18,9 @@ export * from "./aiChatResponse";
 export * from "./aiChatResponseOptionsItem";
 export * from "./aiChatResponseTransaction";
 export * from "./aiChatResponseType";
+export * from "./aiChatWarning";
+export * from "./aiChatWarningAnomalyType";
+export * from "./aiChatWarningType";
 export * from "./aiParseRequest";
 export * from "./aiParseRequestAccountsItem";
 export * from "./aiParseRequestCategoriesItem";

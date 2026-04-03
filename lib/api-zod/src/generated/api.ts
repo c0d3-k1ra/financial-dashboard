@@ -176,6 +176,40 @@ export const AiChatResponse = zod.object({
       toAccountId: zod.number().nullish(),
     })
     .optional(),
+  warnings: zod
+    .array(
+      zod.object({
+        type: zod.enum(["anomaly", "budget", "duplicate"]),
+        anomalyType: zod.enum(["category", "merchant"]).optional(),
+        currentAmount: zod.number().optional(),
+        averageAmount: zod.number().optional(),
+        ratio: zod.number().optional(),
+        typicalAmount: zod.number().nullish(),
+        categoryName: zod.string().optional(),
+        budgetAmount: zod.number().optional(),
+        spentSoFar: zod.number().optional(),
+        afterTransaction: zod.number().optional(),
+        isOverBudget: zod.boolean().optional(),
+        existingId: zod.number().optional(),
+        existingDate: zod.string().optional(),
+        existingDescription: zod.string().optional(),
+        existingAmount: zod.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Confirm a transaction and update merchant mappings
+ */
+export const AiChatConfirmBody = zod.object({
+  description: zod.string().optional(),
+  category: zod.string().optional(),
+  accountId: zod.number().nullish(),
+});
+
+export const AiChatConfirmResponse = zod.object({
+  ok: zod.boolean(),
 });
 
 /**
