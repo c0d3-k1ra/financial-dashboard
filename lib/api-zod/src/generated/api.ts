@@ -129,6 +129,56 @@ export const AiParseResponse = zod.object({
 });
 
 /**
+ * @summary Multi-turn conversational AI transaction parser with slot-filling
+ */
+export const AiChatBody = zod.object({
+  messages: zod.array(
+    zod.object({
+      role: zod.enum(["user", "assistant"]),
+      content: zod.string(),
+    }),
+  ),
+  categories: zod.array(
+    zod.object({
+      name: zod.string(),
+      type: zod.string(),
+    }),
+  ),
+  accounts: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      type: zod.string(),
+    }),
+  ),
+});
+
+export const AiChatResponse = zod.object({
+  reply: zod.string(),
+  type: zod.enum(["question", "confirmation", "error", "cancelled"]),
+  options: zod
+    .array(
+      zod.object({
+        label: zod.string(),
+        value: zod.string(),
+      }),
+    )
+    .optional(),
+  transaction: zod
+    .object({
+      transactionType: zod.string().optional(),
+      amount: zod.string().optional(),
+      date: zod.string().optional(),
+      description: zod.string().optional(),
+      category: zod.string().optional(),
+      accountId: zod.number().nullish(),
+      fromAccountId: zod.number().nullish(),
+      toAccountId: zod.number().nullish(),
+    })
+    .optional(),
+});
+
+/**
  * @summary Update a transaction
  */
 export const UpdateTransactionParams = zod.object({

@@ -422,6 +422,69 @@ export interface AiParseResponse {
   createdEntityName?: string | null;
 }
 
+export type AiChatMessageRole =
+  (typeof AiChatMessageRole)[keyof typeof AiChatMessageRole];
+
+export const AiChatMessageRole = {
+  user: "user",
+  assistant: "assistant",
+} as const;
+
+export interface AiChatMessage {
+  role: AiChatMessageRole;
+  content: string;
+}
+
+export type AiChatRequestCategoriesItem = {
+  name: string;
+  type: string;
+};
+
+export type AiChatRequestAccountsItem = {
+  id: number;
+  name: string;
+  type: string;
+};
+
+export interface AiChatRequest {
+  messages: AiChatMessage[];
+  categories: AiChatRequestCategoriesItem[];
+  accounts: AiChatRequestAccountsItem[];
+}
+
+export type AiChatResponseType =
+  (typeof AiChatResponseType)[keyof typeof AiChatResponseType];
+
+export const AiChatResponseType = {
+  question: "question",
+  confirmation: "confirmation",
+  error: "error",
+  cancelled: "cancelled",
+} as const;
+
+export type AiChatResponseOptionsItem = {
+  label: string;
+  value: string;
+};
+
+export type AiChatResponseTransaction = {
+  transactionType?: string;
+  amount?: string;
+  date?: string;
+  description?: string;
+  category?: string;
+  accountId?: number | null;
+  fromAccountId?: number | null;
+  toAccountId?: number | null;
+};
+
+export interface AiChatResponse {
+  reply: string;
+  type: AiChatResponseType;
+  options?: AiChatResponseOptionsItem[];
+  transaction?: AiChatResponseTransaction;
+}
+
 export type ListTransactionsParams = {
   month?: string;
   search?: string;

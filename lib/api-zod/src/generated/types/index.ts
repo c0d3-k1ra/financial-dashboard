@@ -7,6 +7,15 @@
  */
 
 export * from "./accountItem";
+export * from "./aiChatMessage";
+export * from "./aiChatMessageRole";
+export * from "./aiChatRequest";
+export * from "./aiChatRequestAccountsItem";
+export * from "./aiChatRequestCategoriesItem";
+export * from "./aiChatResponse";
+export * from "./aiChatResponseOptionsItem";
+export * from "./aiChatResponseTransaction";
+export * from "./aiChatResponseType";
 export * from "./aiParseRequest";
 export * from "./aiParseRequestAccountsItem";
 export * from "./aiParseRequestCategoriesItem";

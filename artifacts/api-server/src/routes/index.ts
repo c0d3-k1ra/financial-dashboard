@@ -14,11 +14,13 @@ import goalsRouter from "./goals";
 import analyticsRouter from "./analytics";
 import settingsRouter from "./settings";
 import aiRouter from "./ai";
+import aiChatRouter from "./ai-chat";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(transactionsRouter);
+router.use(aiChatRouter);
 router.use(monthlyConfigRouter);
 router.use(budgetGoalsRouter);
 router.use(dashboardRouter);

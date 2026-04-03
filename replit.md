@@ -168,3 +168,16 @@ Every category has a matching Lucide icon via `src/lib/category-icons.ts`. The `
 - **Action buttons**: Solid emerald (bg-emerald-600) for primary actions (Log Transaction, etc.)
 - **Tables**: Zebra striping via `zebra-row` CSS class
 - **Mobile**: 44px minimum touch targets; bottom-sheet drawer (Sheet) for adding transactions on mobile viewports
+
+## AI Transaction Assistant
+
+The app includes a conversational AI transaction parser accessible via a floating action button (FAB) at the bottom-right. Key features:
+
+- **Multi-turn chat**: Slide-up panel (~50vh) with message bubbles, pill button options, and rich confirmation cards
+- **Smart slot-filling**: AI extracts fields from natural language, applies smart defaults (date=today, type from language, account/category from merchant history), and only asks about truly missing fields
+- **Confirmation cards**: Shows transaction summary with amount, category icon, description, date, account + "Log It" / "Edit" buttons
+- **Edit mode**: Inline-editable fields on the confirmation card
+- **Undo**: 10-second undo link after logging a transaction
+- **Session-scoped**: Chat history clears on panel close; conversation context resets after each logged transaction
+- **Backend**: `POST /api/ai/chat` endpoint with Anthropic Claude integration, transaction history helpers for merchant-based defaults
+- **Files**: `artifacts/api-server/src/routes/ai-chat.ts`, `artifacts/finance-app/src/components/ai-parse-bubble.tsx`

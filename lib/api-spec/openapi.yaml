@@ -160,6 +160,25 @@ paths:
               schema:
                 $ref: "#/components/schemas/AiParseResponse"
 
+  /ai/chat:
+    post:
+      operationId: aiChat
+      tags: [transactions]
+      summary: Multi-turn conversational AI transaction parser with slot-filling
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiChatRequest"
+      responses:
+        "200":
+          description: AI chat response with either a question, confirmation, or status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiChatResponse"
+
   /transactions/{id}:
     put:
       operationId: updateTransaction
@@ -1907,3 +1926,100 @@ components:
         createdEntityName:
           type: string
           nullable: true
+
+    AiChatMessage:
+      type: object
+      properties:
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+      required:
+        - role
+        - content
+
+    AiChatRequest:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/AiChatMessage"
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - name
+              - type
+        accounts:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              type:
+                type: string
+            required:
+              - id
+              - name
+              - type
+      required:
+        - messages
+        - categories
+        - accounts
+
+    AiChatResponse:
+      type: object
+      properties:
+        reply:
+          type: string
+        type:
+          type: string
+          enum: [question, confirmation, error, cancelled]
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              label:
+                type: string
+              value:
+                type: string
+            required:
+              - label
+              - value
+        transaction:
+          type: object
+          properties:
+            transactionType:
+              type: string
+            amount:
+              type: string
+            date:
+              type: string
+            description:
+              type: string
+            category:
+              type: string
+            accountId:
+              type: integer
+              nullable: true
+            fromAccountId:
+              type: integer
+              nullable: true
+            toAccountId:
+              type: integer
+              nullable: true
+      required:
+        - reply
+        - type

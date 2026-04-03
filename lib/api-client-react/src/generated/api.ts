@@ -18,6 +18,8 @@ import type {
 
 import type {
   AccountItem,
+  AiChatRequest,
+  AiChatResponse,
   AiParseRequest,
   AiParseResponse,
   AppSettings,
@@ -516,6 +518,92 @@ export const useAiParse = <
   TContext
 > => {
   return useMutation(getAiParseMutationOptions(options));
+};
+
+/**
+ * @summary Multi-turn conversational AI transaction parser with slot-filling
+ */
+export const getAiChatUrl = () => {
+  return `/api/ai/chat`;
+};
+
+export const aiChat = async (
+  aiChatRequest: AiChatRequest,
+  options?: RequestInit,
+): Promise<AiChatResponse> => {
+  return customFetch<AiChatResponse>(getAiChatUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiChatRequest),
+  });
+};
+
+export const getAiChatMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiChat>>,
+    TError,
+    { data: BodyType<AiChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof aiChat>>,
+  TError,
+  { data: BodyType<AiChatRequest> },
+  TContext
+> => {
+  const mutationKey = ["aiChat"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof aiChat>>,
+    { data: BodyType<AiChatRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return aiChat(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AiChatMutationResult = NonNullable<
+  Awaited<ReturnType<typeof aiChat>>
+>;
+export type AiChatMutationBody = BodyType<AiChatRequest>;
+export type AiChatMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Multi-turn conversational AI transaction parser with slot-filling
+ */
+export const useAiChat = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof aiChat>>,
+    TError,
+    { data: BodyType<AiChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof aiChat>>,
+  TError,
+  { data: BodyType<AiChatRequest> },
+  TContext
+> => {
+  return useMutation(getAiChatMutationOptions(options));
 };
 
 /**
