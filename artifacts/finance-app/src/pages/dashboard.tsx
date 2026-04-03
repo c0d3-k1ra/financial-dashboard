@@ -36,7 +36,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, AlertTriangle, Clock, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2, Undo2, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2, Undo2, TrendingUp } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TransferModal from "@/components/transfer-modal";
 import SurplusDistributeModal from "@/components/surplus-distribute-modal";
@@ -538,9 +538,9 @@ export default function Dashboard() {
         <Card className="glass-card rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-destructive" /> CC Payment Dues
+              <CreditCard className="w-4 h-4 text-destructive" /> CC Outstanding
             </CardTitle>
-            <CardDescription>Upcoming credit card payments</CardDescription>
+            <CardDescription>Credit card balances</CardDescription>
           </CardHeader>
           <CardContent>
             {isLoadingCcDues ? (
@@ -550,11 +550,7 @@ export default function Dashboard() {
               </div>
             ) : ccDues && ccDues.length > 0 ? (
               <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                {ccDues.map((cc) => {
-                  const urgency = cc.daysUntilDue !== null && cc.daysUntilDue !== undefined
-                    ? cc.daysUntilDue <= 5 ? "urgent" : cc.daysUntilDue <= 10 ? "warning" : "ok"
-                    : "unknown";
-                  return (
+                {ccDues.map((cc) => (
                     <div key={cc.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
                       <div className="flex justify-between items-start">
                         <div>
@@ -579,27 +575,9 @@ export default function Dashboard() {
                             </p>
                           )}
                         </div>
-                        {cc.daysUntilDue !== null && cc.daysUntilDue !== undefined ? (
-                          <div className={`flex items-center gap-1 text-xs font-mono px-2 py-1 rounded ${
-                            urgency === "urgent"
-                              ? "bg-destructive/15 text-destructive"
-                              : urgency === "warning"
-                              ? "bg-yellow-500/15 text-yellow-500"
-                              : "bg-emerald-500/15 text-emerald-500"
-                          }`}>
-                            {urgency === "urgent" ? <AlertTriangle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                            {cc.daysUntilDue}d
-                          </div>
-                        ) : (
-                          <span className="text-xs font-mono text-muted-foreground">No due date</span>
-                        )}
                       </div>
-                      {cc.billingDueDay && (
-                        <p className="text-xs text-muted-foreground font-mono mt-1">Due: {cc.billingDueDay}th of each month</p>
-                      )}
                     </div>
-                  );
-                })}
+                ))}
               </div>
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-border/50 p-6 text-center">
