@@ -709,48 +709,63 @@ export default function Dashboard() {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-                <div className="flex-1 w-full overflow-auto max-h-[280px]">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-muted-foreground text-xs font-mono uppercase tracking-wider border-b border-border/50">
-                        <th className="text-left py-2 pr-2">Category</th>
-                        <th className="text-right py-2 px-2">Amount</th>
-                        <th className="text-right py-2 pl-2">%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pieData.map((entry, i) => {
-                        const Icon = getCategoryIcon(entry.name);
-                        const pct = pieTotal > 0 ? ((entry.value / pieTotal) * 100).toFixed(1) : "0.0";
-                        return (
-                          <tr key={i} className="border-b border-border/30 last:border-0">
-                            <td className="py-2 pr-2">
-                              <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
-                                <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                                <span className="truncate">{entry.name}</span>
-                              </div>
-                            </td>
-                            <td className="text-right py-2 px-2 tabular-nums text-xs whitespace-nowrap">
-                              {formatCurrency(entry.value)}
-                            </td>
-                            <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                              {pct}%
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t border-border/50">
-                        <td className="py-2 pr-2 font-medium">Total</td>
-                        <td className="text-right py-2 px-2 tabular-nums text-xs font-bold whitespace-nowrap">
-                          {formatCurrency(pieTotal)}
-                        </td>
-                        <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground">100%</td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                <div className="flex-1 w-full relative">
+                  <div
+                    className="overflow-auto max-h-[280px] scrollbar-thin"
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 10;
+                      const indicator = el.parentElement?.querySelector('[data-scroll-hint]') as HTMLElement | null;
+                      if (indicator) indicator.style.opacity = atBottom ? '0' : '1';
+                    }}
+                  >
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-muted-foreground text-xs font-mono uppercase tracking-wider border-b border-border/50">
+                          <th className="text-left py-2 pr-2">Category</th>
+                          <th className="text-right py-2 px-2">Amount</th>
+                          <th className="text-right py-2 pl-2">%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {pieData.map((entry, i) => {
+                          const Icon = getCategoryIcon(entry.name);
+                          const pct = pieTotal > 0 ? ((entry.value / pieTotal) * 100).toFixed(1) : "0.0";
+                          return (
+                            <tr key={i} className="border-b border-border/30 last:border-0">
+                              <td className="py-2 pr-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.fill }} />
+                                  <Icon className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                  <span className="truncate">{entry.name}</span>
+                                </div>
+                              </td>
+                              <td className="text-right py-2 px-2 tabular-nums text-xs whitespace-nowrap">
+                                {formatCurrency(entry.value)}
+                              </td>
+                              <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
+                                {pct}%
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-border/50">
+                          <td className="py-2 pr-2 font-medium">Total</td>
+                          <td className="text-right py-2 px-2 tabular-nums text-xs font-bold whitespace-nowrap">
+                            {formatCurrency(pieTotal)}
+                          </td>
+                          <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground">100%</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  {pieData.length > 6 && (
+                    <div data-scroll-hint className="flex justify-center pt-1.5 transition-opacity duration-300">
+                      <ChevronDown className="w-4 h-4 text-muted-foreground animate-bounce" />
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
