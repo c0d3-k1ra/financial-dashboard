@@ -550,11 +550,11 @@ export function AiParseBubble() {
         {warnings.map((warning, i) => {
           if (warning.type === "anomaly") {
             return (
-              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-500/20">
+              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-600/20 dark:border-amber-500/20">
                 <div className="flex items-start gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1.5">
-                    <p className="text-xs text-amber-300">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
                       {warning.anomalyType === "merchant"
                         ? `This is ${warning.ratio}x your typical spend here (avg ₹${warning.averageAmount?.toLocaleString()})`
                         : `This is ${warning.ratio}x the average for this category (avg ₹${warning.averageAmount?.toLocaleString()})`}
@@ -575,11 +575,11 @@ export function AiParseBubble() {
               ? Math.round((warning.afterTransaction! / warning.budgetAmount) * 100)
               : 0;
             return (
-              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-500/20">
+              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-600/20 dark:border-amber-500/20">
                 <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs text-amber-300">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
                       {warning.isOverBudget
                         ? `${warning.categoryName} budget already exceeded`
                         : `This will push ${warning.categoryName} over budget`}
@@ -595,11 +595,11 @@ export function AiParseBubble() {
 
           if (warning.type === "duplicate") {
             return (
-              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-500/20">
+              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-600/20 dark:border-amber-500/20">
                 <div className="flex items-start gap-2">
-                  <Copy className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <Copy className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs text-amber-300">
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
                       Possible duplicate detected
                     </p>
                     <p className="text-xs text-muted-foreground">
@@ -873,7 +873,7 @@ export function AiParseBubble() {
                 if (msg.type === "user") {
                   return (
                     <div key={msg.id} className="flex justify-end">
-                      <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-gradient-to-br from-blue-500 to-blue-600 dark:from-transparent dark:to-transparent border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
+                      <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-blue-500 border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
                         <p className="text-sm">{msg.content}</p>
                       </div>
                     </div>
