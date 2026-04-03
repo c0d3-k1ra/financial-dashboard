@@ -1,0 +1,34 @@
+PAGE 4: TRANSACTIONS (LEDGER)
+4.1 Balance Adjustments — Hide by Default
+
+Balance Adjustment entries are bookkeeping artifacts from syncing/reconciling account balances. They are NOT real user transactions and currently dominate the ledger (8 out of 15 visible rows in a typical view), making the table feel cluttered and noisy.
+Hide all Balance Adjustment entries from the default view entirely.
+Add a toggle chip in the filter bar: "Show Adjustments" (off by default). When toggled on, adjustments appear but visually muted:
+
+Italic description text
+Reduced row opacity (~60%)
+Dashed left border (2px, muted color) instead of the normal row style
+This makes them clearly second-class entries even when visible
+
+
+When multiple adjustments share the same date, collapse them into a single summary row: "8 Balance Adjustments" with a chevron to expand. This prevents a batch of adjustments from pushing real transactions out of view.
+
+4.2 Date Grouping
+
+Every row currently repeats the full date ("Apr 1, 2026") which is redundant when 15 transactions share the same date
+Remove the Date column from individual rows. Instead, show the date once as a sticky section header above its group of transactions:
+
+"Apr 3, 2026" (header) → transactions listed below without date
+"Apr 2, 2026" (header) → transactions listed below
+"Apr 1, 2026" (header) → transactions listed below
+
+
+Add a daily spend total on the right side of each date header (e.g., "Apr 3, 2026 — ₹4,789.99") so users can see per-day spending at a glance
+This reclaims ~15% horizontal space and significantly reduces visual repetition
+
+4.3 Category Badges — Compact Treatment
+
+The category badge column is too wide. Badges like "Term Insurance" wrap to two lines inside the pill, causing inconsistent row heights.
+Switch to a compact treatment: small colored dot (or category icon only) in the table, with the full category name shown on hover/tap as a tooltip
+Alternatively, keep the badge but enforce single-line with text truncation and a max-width. Full label on hover.
+Add a click interaction: clicking a category badge/dot should filter the table to show only transactions in that category (acts as a quick filter)

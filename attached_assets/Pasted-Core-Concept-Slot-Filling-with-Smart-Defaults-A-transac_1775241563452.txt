@@ -1,0 +1,55 @@
+Core Concept: Slot-Filling with Smart Defaults
+A transaction has 5 slots: amount, category, description, account, and date (plus type: expense/income/transfer).
+The AI should extract whatever it can from the first message, then fill remaining slots using smart defaults before ever asking the user. The goal is minimum turns to confirmation.
+Default inference rules (in priority order):
+
+Date: always default to today if not mentioned. Never ask.
+Type: default to expense unless input sounds like income ("received", "got paid", "cashback") or transfer ("transferred", "moved", "sent to account"). Never ask unless genuinely ambiguous.
+Account: check if this merchant/description was used before — if the last 3+ times they logged this merchant it was from the same account, use that. Failing that, check if the category has a dominant account (70%+ of transactions in that category use one account). Failing that, check if there's a default account. Only ask if no inference is possible.
+Category: check if the merchant/description was categorized before (e.g., "Starbucks" was always "Drinks"). If no history, let the AI infer from context ("cab" → Transportation, "zomato" → Food). Only ask if no inference possible.
+Description: use the merchant/place name from the input. If only a category was mentioned ("200 on food"), don't ask for description — it's optional.
+
+
+Response Strategy Based on What's Missing
+All slots filled → go straight to confirmation:
+
+"Got it — ₹200 on Drinks at Starbucks, today, from Axis Vistara. Log it?"
+
+1 slot missing → ask for just that slot with quick-reply options:
+
+"₹200 on Drinks, today. Which account?"
+[One Card] [Axis Vistara] [HDFC Salary]
+
+2 slots missing → ask both in one message, not two separate messages:
+
+"₹200, today. What category and which account?"
+
+3+ slots missing (basically just an amount) → ask the next most important slot (category), then chain from there.
+No amount provided → this is the only hard requirement. Ask for it.
+Recurring transaction detected → if "father" or "term insurance" matches a pattern that repeats monthly (same amount, category, account), pre-fill everything:
+
+"Looks like your usual Father payment — ₹25,000 from HDFC Salary. Log it?"
+
+
+Conversational UI
+
+Open the parser from the floating action button (bottom-right, already exists in the app)
+It should open as a slide-up chat panel (~50% viewport height), not a full-page modal
+Style the chat panel with the app's existing glassmorphism/dark theme aesthetic
+User messages: right-aligned bubbles. AI responses: left-aligned bubbles.
+When the AI asks a question with finite options (accounts, categories), show tappable pill buttons below the message — sorted by most recently/frequently used, not alphabetical. Limit to 4-5 visible pills + "Other..." for the full list.
+Confirmation should render as a rich card inside the chat: amount (large), category with icon, description, date, account — with "Log It" (primary) and "Edit" (secondary) buttons
+"Edit" expands the card into inline-editable fields so the user can correct anything
+"Log It" saves the transaction, shows a brief success animation, then keeps the input focused with "Log another or close" placeholder for rapid-fire logging
+After logging, show a compact "done" card in the chat history with an undo link that's available for 10 seconds
+
+
+Edge Cases to Handle
+
+Corrections mid-flow: "wait, make it 300 not 200" or "no, food not drinks" should update the slot and re-confirm, not restart
+Ambiguous type: "Paid Ravi 500" → ask if it's a transfer or an expense
+Just a number: "1000" → ask what it's for (category)
+Just a description: "coffee" → ask how much
+Transfers: "transferred 2L to IDFC from HDFC" → parse as transfer with source and destination accounts
+Multiple transactions: "200 on drinks and 500 on food" → parse as two separate transactions, confirm each sequentially
+Cancel: "never mind", "cancel", "forget it" → clear the current flow, show a friendly cancellation message
