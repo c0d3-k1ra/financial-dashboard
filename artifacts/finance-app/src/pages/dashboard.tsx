@@ -375,9 +375,9 @@ export default function Dashboard() {
     ];
   }, [summary, goals]);
 
-  const liquidCash = Number(summary?.bankBalance || 0);
-  const monthlyExpenses = Number(summary?.plannedExpenses || 1);
-  const liquidityRatio = monthlyExpenses > 0 ? liquidCash / monthlyExpenses : 1;
+  const liquidCash = Number(summary?.netLiquidity || 0);
+  const monthlyOutflow = Number(summary?.plannedExpenses || 0) + Number(summary?.totalEmiDue || 0);
+  const liquidityRatio = monthlyOutflow > 0 ? liquidCash / monthlyOutflow : 1;
   const liquidityHealthy = liquidityRatio >= 1;
 
   const { totalBank, totalCcOutstanding, totalLoanOutstanding, netWorth } = useMemo(() => {
