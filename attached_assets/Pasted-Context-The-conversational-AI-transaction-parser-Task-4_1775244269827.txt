@@ -1,0 +1,126 @@
+Context
+The conversational AI transaction parser (Task #44) handles the core slot-filling flow, chat UI, smart defaults from transaction history, confirmation cards, corrections, and edge cases. This task adds the missing intelligence layer on top — the behaviors that make the parser aware of the user's full data model and able to act on mismatches, anomalies, and patterns rather than silently doing the wrong thing.
+
+1. Unknown Category Handling
+When the user mentions something that doesn't map to any existing category (e.g., "200 on jewellery" but there's no Jewellery category), the AI should NOT silently dump it into "Other" or force-fit it to the closest match.
+Instead, offer a choice inline in the conversation:
+
+"You don't have a Jewellery category. Want me to log this under one of these, or create a new one?"
+[Shopping] [Personal] [+ Create "Jewellery"]
+
+
+Show the 2-3 closest existing categories as suggestions
+If the user taps "Create", create the category (type: Expense or Income, inferred from transaction type) immediately via the existing category creation API, then continue the transaction flow using the new category
+The newly created category must be immediately available for the current and all subsequent transactions — include it in the AI system prompt for future extraction calls
+If the user picks an existing category, proceed normally
+
+
+2. Unknown Account Handling
+When the user mentions an account that doesn't exist (e.g., "from my ICICI card" but there's no ICICI account), don't fail or silently ignore it.
+Ask inline:
+
+"You don't have an ICICI account. Did you mean one of these?"
+[One Card] [Axis Vistara] [HDFC Tata Neu] [+ Add "ICICI Card"]
+
+
+Show existing accounts as pills
+If the user taps "Add", ask the minimum needed to create an account: "What type is ICICI Card?" [Credit Card] [Bank Account]
+Create the account via the existing account creation API, then continue the transaction flow
+The new account must be immediately usable in subsequent transactions
+
+
+3. Spending Anomaly Detection
+Before showing the confirmation card, compare the transaction amount against the user's historical average for that category or merchant.
+
+If the amount is 3x+ the user's average for that category, flag it:
+
+"₹22,000 on Drinks is unusually high — your average is around ₹800. Sure about the amount or category?"
+[Confirm as-is] [Edit amount] [Change category]
+
+
+If the amount is 3x+ the user's average for that specific merchant, flag it more specifically:
+
+"₹5,000 at Starbucks is higher than your usual ₹200-500. Did you mean ₹500?"
+[Yes, ₹5,000] [Change to ₹500]
+
+
+This catches typos (extra zero) and miscategorizations (₹22,000 hotel bill logged as drinks)
+Only flag significantly large deviations. Small variations (₹350 vs average ₹300) should not trigger warnings.
+
+
+4. Budget Awareness
+After all slots are filled but before final confirmation, check the user's budget for that category in the current billing cycle.
+Will exceed budget:
+
+Show an informational note on the confirmation card: "Heads up — this puts Food at ₹4,700 / ₹4,500 budget this cycle."
+
+Already over budget:
+
+"Food is already ₹200 over budget. This adds another ₹500."
+
+
+These are warnings, not blockers. The user can still tap "Log It". The point is awareness.
+Display the warning as a subtle amber/yellow note below the confirmation card details, not as a separate chat message.
+Only show budget warnings for categories that have a budget set. Skip for categories with no budget.
+
+
+5. Duplicate Detection
+Before showing the confirmation card, check if a very similar transaction was already logged recently.
+Match criteria: same amount (exact) + same category or merchant + same date (±1 day).
+If a likely duplicate exists:
+
+"You already logged ₹570 on Food at Zomato today. Is this a second transaction or a duplicate?"
+[New transaction] [Skip, it's a duplicate]
+
+
+"Skip" cancels the current flow with a brief "Skipped" message
+"New transaction" proceeds to confirmation normally
+Do NOT flag as duplicate if the date differs by more than 1 day or the amount differs by more than 5% — those are likely separate transactions
+
+
+6. Ambiguous Merchant-to-Category Mapping
+Some merchants span multiple categories. When a merchant has been categorized differently across past transactions without a clear dominant category:
+
+If one category accounts for 80%+ of that merchant's transactions, auto-fill. Don't ask.
+If no single category dominates (e.g., Amazon: Shopping 55%, Grocery 30%, Subscriptions 15%), do NOT auto-fill. Ask:
+
+"What type of Amazon purchase?"
+[Shopping] [Grocery] [Subscriptions]
+Pills sorted by frequency for that merchant.
+
+
+
+
+7. Recurring Transaction Detection
+Detect monthly recurring patterns: same description/merchant + same amount (±5%) + same category + same account, appearing monthly within a ±3 day window for 3+ consecutive months.
+When the user's input matches a known recurring pattern (e.g., they type "father" and the system knows Father = ₹25,000, HDFC Salary, 1st of every month):
+
+"Looks like your usual Father payment — ₹25,000 from HDFC Salary. Log it?"
+
+Pre-fill everything from the pattern. Straight to confirmation. User can still tap "Edit" to change any field.
+If the user provides a different amount for a known recurring (e.g., "father 30000"), use the user's amount but fill everything else from the pattern.
+
+8. Persistent Merchant Learning Table
+The smart default helpers in Task #44 query raw transaction history for merchant→category and merchant→account mappings. Add a dedicated persistent lookup table that grows over time:
+
+Every time a transaction is confirmed, upsert a record: merchant keyword → category → account → use count → last used date
+When resolving slots, query this table first (fast lookup) before falling back to scanning raw transaction history (slower)
+If use count is 3+, treat the mapping as high confidence for auto-fill
+This table is per-user. No cross-user data.
+
+
+9. Chat State Persistence Across Panel Close/Reopen
+Task #44 scopes chat history to clear on panel close. Change this:
+
+If the user is mid-conversation (AI has asked a question and is waiting for a response), persist the conversation state
+When the user reopens the panel, restore the pending conversation so they can continue where they left off
+Clear the conversation state only after: a transaction is successfully logged, the user explicitly cancels, or the session has been idle for 30+ minutes
+This prevents losing progress when the user accidentally closes the panel or switches tabs
+
+
+General Guidelines
+
+All of these behaviors layer on top of Task #44's existing slot-filling flow. They should integrate into the same chat panel, same confirmation card, same conversational style.
+Warnings (anomaly, budget, duplicate) should appear as notes on or near the confirmation card, not as separate blocking conversation turns. Keep the turn count low.
+Category and account creation are inline — the user should never leave the chat panel to create these. Use the existing creation APIs.
+Keep the tone terse and direct. "₹22,000 on Drinks is unusually high" not "I noticed that the amount you entered seems significantly higher than your typical spending pattern in this category."
