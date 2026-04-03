@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   useListTransactions,
   getListTransactionsQueryKey,
@@ -18,7 +18,8 @@ import type { Transaction } from "@workspace/api-client-react";
 import { formatCurrency, formatDate, getApiErrorMessage } from "@/lib/constants";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format, subMonths } from "date-fns";
-import { ResponsiveTable } from "@/components/ui/responsive-table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,7 +29,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Search, Trash2, Pencil, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, X, Info, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, X, Info, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoryBadge } from "@/components/category-badge";
@@ -75,6 +76,8 @@ export default function Transactions() {
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showAdjustments, setShowAdjustments] = useState(false);
+  const [expandedAdjustmentDates, setExpandedAdjustmentDates] = useState<Set<string>>(new Set());
   const [transferInitialValues, setTransferInitialValues] = useState<{
     fromAccountId?: string;
     toAccountId?: string;
@@ -174,14 +177,26 @@ export default function Transactions() {
   const handleAddCategory = () => handleAddCategoryFor(form);
   const handleEditAddCategory = () => handleAddCategoryFor(editForm);
 
+  const isBalanceAdjustment = (tx: Transaction) =>
+    tx.description.toLowerCase().includes("balance adjustment") ||
+    tx.category.toLowerCase() === "balance adjustment";
+
   const sortedTransactions = useMemo(() => {
     if (!transactions) return [];
-    const sorted = [...transactions].sort((a, b) => {
+    let filtered = [...transactions];
+    if (!showAdjustments) {
+      filtered = filtered.filter((tx) => !isBalanceAdjustment(tx));
+    }
+    const sorted = filtered.sort((a, b) => {
+      const dateCmp = b.date.localeCompare(a.date);
+      if (sortField === "date") {
+        return sortDir === "asc" ? -dateCmp : dateCmp;
+      }
+      if (dateCmp !== 0) {
+        return sortDir === "asc" ? -dateCmp : dateCmp;
+      }
       let cmp = 0;
       switch (sortField) {
-        case "date":
-          cmp = a.date.localeCompare(b.date);
-          break;
         case "amount":
           cmp = Number(a.amount) - Number(b.amount);
           break;
@@ -195,7 +210,7 @@ export default function Transactions() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return sorted;
-  }, [transactions, sortField, sortDir]);
+  }, [transactions, sortField, sortDir, showAdjustments]);
 
   const totalCount = sortedTransactions.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
@@ -206,6 +221,41 @@ export default function Transactions() {
 
   const showingFrom = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const showingTo = Math.min(currentPage * PAGE_SIZE, totalCount);
+
+  const toggleAdjustmentDate = useCallback((date: string) => {
+    setExpandedAdjustmentDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }, []);
+
+  const dateGroups = useMemo(() => {
+    const groups: { date: string; formattedDate: string; dailySpend: number; transactions: Transaction[] }[] = [];
+    const map = new Map<string, Transaction[]>();
+    for (const tx of paginatedTransactions) {
+      const existing = map.get(tx.date);
+      if (existing) {
+        existing.push(tx);
+      } else {
+        const arr = [tx];
+        map.set(tx.date, arr);
+        groups.push({
+          date: tx.date,
+          formattedDate: formatDate(tx.date),
+          dailySpend: 0,
+          transactions: arr,
+        });
+      }
+    }
+    for (const group of groups) {
+      group.dailySpend = group.transactions
+        .filter((tx) => tx.type === "Expense" && !isBalanceAdjustment(tx))
+        .reduce((sum, tx) => sum + Number(tx.amount), 0);
+    }
+    return groups;
+  }, [paginatedTransactions]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -388,22 +438,99 @@ export default function Transactions() {
     setCurrentPage(1);
   };
 
-  const isBalanceAdjustment = (tx: Transaction) =>
-    tx.description.toLowerCase().includes("balance adjustment") ||
-    tx.category.toLowerCase() === "balance adjustment";
+  const renderMobileCard = (tx: Transaction) => {
+    const acct = accounts?.find((a) => a.id === tx.accountId);
+    const toAcct = tx.toAccountId ? accounts?.find((a) => a.id === tx.toAccountId) : null;
+    const isIncome = tx.type === "Income";
+    const isTransfer = tx.type === "Transfer";
+    const isAdj = isBalanceAdjustment(tx);
+
+    return (
+      <div
+        key={tx.id}
+        className={`relative rounded-xl border bg-card/60 backdrop-blur-sm text-card-foreground shadow overflow-hidden ${
+          isAdj
+            ? "border-dashed border-muted-foreground/30 opacity-60"
+            : isIncome
+            ? "border-emerald-500/30"
+            : isTransfer
+            ? "border-blue-400/30"
+            : "border-rose-500/30"
+        }`}
+      >
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-2">
+            <CategoryBadge
+              category={tx.category}
+              type={tx.type as "Income" | "Expense"}
+              onClick={() => handleCategoryClick(tx.category)}
+            />
+            <div className="flex items-center gap-0.5">
+              {tx.type !== "Transfer" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
+                  onClick={() => openEdit(tx)}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0 -mr-1"
+                onClick={() => setDeleteId(tx.id)}
+                data-testid={`btn-delete-tx-${tx.id}`}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <p className={`font-medium text-sm text-foreground truncate ${isAdj ? "italic text-muted-foreground" : ""}`}>
+                {tx.description}
+              </p>
+              {isAdj && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Manual balance adjustment — not an actual transaction</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            <span className={`font-mono font-bold text-sm flex items-center gap-1 shrink-0 ${
+              isIncome
+                ? "text-emerald-500"
+                : isTransfer
+                ? "text-blue-400"
+                : "text-foreground"
+            }`}>
+              {isIncome && <ArrowDownRight className="w-3.5 h-3.5" />}
+              {isTransfer && <ArrowLeftRight className="w-3.5 h-3.5" />}
+              {isIncome ? "+" : ""}{formatCurrency(tx.amount)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2 mt-1.5">
+            <span className="text-xs font-mono text-muted-foreground text-right truncate max-w-[50%]">
+              {isTransfer && acct && toAcct
+                ? `${acct.name} → ${toAcct.name}`
+                : acct?.name ?? "—"}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   const columns = [
-    {
-      header: (
-        <button onClick={() => toggleSort("date")} className="flex items-center hover:text-foreground transition-colors">
-          Date <SortIcon field="date" />
-        </button>
-      ),
-      cardLabel: "Date",
-      accessorKey: "date" as const,
-      className: "w-[12%]",
-      cell: (tx: Transaction) => <span className="font-mono">{formatDate(tx.date)}</span>,
-    },
     {
       header: (
         <button onClick={() => toggleSort("description")} className="flex items-center hover:text-foreground transition-colors">
@@ -412,7 +539,7 @@ export default function Transactions() {
       ),
       cardLabel: "Description",
       accessorKey: "description" as const,
-      className: "w-[28%] font-medium truncate",
+      className: "w-[32%] font-medium truncate",
       cell: (tx: Transaction) => (
         <div className="flex items-center gap-1.5">
           <span className={`truncate ${isBalanceAdjustment(tx) ? "italic text-muted-foreground" : ""}`}>
@@ -441,12 +568,13 @@ export default function Transactions() {
       ),
       cardLabel: "Category",
       accessorKey: "category" as const,
-      className: "w-[15%]",
+      className: "w-[8%]",
       cell: (tx: Transaction) => (
         <CategoryBadge
           category={tx.category}
           type={tx.type as "Income" | "Expense"}
           onClick={() => handleCategoryClick(tx.category)}
+          compact
         />
       ),
     },
@@ -454,7 +582,7 @@ export default function Transactions() {
       header: "Account",
       cardLabel: "Account",
       accessorKey: "accountId" as const,
-      className: "w-[20%]",
+      className: "w-[25%]",
       cell: (tx: Transaction) => {
         const acct = accounts?.find((a) => a.id === tx.accountId);
         const toAcct = tx.toAccountId ? accounts?.find((a) => a.id === tx.toAccountId) : null;
@@ -476,7 +604,7 @@ export default function Transactions() {
       ),
       cardLabel: "Amount",
       accessorKey: "amount" as const,
-      className: "w-[17%] text-right",
+      className: "w-[20%] text-right",
       cell: (tx: Transaction) => (
         <div className="flex items-center justify-end gap-1 font-mono font-bold">
           {tx.type === "Income" ? (
@@ -661,6 +789,23 @@ export default function Transactions() {
                 {sortDir === "asc" ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
               </Button>
             </div>
+            <button
+              onClick={() => {
+                setShowAdjustments((v) => {
+                  if (v) setExpandedAdjustmentDates(new Set());
+                  return !v;
+                });
+                setCurrentPage(1);
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono border transition-colors ${
+                showAdjustments
+                  ? "bg-primary/15 text-primary border-primary/30"
+                  : "bg-background/50 text-muted-foreground border-white/[0.08] hover:border-white/[0.15]"
+              }`}
+            >
+              {showAdjustments ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+              {showAdjustments ? "Hide" : "Show"} Adjustments
+            </button>
             {activeFilterCount > 0 && (
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 text-primary text-xs font-mono border border-primary/20">
@@ -692,125 +837,184 @@ export default function Transactions() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6">
-              <ResponsiveTable
-                data={paginatedTransactions}
-                columns={columns}
-                keyExtractor={(tx) => tx.id}
-                rowClassName={(tx) => getRowClassName(tx)}
-                renderMobileCard={(tx) => {
-                  const acct = accounts?.find((a) => a.id === tx.accountId);
-                  const toAcct = tx.toAccountId ? accounts?.find((a) => a.id === tx.toAccountId) : null;
-                  const isIncome = tx.type === "Income";
-                  const isTransfer = tx.type === "Transfer";
-                  const isAdj = isBalanceAdjustment(tx);
+            {paginatedTransactions.length === 0 ? (
+              <div className="text-center py-12 px-4 border border-dashed border-border/50 rounded-lg bg-background/30">
+                {activeFilterCount > 0 ? (
+                  <>
+                    <p className="text-muted-foreground font-mono text-sm">No transactions match your filters.</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 text-xs"
+                      onClick={clearAllFilters}
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Clear All Filters
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground font-mono text-sm">No transactions found.</p>
+                    {search && <p className="text-xs text-muted-foreground mt-1">Try adjusting your search query.</p>}
+                  </>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="hidden md:block overflow-x-auto -mx-4 md:-mx-6 px-4 md:px-6">
+                  <div className="rounded-md border border-white/[0.08] bg-card/60 backdrop-blur-sm overflow-hidden">
+                  <div className="overflow-x-auto max-h-[70vh] overflow-y-auto">
+                      <Table className="table-fixed">
+                        <TableHeader className="bg-muted/50 sticky top-0 z-20">
+                          <TableRow>
+                            {columns.map((col, i) => (
+                              <TableHead key={i} className={cn("text-muted-foreground font-mono text-xs uppercase tracking-wider", col.className)}>
+                                {col.header}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dateGroups.map((group) => {
+                            const adjustments = group.transactions.filter(isBalanceAdjustment);
+                            const nonAdjustments = group.transactions.filter((tx) => !isBalanceAdjustment(tx));
+                            const hasMultipleAdj = adjustments.length > 1;
+                            const isAdjExpanded = expandedAdjustmentDates.has(group.date);
+                            const adjTotal = adjustments.reduce((sum, tx) => sum + Number(tx.amount), 0);
 
-                  return (
-                    <div className={`relative rounded-xl border bg-card/60 backdrop-blur-sm text-card-foreground shadow overflow-hidden ${
-                      isAdj
-                        ? "border-dashed border-muted-foreground/30 opacity-75"
-                        : isIncome
-                        ? "border-emerald-500/30"
-                        : isTransfer
-                        ? "border-blue-400/30"
-                        : "border-rose-500/30"
-                    }`}>
-                      <div className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <CategoryBadge
-                            category={tx.category}
-                            type={tx.type as "Income" | "Expense"}
-                            onClick={() => handleCategoryClick(tx.category)}
-                          />
-                          <div className="flex items-center gap-0.5">
-                            {tx.type !== "Transfer" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-muted-foreground hover:text-primary shrink-0"
-                                onClick={() => openEdit(tx)}
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0 -mr-1"
-                              onClick={() => setDeleteId(tx.id)}
-                              data-testid={`btn-delete-tx-${tx.id}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
+                            return (
+                              <React.Fragment key={group.date}>
+                                <TableRow className="bg-muted/30 hover:bg-muted/30 border-b-0 sticky top-[37px] z-10 backdrop-blur-sm">
+                                  <TableCell colSpan={columns.length} className="py-2 px-4">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-semibold font-mono text-foreground/80 tracking-wide">
+                                        {group.formattedDate}
+                                      </span>
+                                      {group.dailySpend > 0 && (
+                                        <span className="text-xs font-mono text-muted-foreground">
+                                          — {formatCurrency(group.dailySpend)}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                                {nonAdjustments.map((tx) => (
+                                  <TableRow
+                                    key={tx.id}
+                                    className={cn("transition-colors hover:bg-muted/30 zebra-row", getRowClassName(tx))}
+                                  >
+                                    {columns.map((col, colIndex) => (
+                                      <TableCell key={colIndex} className={col.className}>
+                                        {col.cell ? col.cell(tx) : (col.accessorKey ? String(tx[col.accessorKey] ?? "") : null)}
+                                      </TableCell>
+                                    ))}
+                                  </TableRow>
+                                ))}
+                                {showAdjustments && adjustments.length > 0 && (
+                                  <>
+                                    {hasMultipleAdj && !isAdjExpanded ? (
+                                      <TableRow
+                                        className="transition-colors hover:bg-muted/20 cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
+                                        onClick={() => toggleAdjustmentDate(group.date)}
+                                      >
+                                        <TableCell colSpan={columns.length} className="py-2 px-4">
+                                          <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground italic">
+                                            <ChevronDown className="w-3.5 h-3.5" />
+                                            <span>{adjustments.length} Balance Adjustments</span>
+                                            <span className="ml-auto">{formatCurrency(adjTotal)}</span>
+                                          </div>
+                                        </TableCell>
+                                      </TableRow>
+                                    ) : (
+                                      <>
+                                        {hasMultipleAdj && (
+                                          <TableRow
+                                            className="transition-colors hover:bg-muted/20 cursor-pointer opacity-60 border-l-2 border-dashed border-l-muted-foreground/30"
+                                            onClick={() => toggleAdjustmentDate(group.date)}
+                                          >
+                                            <TableCell colSpan={columns.length} className="py-1.5 px-4">
+                                              <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground italic">
+                                                <ChevronUp className="w-3.5 h-3.5" />
+                                                <span>Collapse {adjustments.length} Balance Adjustments</span>
+                                              </div>
+                                            </TableCell>
+                                          </TableRow>
+                                        )}
+                                        {adjustments.map((tx) => (
+                                          <TableRow
+                                            key={tx.id}
+                                            className={cn("transition-colors hover:bg-muted/30 zebra-row", getRowClassName(tx))}
+                                          >
+                                            {columns.map((col, colIndex) => (
+                                              <TableCell key={colIndex} className={col.className}>
+                                                {col.cell ? col.cell(tx) : (col.accessorKey ? String(tx[col.accessorKey] ?? "") : null)}
+                                              </TableCell>
+                                            ))}
+                                          </TableRow>
+                                        ))}
+                                      </>
+                                    )}
+                                  </>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="md:hidden flex flex-col gap-2">
+                  {dateGroups.map((group) => {
+                    const adjustments = group.transactions.filter(isBalanceAdjustment);
+                    const nonAdjustments = group.transactions.filter((tx) => !isBalanceAdjustment(tx));
+                    const hasMultipleAdj = adjustments.length > 1;
+                    const isAdjExpanded = expandedAdjustmentDates.has(group.date);
+
+                    return (
+                      <div key={group.date}>
+                        <div className="sticky top-0 z-10 flex items-center justify-between py-2 px-1 mb-1 bg-background/95 backdrop-blur-sm border-b border-white/[0.06]">
+                          <span className="text-xs font-semibold font-mono text-foreground/80">{group.formattedDate}</span>
+                          {group.dailySpend > 0 && (
+                            <span className="text-xs font-mono text-muted-foreground">— {formatCurrency(group.dailySpend)}</span>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <p className={`font-medium text-sm text-foreground truncate ${isAdj ? "italic text-muted-foreground" : ""}`}>
-                              {tx.description}
-                            </p>
-                            {isAdj && (
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Info className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p>Manual balance adjustment — not an actual transaction</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            )}
-                          </div>
-                          <span className={`font-mono font-bold text-sm flex items-center gap-1 shrink-0 ${
-                            isIncome
-                              ? "text-emerald-500"
-                              : isTransfer
-                              ? "text-blue-400"
-                              : "text-foreground"
-                          }`}>
-                            {isIncome && <ArrowDownRight className="w-3.5 h-3.5" />}
-                            {isTransfer && <ArrowLeftRight className="w-3.5 h-3.5" />}
-                            {isIncome ? "+" : ""}{formatCurrency(tx.amount)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mt-1.5">
-                          <p className="text-xs font-mono text-muted-foreground">{formatDate(tx.date)}</p>
-                          <span className="text-xs font-mono text-muted-foreground text-right truncate max-w-[50%]">
-                            {isTransfer && acct && toAcct
-                              ? `${acct.name} → ${toAcct.name}`
-                              : acct?.name ?? "—"}
-                          </span>
+                        <div className="flex flex-col gap-2 mb-3">
+                          {nonAdjustments.map((tx) => renderMobileCard(tx))}
+                          {showAdjustments && adjustments.length > 0 && (
+                            <>
+                              {hasMultipleAdj && !isAdjExpanded ? (
+                                <button
+                                  onClick={() => toggleAdjustmentDate(group.date)}
+                                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-muted-foreground/30 opacity-60 text-xs font-mono text-muted-foreground italic hover:opacity-80 transition-opacity"
+                                >
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                  <span>{adjustments.length} Balance Adjustments</span>
+                                </button>
+                              ) : (
+                                <>
+                                  {hasMultipleAdj && (
+                                    <button
+                                      onClick={() => toggleAdjustmentDate(group.date)}
+                                      className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-muted-foreground/30 opacity-60 text-xs font-mono text-muted-foreground italic hover:opacity-80 transition-opacity"
+                                    >
+                                      <ChevronUp className="w-3.5 h-3.5" />
+                                      <span>Collapse</span>
+                                    </button>
+                                  )}
+                                  {adjustments.map((tx) => renderMobileCard(tx))}
+                                </>
+                              )}
+                            </>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  );
-                }}
-                emptyState={
-                  <div className="text-center py-12 px-4 border border-dashed border-border/50 rounded-lg bg-background/30">
-                    {activeFilterCount > 0 ? (
-                      <>
-                        <p className="text-muted-foreground font-mono text-sm">No transactions match your filters.</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="mt-3 text-xs"
-                          onClick={clearAllFilters}
-                        >
-                          <X className="w-3 h-3 mr-1" />
-                          Clear All Filters
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-muted-foreground font-mono text-sm">No transactions found.</p>
-                        {search && <p className="text-xs text-muted-foreground mt-1">Try adjusting your search query.</p>}
-                      </>
-                    )}
-                  </div>
-                }
-              />
-            </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             {totalCount > 0 && (
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
