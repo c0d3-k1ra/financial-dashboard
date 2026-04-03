@@ -839,7 +839,7 @@ export function AiParseBubble() {
   return (
     <div ref={containerRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 md:bottom-8 md:right-8" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {isOpen && (
-        <div className="w-[calc(100vw-3rem)] max-w-md animate-in fade-in slide-in-from-bottom-2 duration-400">
+        <div className="w-[calc(100vw-3rem)] max-w-md chat-panel-enter">
           <div className="glass-3 chat-panel-light chat-panel-dark rounded-xl shadow-2xl flex flex-col" style={{ height: "50vh", maxHeight: "500px" }}>
             <div className="flex items-center justify-between p-3 border-b border-[var(--divider-color)]">
               <div className="flex items-center gap-2">

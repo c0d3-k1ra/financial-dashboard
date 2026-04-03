@@ -29,12 +29,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           top: "50%",
           borderRadius: "50%",
           pointerEvents: "none",
-          zIndex: 0,
+          zIndex: -1,
           filter: "blur(120px)",
           background: "radial-gradient(circle, rgba(45, 212, 191, 0.05) 0%, transparent 70%)",
         }} />
       )}
-      <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`}>
+      <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`} style={{ isolation: "isolate" }}>
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
@@ -66,7 +66,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
         
-        <div className="md:hidden border-t nav-mobile-border overflow-x-auto scrollbar-hide">
+        <div className="md:hidden border-t nav-mobile-border overflow-x-auto scrollbar-hide" style={{ isolation: "isolate" }}>
           <nav className="flex px-4 py-2 gap-2 min-w-max">
             {navItems.map((item) => {
               const isActive = location === item.href;
@@ -91,7 +91,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6 md:py-8 relative z-10">
+      <main className="flex-1 container mx-auto px-4 py-6 md:py-8 relative z-10" style={{ isolation: "isolate" }}>
         {children}
       </main>
 
