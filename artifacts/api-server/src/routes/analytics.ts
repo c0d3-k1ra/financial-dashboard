@@ -166,22 +166,24 @@ router.get("/analytics/cc-dues", async (req, res) => {
       }
     }
 
-    const settings = await getAppSettings();
-    const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
-    const { startDate: cycleStartStr, endDate: cycleEndStr } = getCycleDates(currentMonth, settings.billingCycleDay);
-    const todayStr = today.toISOString().split("T")[0];
-
-    const currentCyclePayments = new Map<number, boolean>();
+    const lastPaymentDates = new Map<number, Date | null>();
     for (const account of ccAccounts) {
       if (!account.billingDueDay) continue;
 
-      const payments = await db
-        .select({ count: sql<number>`count(*)` })
+      const lastPayment = await db
+        .select({ date: transactionsTable.date })
         .from(transactionsTable)
         .where(
-          sql`${transactionsTable.type} = 'Transfer' AND ${transactionsTable.toAccountId} = ${account.id} AND ${transactionsTable.date}::text >= ${cycleStartStr} AND ${transactionsTable.date}::text <= ${todayStr}`
-        );
-      currentCyclePayments.set(account.id, Number(payments[0].count) > 0);
+          sql`${transactionsTable.type} = 'Transfer' AND ${transactionsTable.toAccountId} = ${account.id}`
+        )
+        .orderBy(sql`${transactionsTable.date} DESC`)
+        .limit(1);
+      if (lastPayment.length > 0) {
+        const parts = String(lastPayment[0].date).split("-");
+        lastPaymentDates.set(account.id, new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+      } else {
+        lastPaymentDates.set(account.id, null);
+      }
     }
 
     const result = ccAccounts.map((account) => {
@@ -190,19 +192,24 @@ router.get("/analytics/cc-dues", async (req, res) => {
 
       if (account.billingDueDay) {
         const dueDay = account.billingDueDay;
-        const paidThisCycle = currentCyclePayments.get(account.id) || false;
+        const lastPaymentDate = lastPaymentDates.get(account.id) ?? null;
 
         let nextDue: Date;
-        if (paidThisCycle) {
-          let nextMonth = today.getMonth() + 1;
-          let nextYear = today.getFullYear();
+        if (lastPaymentDate) {
+          let nextMonth = lastPaymentDate.getMonth() + 1;
+          let nextYear = lastPaymentDate.getFullYear();
           if (nextMonth > 11) { nextMonth = 0; nextYear++; }
           const daysInNextMonth = new Date(nextYear, nextMonth + 1, 0).getDate();
           nextDue = new Date(nextYear, nextMonth, Math.min(dueDay, daysInNextMonth));
+          const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          if (nextDue.getTime() < todayMidnight.getTime()) {
+            nextDue = getNextDueDate(today, dueDay);
+          }
         } else {
           nextDue = getNextDueDate(today, dueDay);
         }
-        const diffMs = nextDue.getTime() - today.getTime();
+        const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const diffMs = nextDue.getTime() - todayMidnight.getTime();
         daysUntilDue = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
       }
 
