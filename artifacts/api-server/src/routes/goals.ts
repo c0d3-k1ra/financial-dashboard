@@ -275,24 +275,30 @@ router.get("/goals/:id/projection", async (req, res) => {
     const target = Number(g.targetAmount ?? 0);
     const remaining = Math.max(0, target - current);
 
-    let neededVelocity = 0;
+    const now = new Date();
+    let targetMonthIndex: number | null = null;
     if (g.targetDate && remaining > 0) {
       const targetD = new Date(g.targetDate);
-      const monthsLeft = Math.max(1, (targetD.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30));
-      neededVelocity = remaining / monthsLeft;
+      const diffMs = targetD.getTime() - now.getTime();
+      targetMonthIndex = Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24 * 30)));
     }
 
-    const now = new Date();
+    const totalMonths = Math.max(12, targetMonthIndex ? targetMonthIndex + 1 : 12);
+
     let y = now.getFullYear();
     let m = now.getMonth() + 1;
 
     const projection = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < totalMonths; i++) {
       const projMonth = `${y}-${String(m).padStart(2, "0")}`;
       const projBalance = Math.min(current + velocity * i, target > 0 ? target : Infinity);
-      const neededBalance = neededVelocity > 0
-        ? Math.min(current + neededVelocity * i, target > 0 ? target : Infinity)
-        : null;
+
+      let neededBalance: number | null = null;
+      if (targetMonthIndex !== null && targetMonthIndex > 0) {
+        const neededVelocity = remaining / targetMonthIndex;
+        neededBalance = Math.min(current + neededVelocity * i, target > 0 ? target : Infinity);
+      }
+
       projection.push({
         month: projMonth,
         projectedBalance: projBalance.toFixed(2),

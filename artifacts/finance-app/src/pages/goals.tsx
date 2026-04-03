@@ -528,7 +528,7 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
   return (
     <Card className="bg-card/50 backdrop-blur border-border/60">
       <CardHeader>
-        <CardTitle className="text-lg">12-Month Projection</CardTitle>
+        <CardTitle className="text-lg">Goal Projection</CardTitle>
         <CardDescription>
           {hasVelocity
             ? "Solid line = projected growth based on your avg monthly savings from past distributions"
