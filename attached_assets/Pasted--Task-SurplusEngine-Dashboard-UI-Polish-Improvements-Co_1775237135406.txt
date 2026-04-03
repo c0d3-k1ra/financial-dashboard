@@ -1,0 +1,75 @@
+# Task: SurplusEngine Dashboard UI Polish & Improvements
+
+## Context
+This is the Financial Cockpit (main dashboard) of SurplusEngine, a personal finance app. The dashboard uses a dark theme with card-based layout. The tech stack is React 19 + TypeScript. Apply all changes to the existing dashboard page.
+
+---
+
+## 1. Top Summary Cards (Net Liquidity / Net Worth / Goal Progress)
+- Make all three cards visually consistent: each should have an icon, a primary metric, a subtitle/callout line, and a breakdown row
+- Net Worth card currently lacks the subtitle treatment that Net Liquidity has ("Covers 5.3x monthly expenses"). Add a contextual subtitle for Net Worth too (e.g., "Debt-to-asset ratio: X%" or similar derived metric)
+- Ensure all three cards have equal height and internal padding
+
+## 2. Spacing & Vertical Rhythm
+- Audit all gaps between card sections/groups on the dashboard
+- Standardize to a consistent vertical gap (24px between card groups)
+- Ensure internal card padding is uniform across all cards
+
+## 3. Monthly Flow Chart (Waterfall)
+- Add visual connectors between the bars (Income → Expenses → Surplus → Goals) to reinforce the waterfall/flow metaphor
+- Use subtle dashed lines or step connectors showing how Income minus Expenses equals Surplus, and Surplus minus Goals equals the remainder
+- The four bars should not look like independent bar charts — they should visually cascade
+
+## 4. Spend by Category
+- Increase the donut chart size, or replace it with a horizontal stacked bar chart that uses the full card width — the current donut is too small to distinguish segments
+- Improve the ALL / CC / NON-CC toggle chips: make the active state more prominent (brighter background, bolder text, or an underline indicator) so it's clearly distinguishable from inactive states on the dark background
+- Ensure smaller category segments are still readable — consider grouping anything below 2% into an "Others" bucket
+
+## 5. CC Payment Dues Card
+- The card currently truncates at the bottom (Axis Magnus is cut off)
+- If there are more than 2-3 credit cards, make the card body scrollable with a visible scroll indicator (thin scrollbar or fade gradient at bottom)
+- Alternatively, cap visible items at 3 and add a "View All →" link at the bottom
+
+## 6. Loan Outstanding Card
+- The card has too much empty space below the primary metric
+- Add a mini amortization progress bar showing how much of the loan has been paid off (e.g., "23% paid" with a horizontal bar)
+- Add a "Months Remaining" or "Estimated payoff: MMM YYYY" secondary metric to fill the space meaningfully
+
+## 7. Category Trend Chart
+- Reduce default visible categories to Top 5 by spend amount, with remaining categories rolled into an "Others" line
+- Make legend items interactive: clicking a legend item should isolate/highlight that category's line on the chart
+- Fix y-axis to use clean round-number increments (₹0, ₹5k, ₹10k, ₹15k, ₹20k, ₹25k) instead of the current uneven values (₹6.5k, ₹13k, ₹19.5k, ₹26k)
+- Improve legend layout: if many items, use a 2-column or wrapping horizontal layout instead of a single cramped row
+
+## 8. Income vs Expenses Trend Chart
+- Add visual emphasis at the crossover point where expenses exceed income (or vice versa): use a dot marker, a subtle vertical line, or a background highlight at that intersection
+- This is the most actionable insight in the chart and should draw the eye
+
+## 9. Recent Ledger
+- Add date group separators (e.g., "Today", "Yesterday", "Apr 1, 2026") between transaction entries from different days
+- When all entries are from the same day (like the current view), show the date header once at the top of the list
+
+## 10. Typography & Numbers
+- If currently using a monospace font for currency values, switch to a tabular-lining variant of the body sans-serif font instead — this gives the alignment benefit without the visual mismatch of mixing monospace and sans-serif
+- Ensure all currency formatting is consistent: ₹ symbol, Indian number grouping (lakhs/crores), consistent decimal places
+
+## 11. Navigation Bar
+- Add hover and active states to nav items (Transactions, Budget, Goals, Accounts, Settings)
+- The active "Dashboard" pill highlight is good — inactive items should have a subtle hover effect (slight background highlight or underline)
+
+## 12. Header Action Buttons
+- Differentiate "TRANSFER" and "END CYCLE" buttons visually
+- TRANSFER → secondary/outline style (lower visual weight)
+- END CYCLE → primary/filled style (higher visual weight, since it's the higher-stakes action)
+
+## 13. CC Spend Trend (Bottom Card)
+- This card feels disconnected at the very bottom
+- Move it to sit adjacent to the Category Trend section, or group it near the Income vs Expenses section — it's thematically related to spending patterns and shouldn't be orphaned at the page bottom
+
+---
+
+## General Guidelines
+- Do NOT change the overall dark theme color scheme or layout structure
+- Maintain existing functionality — these are purely visual/UX polish changes
+- Test that all charts remain responsive and readable after changes
+- Preserve all existing data bindings and API integrations
