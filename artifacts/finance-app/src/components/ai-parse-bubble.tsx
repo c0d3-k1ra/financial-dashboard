@@ -1,7 +1,16 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Sparkles, Loader2, X, Send, Mic, Check, Undo2, Pencil, ArrowRight, AlertTriangle, Copy, TrendingUp } from "lucide-react";
+import {
+  Sparkles, Loader2, X, Send, Mic, Check, Undo2, Pencil, ArrowRight,
+  AlertTriangle, Copy, TrendingUp, Trash2, Receipt, Wallet,
+  ArrowLeftRight, Search, Landmark, CreditCard, Plus,
+  ArrowDownLeft, ArrowUpRight, type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import { useToast } from "@/hooks/use-toast";
 import { getCategoryIcon } from "@/lib/category-icons";
 import { useQueryClient } from "@tanstack/react-query";
@@ -90,6 +99,7 @@ interface ChatMessage {
   id: string;
   type: ChatMessageType;
   content: string;
+  timestamp: number;
   options?: ChatOption[];
   transaction?: TransactionData;
   editMode?: boolean;
@@ -116,7 +126,10 @@ function loadPersistedChat(): ChatMessage[] {
       localStorage.removeItem(CHAT_STORAGE_KEY);
       return [];
     }
-    return state.messages;
+    return state.messages.map((m) => ({
+      ...m,
+      timestamp: m.timestamp || state.lastActivityAt,
+    }));
   } catch {
     return [];
   }
@@ -174,12 +187,51 @@ function useVisualViewportHeight() {
   return vpHeight;
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function getRelativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  if (diff < 60000) return "Just now";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return new Date(timestamp).toLocaleDateString();
+}
+
+const QUICK_ACTIONS: { label: string; icon: LucideIcon; message: string }[] = [
+  { label: "Log an expense", icon: Receipt, message: "I want to log an expense" },
+  { label: "Record salary", icon: Wallet, message: "Record my salary" },
+  { label: "Transfer money", icon: ArrowLeftRight, message: "Transfer money between accounts" },
+  { label: "What did I spend today?", icon: Search, message: "What did I spend today?" },
+  { label: "Show my balance", icon: Landmark, message: "Show my account balances" },
+];
+
+const TYPE_CONFIG: Record<string, { icon: LucideIcon; colorClass: string; bgClass: string }> = {
+  Expense: { icon: ArrowDownLeft, colorClass: "text-red-500 dark:text-red-400", bgClass: "bg-red-500/10 border-red-500/20" },
+  Income: { icon: ArrowUpRight, colorClass: "text-emerald-500 dark:text-emerald-400", bgClass: "bg-emerald-500/10 border-emerald-500/20" },
+  Transfer: { icon: ArrowLeftRight, colorClass: "text-blue-500 dark:text-blue-400", bgClass: "bg-blue-500/10 border-blue-500/20" },
+};
+
+function getAccountTypeIcon(type: string): LucideIcon {
+  const t = type.toLowerCase();
+  if (t.includes("credit")) return CreditCard;
+  if (t.includes("bank") || t.includes("savings")) return Landmark;
+  if (t.includes("cash") || t.includes("wallet")) return Wallet;
+  return Landmark;
+}
+
 export function AiParseBubble() {
   const [isOpen, setIsOpen] = useState(false);
   const [nlInput, setNlInput] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadPersistedChat());
   const [isProcessing, setIsProcessing] = useState(false);
+  const [clearConfirmPending, setClearConfirmPending] = useState(false);
+  const clearConfirmTimer = useRef<NodeJS.Timeout | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -298,6 +350,11 @@ export function AiParseBubble() {
     if (!isOpen) {
       stopListening(true);
       setNlInput("");
+      setClearConfirmPending(false);
+      if (clearConfirmTimer.current) {
+        clearTimeout(clearConfirmTimer.current);
+        clearConfirmTimer.current = null;
+      }
     }
   }, [isOpen, stopListening]);
 
@@ -306,6 +363,10 @@ export function AiParseBubble() {
       stopListening(true);
       undoTimersRef.current.forEach((timer) => clearTimeout(timer));
       undoTimersRef.current.clear();
+      if (clearConfirmTimer.current) {
+        clearTimeout(clearConfirmTimer.current);
+        clearConfirmTimer.current = null;
+      }
     };
   }, [stopListening]);
 
@@ -344,6 +405,7 @@ export function AiParseBubble() {
       id: genId(),
       type: "user",
       content: trimmed,
+      timestamp: Date.now(),
     };
 
     setMessages((prev) => [...prev, userMsg]);
@@ -369,6 +431,7 @@ export function AiParseBubble() {
             id: genId(),
             type: "assistant",
             content: result.reply,
+            timestamp: Date.now(),
           },
         ]);
         clearPersistedChat();
@@ -379,6 +442,7 @@ export function AiParseBubble() {
             id: genId(),
             type: "confirmation",
             content: result.reply,
+            timestamp: Date.now(),
             transaction: result.transaction as TransactionData,
             warnings: result.warnings as AiChatWarning[] | undefined,
           },
@@ -394,6 +458,7 @@ export function AiParseBubble() {
             id: genId(),
             type: "assistant",
             content: result.reply,
+            timestamp: Date.now(),
             options: dedupedOptions,
           },
         ]);
@@ -405,6 +470,7 @@ export function AiParseBubble() {
           id: genId(),
           type: "assistant",
           content: "Sorry, I had trouble processing that. Please try again.",
+          timestamp: Date.now(),
         },
       ]);
     } finally {
@@ -580,6 +646,30 @@ export function AiParseBubble() {
     return accounts.find((a) => a.id === id)?.name ?? "Unknown";
   };
 
+  const getAccountType = (id: number | null) => {
+    if (!id || !accounts) return "";
+    return accounts.find((a) => a.id === id)?.type ?? "";
+  };
+
+  const handleClearConversation = () => {
+    if (clearConfirmPending) {
+      setMessages([]);
+      clearPersistedChat();
+      setClearConfirmPending(false);
+      if (clearConfirmTimer.current) {
+        clearTimeout(clearConfirmTimer.current);
+        clearConfirmTimer.current = null;
+      }
+    } else {
+      setClearConfirmPending(true);
+      if (clearConfirmTimer.current) clearTimeout(clearConfirmTimer.current);
+      clearConfirmTimer.current = setTimeout(() => {
+        setClearConfirmPending(false);
+        clearConfirmTimer.current = null;
+      }, 3000);
+    }
+  };
+
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!isMobile) return;
     dragStartY.current = e.touches[0].clientY;
@@ -627,21 +717,29 @@ export function AiParseBubble() {
 
   const renderWarnings = (warnings: AiChatWarning[]) => {
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 mt-2">
         {warnings.map((warning, i) => {
+          let borderColor = "border-l-amber-500";
+          let icon = <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />;
+
           if (warning.type === "anomaly") {
+            borderColor = "border-l-orange-500";
+            icon = <TrendingUp className="w-4 h-4 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />;
             return (
-              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-600/20 dark:border-amber-500/20">
-                <div className="flex items-start gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
+              <div key={i} className={`glass-2 rounded-lg p-3 border-l-[3px] ${borderColor}`}>
+                <div className="flex items-start gap-2.5">
+                  {icon}
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                      Unusual Amount
+                    </p>
+                    <p className="text-xs text-muted-foreground">
                       {warning.anomalyType === "merchant"
-                        ? `This is ${warning.ratio}x your typical spend here (avg ₹${warning.averageAmount?.toLocaleString()})`
-                        : `This is ${warning.ratio}x the average for this category (avg ₹${warning.averageAmount?.toLocaleString()})`}
+                        ? `${warning.ratio}x your typical spend here (avg ₹${warning.averageAmount?.toLocaleString()})`
+                        : `${warning.ratio}x the average for this category (avg ₹${warning.averageAmount?.toLocaleString()})`}
                     </p>
                     {warning.typicalAmount && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground/70">
                         You usually spend around ₹{warning.typicalAmount.toLocaleString()} here
                       </p>
                     )}
@@ -652,21 +750,25 @@ export function AiParseBubble() {
           }
 
           if (warning.type === "budget") {
+            borderColor = "border-l-red-500";
             const pct = warning.budgetAmount
               ? Math.round((warning.afterTransaction! / warning.budgetAmount) * 100)
               : 0;
             return (
-              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-600/20 dark:border-amber-500/20">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div key={i} className={`glass-2 rounded-lg p-3 border-l-[3px] ${borderColor}`}>
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
-                      {warning.isOverBudget
-                        ? `${warning.categoryName} budget already exceeded`
-                        : `This will push ${warning.categoryName} over budget`}
+                    <p className="text-xs font-medium text-red-700 dark:text-red-300">
+                      {warning.isOverBudget ? "Budget Exceeded" : "Budget Warning"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      ₹{warning.spentSoFar?.toLocaleString()} + this = ₹{warning.afterTransaction?.toLocaleString()} / ₹{warning.budgetAmount?.toLocaleString()} ({pct}%)
+                      {warning.isOverBudget
+                        ? `${warning.categoryName} budget already exceeded`
+                        : `This will push ${warning.categoryName} to ${pct}% of budget`}
+                    </p>
+                    <p className="text-xs text-muted-foreground/70">
+                      ₹{warning.spentSoFar?.toLocaleString()} + ₹{(warning.afterTransaction! - warning.spentSoFar!).toLocaleString()} = ₹{warning.afterTransaction?.toLocaleString()} / ₹{warning.budgetAmount?.toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -675,16 +777,17 @@ export function AiParseBubble() {
           }
 
           if (warning.type === "duplicate") {
+            borderColor = "border-l-yellow-500";
             return (
-              <div key={i} className="glass-2 rounded-lg p-2.5 border border-amber-600/20 dark:border-amber-500/20">
-                <div className="flex items-start gap-2">
-                  <Copy className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div key={i} className={`glass-2 rounded-lg p-3 border-l-[3px] ${borderColor}`}>
+                <div className="flex items-start gap-2.5">
+                  <Copy className="w-4 h-4 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5" />
                   <div className="space-y-1">
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
-                      Possible duplicate detected
+                    <p className="text-xs font-medium text-yellow-700 dark:text-yellow-300">
+                      Possible Duplicate
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Similar transaction: ₹{Number(warning.existingAmount).toLocaleString()} — "{warning.existingDescription}" on {warning.existingDate}
+                      ₹{Number(warning.existingAmount).toLocaleString()} — "{warning.existingDescription}" on {warning.existingDate}
                     </p>
                   </div>
                 </div>
@@ -702,118 +805,190 @@ export function AiParseBubble() {
     const tx = msg.editMode ? msg.editableTransaction! : msg.transaction!;
     const CategoryIcon = getCategoryIcon(tx.category || "");
     const isTransfer = tx.transactionType === "Transfer";
+    const typeConfig = TYPE_CONFIG[tx.transactionType] || TYPE_CONFIG.Expense;
+    const TypeIcon = typeConfig.icon;
 
     if (msg.editMode) {
       return (
-        <div className="glass-2 rounded-lg p-3 space-y-2">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-16">Amount</span>
-              <Input
-                value={tx.amount}
-                onChange={(e) => handleEditField(msg.id, "amount", e.target.value)}
-                className="h-7 text-sm bg-background/50"
+        <div className="glass-2 rounded-xl p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Edit Transaction</span>
+            <button
+              onClick={() => handleCancelEdit(msg.id)}
+              className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground font-medium">Amount</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  value={tx.amount}
+                  onChange={(e) => handleEditField(msg.id, "amount", e.target.value)}
+                  className="h-11 text-base pl-7 bg-background/50"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground font-medium">Date</label>
+              <DatePicker
+                date={tx.date ? new Date(tx.date + "T00:00:00") : undefined}
+                onSelect={(d) => handleEditField(msg.id, "date", d ? d.toISOString().split("T")[0] : "")}
+                className="h-11 w-full text-sm"
               />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-16">Date</span>
-              <Input
-                type="date"
-                value={tx.date}
-                onChange={(e) => handleEditField(msg.id, "date", e.target.value)}
-                className="h-7 text-sm bg-background/50"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground w-16">Desc</span>
+
+            <div className="space-y-1.5">
+              <label className="text-xs text-muted-foreground font-medium">Description</label>
               <Input
                 value={tx.description}
                 onChange={(e) => handleEditField(msg.id, "description", e.target.value)}
-                className="h-7 text-sm bg-background/50"
+                className="h-11 text-sm bg-background/50"
+                placeholder="What was this for?"
               />
             </div>
+
             {!isTransfer && (
               <>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-16">Category</span>
-                  <select
-                    value={tx.category}
-                    onChange={(e) => handleEditField(msg.id, "category", e.target.value)}
-                    className="h-7 text-sm bg-background/50 border border-border rounded px-2 flex-1"
-                  >
-                    {(categories ?? []).map((c) => (
-                      <option key={c.name} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Type</label>
+                  <div className="flex gap-2">
+                    {["Expense", "Income"].map((t) => {
+                      const cfg = TYPE_CONFIG[t];
+                      const TIcon = cfg.icon;
+                      const isActive = tx.transactionType === t;
+                      return (
+                        <button
+                          key={t}
+                          onClick={() => handleEditField(msg.id, "transactionType", t)}
+                          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-xs font-medium transition-all border ${
+                            isActive
+                              ? `${cfg.bgClass} ${cfg.colorClass} border`
+                              : "glass-2 border-transparent text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <TIcon className="w-3.5 h-3.5" />
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-16">Account</span>
-                  <select
-                    value={tx.accountId ?? ""}
-                    onChange={(e) => handleEditField(msg.id, "accountId", e.target.value ? Number(e.target.value) : null)}
-                    className="h-7 text-sm bg-background/50 border border-border rounded px-2 flex-1"
-                  >
-                    {(accounts ?? []).map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                  </select>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Category</label>
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-0.5 scrollbar-thin">
+                    {(categories ?? [])
+                      .filter((c) => c.type === tx.transactionType || c.type === "Both")
+                      .map((c) => {
+                        const CIcon = getCategoryIcon(c.name);
+                        const isActive = tx.category === c.name;
+                        return (
+                          <button
+                            key={c.name}
+                            onClick={() => handleEditField(msg.id, "category", c.name)}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all border ${
+                              isActive
+                                ? "bg-primary/15 border-primary/30 text-primary font-medium"
+                                : "glass-2 border-transparent text-muted-foreground hover:border-primary/15 hover:text-foreground"
+                            }`}
+                          >
+                            <CIcon className="w-3 h-3" />
+                            {c.name}
+                          </button>
+                        );
+                      })}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-16">Type</span>
-                  <select
-                    value={tx.transactionType}
-                    onChange={(e) => handleEditField(msg.id, "transactionType", e.target.value)}
-                    className="h-7 text-sm bg-background/50 border border-border rounded px-2 flex-1"
-                  >
-                    <option value="Expense">Expense</option>
-                    <option value="Income">Income</option>
-                  </select>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">Account</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(accounts ?? []).map((a) => {
+                      const AIcon = getAccountTypeIcon(a.type);
+                      const isActive = tx.accountId === a.id;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => handleEditField(msg.id, "accountId", a.id)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs transition-all border ${
+                            isActive
+                              ? "bg-primary/15 border-primary/30 text-primary font-medium"
+                              : "glass-2 border-transparent text-muted-foreground hover:border-primary/15 hover:text-foreground"
+                          }`}
+                        >
+                          <AIcon className="w-3.5 h-3.5" />
+                          <span>{a.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </>
             )}
+
             {isTransfer && (
               <>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-16">From</span>
-                  <select
-                    value={tx.fromAccountId ?? ""}
-                    onChange={(e) => handleEditField(msg.id, "fromAccountId", e.target.value ? Number(e.target.value) : null)}
-                    className="h-7 text-sm bg-background/50 border border-border rounded px-2 flex-1"
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">From Account</label>
+                  <Select
+                    value={tx.fromAccountId ? String(tx.fromAccountId) : ""}
+                    onValueChange={(v) => handleEditField(msg.id, "fromAccountId", v ? Number(v) : null)}
                   >
-                    {(accounts ?? []).map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-11 text-sm">
+                      <SelectValue placeholder="Select source account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(accounts ?? []).map((a) => (
+                        <SelectItem key={a.id} value={String(a.id)}>
+                          {a.name} ({a.type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-16">To</span>
-                  <select
-                    value={tx.toAccountId ?? ""}
-                    onChange={(e) => handleEditField(msg.id, "toAccountId", e.target.value ? Number(e.target.value) : null)}
-                    className="h-7 text-sm bg-background/50 border border-border rounded px-2 flex-1"
+
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground font-medium">To Account</label>
+                  <Select
+                    value={tx.toAccountId ? String(tx.toAccountId) : ""}
+                    onValueChange={(v) => handleEditField(msg.id, "toAccountId", v ? Number(v) : null)}
                   >
-                    {(accounts ?? []).map((a) => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                  </select>
+                    <SelectTrigger className="h-11 text-sm">
+                      <SelectValue placeholder="Select destination account" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(accounts ?? []).map((a) => (
+                        <SelectItem key={a.id} value={String(a.id)}>
+                          {a.name} ({a.type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </>
             )}
           </div>
+
           <div className="flex gap-2 pt-1">
             <Button
-              size="sm"
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
+              className={`flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium ${isMobile ? "h-12" : "h-10"}`}
               onClick={() => handleLogIt(msg.id)}
               disabled={isProcessing}
             >
-              {isProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
-              Save
+              {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Check className="w-4 h-4 mr-1.5" />}
+              Save Changes
             </Button>
             <Button
-              size="sm"
               variant="ghost"
-              className="h-8 text-xs"
+              className={`text-sm ${isMobile ? "h-12" : "h-10"}`}
               onClick={() => handleCancelEdit(msg.id)}
             >
               Cancel
@@ -824,238 +999,369 @@ export function AiParseBubble() {
     }
 
     return (
-      <div className="glass-2 rounded-lg p-3 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
-            tx.transactionType === "Income" ? "status-badge-success" :
-            tx.transactionType === "Transfer" ? "status-badge-info" :
-            "status-badge-danger"
-          }`}>
+      <div className="glass-2 rounded-xl p-4 space-y-3">
+        <div className="flex items-start justify-between">
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${typeConfig.bgClass} ${typeConfig.colorClass}`}>
+            <TypeIcon className="w-3 h-3" />
             {tx.transactionType}
           </span>
-          <span className="text-xs text-muted-foreground">{tx.date}</span>
+          <button
+            onClick={() => handleEdit(msg.id)}
+            disabled={isProcessing}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-[rgba(var(--glass-overlay-rgb),0.08)] transition-colors disabled:opacity-50"
+            aria-label="Edit transaction"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-2xl font-bold">
-            {tx.transactionType === "Income" ? "+" : tx.transactionType === "Transfer" ? "" : "-"}₹{isNaN(Number(tx.amount)) ? tx.amount : Number(tx.amount).toLocaleString()}
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-bold tracking-tight">
+            {tx.transactionType === "Income" ? "+" : tx.transactionType === "Transfer" ? "" : "−"}
+          </span>
+          <span className="text-3xl font-bold tracking-tight">
+            ₹{isNaN(Number(tx.amount)) ? tx.amount : Number(tx.amount).toLocaleString("en-IN")}
           </span>
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
-          {!isTransfer && (
-            <>
-              <CategoryIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span>{tx.category}</span>
-            </>
-          )}
-          {tx.description && (
-            <span className="text-muted-foreground">
-              {!isTransfer ? "• " : ""}{tx.description}
+        {!isTransfer && tx.category && (
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full glass-2">
+              <CategoryIcon className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              {tx.category}
             </span>
-          )}
-        </div>
+            {tx.description && (
+              <span className="text-xs text-muted-foreground truncate">{tx.description}</span>
+            )}
+          </div>
+        )}
 
-        <div className="text-xs text-muted-foreground">
+        {isTransfer && tx.description && (
+          <p className="text-xs text-muted-foreground">{tx.description}</p>
+        )}
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {isTransfer ? (
-            <span className="flex items-center gap-1">
-              {getAccountName(tx.fromAccountId)} <ArrowRight className="w-3 h-3" /> {getAccountName(tx.toAccountId)}
+            <span className="flex items-center gap-1.5">
+              {(() => { const AIcon = getAccountTypeIcon(getAccountType(tx.fromAccountId)); return <AIcon className="w-3.5 h-3.5" />; })()}
+              {getAccountName(tx.fromAccountId)}
+              <ArrowRight className="w-3 h-3" />
+              {getAccountName(tx.toAccountId)}
             </span>
           ) : (
-            <span>{getAccountName(tx.accountId)}</span>
+            <span className="flex items-center gap-1.5">
+              {(() => { const AIcon = getAccountTypeIcon(getAccountType(tx.accountId)); return <AIcon className="w-3.5 h-3.5" />; })()}
+              {getAccountName(tx.accountId)}
+            </span>
           )}
+          <span className="text-muted-foreground/50">•</span>
+          <span>{tx.date}</span>
         </div>
 
         {msg.warnings && msg.warnings.length > 0 && renderWarnings(msg.warnings)}
 
-        <div className="flex gap-2 pt-1">
-          <Button
-            size="sm"
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs"
-            onClick={() => handleLogIt(msg.id)}
-            disabled={isProcessing}
-          >
-            {isProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Check className="w-3 h-3 mr-1" />}
-            Log It
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 text-xs"
-            onClick={() => handleEdit(msg.id)}
-            disabled={isProcessing}
-          >
-            <Pencil className="w-3 h-3 mr-1" />
-            Edit
-          </Button>
-        </div>
+        <Button
+          className={`w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium ${isMobile ? "h-12" : "h-10"}`}
+          onClick={() => handleLogIt(msg.id)}
+          disabled={isProcessing}
+        >
+          {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Check className="w-4 h-4 mr-1.5" />}
+          Log It
+        </Button>
       </div>
     );
   };
 
   const renderDoneCard = (msg: ChatMessage) => {
     const hasUndo = msg.undoExpiry && Date.now() < msg.undoExpiry && msg.loggedTransactionId;
+    const originalTx = msg.transaction;
+
+    if (msg.content === "Transaction undone.") {
+      return (
+        <div className="glass-2 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-muted/30 flex items-center justify-center">
+            <Undo2 className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <span className="text-sm text-muted-foreground">{msg.content}</span>
+        </div>
+      );
+    }
 
     return (
-      <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-            <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+      <div className="glass-2 rounded-xl overflow-hidden">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="ai-checkmark-container w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+              <svg className="w-5 h-5 text-emerald-500" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" className="ai-checkmark-circle" />
+                <path d="M8 12.5l3 3 5-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ai-checkmark-path" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Transaction Logged</p>
+              {originalTx && (
+                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  {originalTx.transactionType === "Income" ? "+" : originalTx.transactionType === "Transfer" ? "" : "−"}₹{isNaN(Number(originalTx.amount)) ? originalTx.amount : Number(originalTx.amount).toLocaleString("en-IN")}
+                  {originalTx.category ? ` • ${originalTx.category}` : ""}
+                  {originalTx.accountId ? ` • ${getAccountName(originalTx.accountId)}` : ""}
+                </p>
+              )}
+            </div>
           </div>
-          <span className="text-sm text-emerald-600 dark:text-emerald-400">{msg.content}</span>
+
+          {hasUndo && (
+            <div className="space-y-2">
+              <div className="h-0.5 rounded-full bg-muted/30 overflow-hidden">
+                <div
+                  className="h-full bg-amber-500/60 rounded-full"
+                  style={{
+                    animation: `ai-undo-shrink ${Math.max(0, ((msg.undoExpiry || 0) - Date.now()) / 1000)}s linear forwards`,
+                  }}
+                />
+              </div>
+              <button
+                onClick={() => handleUndo(msg.id)}
+                className="flex items-center gap-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 hover:text-amber-500 transition-colors"
+              >
+                <Undo2 className="w-3 h-3" />
+                Undo
+              </button>
+            </div>
+          )}
         </div>
-        {hasUndo && (
-          <button
-            onClick={() => handleUndo(msg.id)}
-            className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 hover:text-amber-300 transition-colors"
-          >
-            <Undo2 className="w-3 h-3" />
-            Undo
-          </button>
-        )}
+
+        <button
+          onClick={() => sendMessage("I want to log another transaction")}
+          className="w-full px-4 py-2.5 border-t border-[var(--divider-color)] text-xs text-muted-foreground hover:text-foreground hover:bg-[rgba(var(--glass-overlay-rgb),0.04)] transition-colors flex items-center justify-center gap-1.5"
+        >
+          <Plus className="w-3 h-3" />
+          Log another
+        </button>
       </div>
     );
   };
 
+  const renderEmptyState = () => {
+    const greeting = getGreeting();
+    return (
+      <div className="flex flex-col items-center justify-center h-full px-4 space-y-6">
+        <div className="text-center space-y-2">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
+            <Sparkles className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+          </div>
+          <h3 className="text-lg font-semibold">{greeting}</h3>
+          <p className="text-sm text-muted-foreground max-w-[280px]">
+            I can help you log transactions, check balances, and manage your finances.
+          </p>
+        </div>
+
+        <div className={`w-full max-w-sm ${isMobile ? "space-y-2" : "grid grid-cols-2 gap-2"}`}>
+          {QUICK_ACTIONS.map((action) => {
+            const ActionIcon = action.icon;
+            return (
+              <button
+                key={action.label}
+                onClick={() => sendMessage(action.message)}
+                disabled={isProcessing}
+                className={`flex items-center gap-2.5 text-left transition-all disabled:opacity-50 ${
+                  isMobile
+                    ? "w-full glass-2 rounded-xl px-4 py-3.5 hover:bg-[rgba(var(--glass-overlay-rgb),0.06)] active:scale-[0.98]"
+                    : "glass-2 rounded-xl px-3 py-2.5 hover:bg-[rgba(var(--glass-overlay-rgb),0.06)] active:scale-[0.98]"
+                } chat-pill-light pill-button-dark`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <ActionIcon className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <span className="text-xs font-medium">{action.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderTypingIndicator = () => (
+    <div className="flex justify-start ai-message-enter">
+      <div className="glass-1 rounded-lg rounded-bl-sm px-4 py-3 bubble-ai-dark">
+        <div className="flex items-center gap-1.5">
+          <div className="ai-typing-dot" />
+          <div className="ai-typing-dot" />
+          <div className="ai-typing-dot" />
+        </div>
+      </div>
+    </div>
+  );
+
+  const headerBar = (
+    <div className={`flex items-center justify-between ${isMobile ? "px-4 pb-2" : "p-3"} border-b border-[var(--divider-color)] ${isProcessing && isMobile ? "ai-header-shimmer" : ""}`}>
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+        <span className="text-sm font-medium">AI Assistant</span>
+      </div>
+      <div className="flex items-center gap-1">
+        {messages.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className={`${isMobile ? "h-11 w-11" : "h-7 w-7"} ${clearConfirmPending ? "text-red-500" : ""}`}
+            onClick={handleClearConversation}
+            aria-label="Clear conversation"
+          >
+            {clearConfirmPending ? (
+              <span className="text-xs font-medium">Clear?</span>
+            ) : (
+              <Trash2 className={`${isMobile ? "w-4 h-4" : "w-3.5 h-3.5"}`} />
+            )}
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={isMobile ? "h-11 w-11" : "h-7 w-7"}
+          onClick={() => setIsOpen(false)}
+        >
+          <X className={isMobile ? "w-5 h-5" : "w-4 h-4"} />
+        </Button>
+      </div>
+    </div>
+  );
+
   const chatContent = (
     <>
       <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-60">
-            <Sparkles className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-            <p className="text-sm text-muted-foreground">
-              Describe a transaction and I'll help you log it.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              e.g. "Spent 450 at Starbucks" or "Received 50000 salary"
-            </p>
-          </div>
-        )}
+        {messages.length === 0 && renderEmptyState()}
 
-        {messages.map((msg) => {
-          if (msg.type === "user") {
-            return (
-              <div key={msg.id} className="flex justify-end">
-                <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-blue-500 border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
-                  <p className="text-sm">{msg.content}</p>
-                </div>
-              </div>
-            );
-          }
-
-          if (msg.type === "done") {
-            return (
-              <div key={msg.id} className="flex justify-start">
-                <div className="max-w-[95%] w-full">
-                  {renderDoneCard(msg)}
-                </div>
-              </div>
-            );
-          }
-
-          if (msg.type === "confirmation") {
-            return (
-              <div key={msg.id} className="flex justify-start">
-                <div className="max-w-[95%] w-full space-y-2">
-                  <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
-                    <p className="text-sm">{msg.content}</p>
-                  </div>
-                  {msg.transaction && renderConfirmationCard(msg)}
-                </div>
-              </div>
-            );
-          }
+        {messages.map((msg, idx) => {
+          const showTimestamp = msg.timestamp && (
+            idx === 0 ||
+            !messages[idx - 1]?.timestamp ||
+            msg.timestamp - (messages[idx - 1]?.timestamp || 0) > 120000
+          );
 
           return (
-            <div key={msg.id} className="flex justify-start">
-              <div className="max-w-[85%] space-y-2">
-                <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
-                  <p className="text-sm">{msg.content}</p>
+            <div key={msg.id}>
+              {showTimestamp && msg.timestamp && (
+                <div className="flex justify-center my-2">
+                  <span className="text-[10px] text-muted-foreground/50 font-medium">{getRelativeTime(msg.timestamp)}</span>
                 </div>
-                {msg.options && msg.options.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pl-1">
-                    {msg.options.map((opt, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleOptionClick(opt)}
-                        disabled={isProcessing}
-                        className="chat-pill-light px-3 py-1.5 text-xs rounded-full border dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-300 transition-colors disabled:opacity-50 backdrop-blur-sm font-medium pill-button-dark"
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+              )}
+
+              {msg.type === "user" && (
+                <div className="flex justify-end ai-message-enter">
+                  <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-blue-500 border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
+                    <p className="text-sm">{msg.content}</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {msg.type === "done" && (
+                <div className="flex justify-start ai-message-enter">
+                  <div className="max-w-[95%] w-full">
+                    {renderDoneCard(msg)}
+                  </div>
+                </div>
+              )}
+
+              {msg.type === "confirmation" && (
+                <div className="flex justify-start ai-message-enter">
+                  <div className="max-w-[95%] w-full space-y-2">
+                    <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                    {msg.transaction && renderConfirmationCard(msg)}
+                  </div>
+                </div>
+              )}
+
+              {msg.type === "assistant" && (
+                <div className="flex justify-start ai-message-enter">
+                  <div className="max-w-[85%] space-y-2">
+                    <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                    {msg.options && msg.options.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pl-1">
+                        {msg.options.map((opt, i) => (
+                          <button
+                            key={i}
+                            onClick={() => handleOptionClick(opt)}
+                            disabled={isProcessing}
+                            className="chat-pill-light px-3 py-1.5 text-xs rounded-full border dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-300 transition-colors disabled:opacity-50 backdrop-blur-sm font-medium pill-button-dark"
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
 
-        {isProcessing && (
-          <div className="flex justify-start">
-            <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
-              <div className="flex items-center gap-2">
-                <Loader2 className="w-3 h-3 animate-spin text-amber-600 dark:text-amber-400" />
-                <span className="text-sm text-muted-foreground">Thinking...</span>
-              </div>
-            </div>
-          </div>
-        )}
+        {isProcessing && renderTypingIndicator()}
 
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="p-3 border-t border-[var(--divider-color)]" style={isMobile ? { paddingBottom: "env(safe-area-inset-bottom, 8px)" } : undefined}>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Input
-              ref={inputRef}
-              placeholder={messages.some((m) => m.type === "done")
-                ? "Log another or close"
-                : 'e.g. "Spent 450 at Starbucks"'
-              }
-              className={`bg-background/50 border-amber-500/30 focus-visible:ring-amber-500/30 text-sm ${speechSupported ? "pr-9" : ""}`}
-              value={nlInput}
-              onChange={(e) => setNlInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  sendMessage(nlInput);
-                }
-              }}
-              onFocus={() => {
-                if (isTouchDevice) {
-                  setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 300);
-                }
-              }}
-              disabled={isProcessing}
-            />
-            {speechSupported && (
-              <button
-                type="button"
-                onClick={() => isListening ? stopListening() : startListening()}
-                disabled={isProcessing}
-                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors disabled:opacity-50 ${
-                  isListening
-                    ? "text-red-500 animate-pulse"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-                aria-label={isListening ? "Stop voice input" : "Start voice input"}
-              >
-                <Mic className="w-4 h-4" />
-              </button>
-            )}
+      {isListening && (
+        <div className="px-3 pb-1">
+          <div className="ai-recording-bar h-1 rounded-full bg-red-500/30 overflow-hidden">
+            <div className="h-full bg-red-500 rounded-full ai-recording-pulse-bar" />
           </div>
+        </div>
+      )}
+
+      <div className="p-3 border-t border-[var(--divider-color)]" style={isMobile ? { paddingBottom: "env(safe-area-inset-bottom, 8px)" } : undefined}>
+        <div className="flex gap-2 items-end">
+          <Input
+            ref={inputRef}
+            placeholder={messages.some((m) => m.type === "done")
+              ? "Log another or ask a question..."
+              : 'e.g. "Spent 450 at Starbucks"'
+            }
+            className={`flex-1 bg-background/50 border-amber-500/30 focus-visible:ring-amber-500/30 ${isMobile ? "h-12 text-base" : "h-9 text-sm"}`}
+            style={isMobile ? { fontSize: "16px" } : undefined}
+            value={nlInput}
+            onChange={(e) => setNlInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                sendMessage(nlInput);
+              }
+            }}
+            onFocus={() => {
+              if (isTouchDevice) {
+                setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 300);
+              }
+            }}
+            disabled={isProcessing}
+          />
+          {speechSupported && (
+            <Button
+              type="button"
+              variant={isListening ? "destructive" : "outline"}
+              size="icon"
+              onClick={() => isListening ? stopListening() : startListening()}
+              disabled={isProcessing}
+              className={`shrink-0 ${isMobile ? "h-12 w-12" : "h-9 w-9"} ${isListening ? "animate-pulse" : ""}`}
+              aria-label={isListening ? "Stop voice input" : "Start voice input"}
+            >
+              <Mic className={isMobile ? "w-5 h-5" : "w-4 h-4"} />
+            </Button>
+          )}
           <Button
             onClick={() => sendMessage(nlInput)}
             disabled={isProcessing || !nlInput.trim()}
-            className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+            className={`shrink-0 bg-amber-600 hover:bg-amber-700 text-white ${isMobile ? "h-12 w-12" : "h-9 w-9"}`}
             size="icon"
           >
             {isProcessing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className={`${isMobile ? "w-5 h-5" : "w-4 h-4"} animate-spin`} />
             ) : (
-              <Send className="w-4 h-4" />
+              <Send className={isMobile ? "w-5 h-5" : "w-4 h-4"} />
             )}
           </Button>
         </div>
@@ -1091,20 +1397,7 @@ export function AiParseBubble() {
               >
                 <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
               </div>
-              <div className="flex items-center justify-between px-4 pb-2 border-b border-[var(--divider-color)]">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  <span className="text-sm font-medium">AI Assistant</span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-11 w-11"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
+              {headerBar}
               {chatContent}
             </div>
           </div>
@@ -1135,21 +1428,7 @@ export function AiParseBubble() {
             maxHeight: "500px",
             transition: "height 0.15s ease-out",
           }}>
-            <div className="flex items-center justify-between p-3 border-b border-[var(--divider-color)]">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                <span className="text-sm font-medium">AI Assistant</span>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7"
-                onClick={() => setIsOpen(false)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-
+            {headerBar}
             {chatContent}
           </div>
         </div>

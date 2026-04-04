@@ -1189,3 +1189,111 @@
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+@keyframes ai-typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-6px); opacity: 1; }
+}
+
+.ai-typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  animation: ai-typing-bounce 1.4s infinite ease-in-out;
+}
+
+.ai-typing-dot:nth-child(1) { animation-delay: 0s; }
+.ai-typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes ai-checkmark-circle-draw {
+  from { stroke-dashoffset: 63; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes ai-checkmark-path-draw {
+  from { stroke-dashoffset: 20; }
+  to { stroke-dashoffset: 0; }
+}
+
+.ai-checkmark-circle {
+  stroke-dasharray: 63;
+  stroke-dashoffset: 63;
+  animation: ai-checkmark-circle-draw 0.5s ease-out 0.1s forwards;
+}
+
+.ai-checkmark-path {
+  stroke-dasharray: 20;
+  stroke-dashoffset: 20;
+  animation: ai-checkmark-path-draw 0.3s ease-out 0.4s forwards;
+}
+
+@keyframes ai-message-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ai-message-enter {
+  animation: ai-message-slide-up 0.25s ease-out both;
+}
+
+@keyframes ai-undo-shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
+.ai-undo-countdown {
+  animation: ai-undo-shrink 10s linear forwards;
+}
+
+@keyframes ai-recording-pulse-anim {
+  0%, 100% { transform: scaleX(0.3); opacity: 0.4; }
+  50% { transform: scaleX(1); opacity: 1; }
+}
+
+.ai-recording-pulse-bar {
+  transform-origin: left;
+  animation: ai-recording-pulse-anim 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-header-shimmer-anim {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ai-header-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(var(--glass-overlay-rgb), 0.03) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: ai-header-shimmer-anim 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-typing-dot,
+  .ai-checkmark-circle,
+  .ai-checkmark-path,
+  .ai-message-enter,
+  .ai-undo-countdown,
+  .ai-recording-pulse-bar,
+  .ai-header-shimmer {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    stroke-dashoffset: 0;
+  }
+  .ai-undo-countdown {
+    width: 50%;
+  }
+}

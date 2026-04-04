@@ -87,8 +87,15 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 **AI Transaction Assistant:**
 *   A floating action button (FAB) activates a multi-turn chat panel for natural language transaction input.
 *   **Smart Slot-Filling:** Extracts fields from natural language, applies defaults, and only prompts for missing information.
-*   **Confirmation Cards:** Displays parsed transaction summaries with inline-editable fields.
-*   **Persistence:** Chat state persists across sessions via localStorage.
+*   **Rich Empty State:** Time-of-day greeting ("Good morning/afternoon/evening") with 5 tappable quick-action chips (Log expense, Record salary, Transfer money, Spending query, Balance check). Mobile: full-width stacked cards; Desktop: 2-column grid.
+*   **Animated Typing Indicator:** 3-dot bouncing animation in AI bubble replaces "Thinking..." spinner. Header shimmer on mobile during processing.
+*   **Premium Confirmation Cards:** Large amount display with INR formatting, colored type pill (Expense/Income/Transfer) with icon, category chip with icon, account line with type icon. "Log It" button full-width 48px on mobile; Edit as pencil icon button in top-right corner. Warning cards have colored left borders (orange/red/yellow).
+*   **Redesigned Edit Mode:** Proper Radix Select components, DatePicker, 44px+ touch inputs, ₹ prefix on amount, category selector as scrollable icon+label chip grid, account selector as tappable cards, type selector as chips.
+*   **Enhanced Success State:** Transaction summary (amount, category, account), animated SVG checkmark, visual undo countdown bar synced to actual expiry, "Log another" chip.
+*   **Conversation UX:** Clear conversation button (trash icon, double-tap confirm), relative timestamps ("Just now", "2m ago"), slide-up message entrance animations.
+*   **Voice Input UX:** Mic button promoted to standalone 48px button next to Send (not inside input), pulsing recording indicator bar above input.
+*   **Mobile Input Refinements:** 48px input/send/mic heights, 16px font (prevents iOS zoom), safe area padding.
+*   **Persistence:** Chat state persists across sessions via localStorage with schema migration for backward compatibility.
 *   **Merchant Mappings:** `merchant_mappings` table stores keyword-to-category/account mappings, used for auto-filling and learning.
 *   **Anomaly Detection:** Flags transactions exceeding 3x average category/merchant spend.
 *   **Budget Awareness:** Warns if a transaction pushes spending over budget.
