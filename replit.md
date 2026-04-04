@@ -28,6 +28,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 **Frontend (`artifacts/finance-app`):**
 *   A React + Vite application providing a dark mode personal finance dashboard.
 *   Features 6 tabs: Dashboard, Transactions, Budget, Goals, Accounts, Settings.
+*   PWA-enabled via `vite-plugin-pwa` with standalone display mode, service worker caching, and iOS meta tags for home screen app experience.
 *   Uses `wouter` for routing, Recharts for data visualization, and `shadcn/ui` for components.
 *   Responsive design, adapting tables to card views on mobile.
 *   Supports configurable currency formatting (INR/USD/EUR/GBP) via `app_settings` table.
