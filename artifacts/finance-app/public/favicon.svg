@@ -1,9 +1,10 @@
 <svg width="180" height="180" viewBox="0 0 180 180" fill="none" xmlns="http://www.w3.org/2000/svg">
 <rect width="180" height="180" rx="36" fill="#16a34a"/>
-<g transform="translate(46,36) scale(5.5)" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none">
-  <line x1="2" y1="2" x2="14" y2="2"/>
-  <line x1="2" y1="7" x2="14" y2="7"/>
-  <path d="M2,2 L2,5 C2,10 8,14 8,14"/>
-  <path d="M10.5,5 C10.5,7.5 7,10 4.5,12.5"/>
+<g transform="translate(37.5,37.5) scale(4.375)" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+  <path d="M6 3h12"/>
+  <path d="M6 8h12"/>
+  <path d="m6 13 8.5 8"/>
+  <path d="M6 13h3"/>
+  <path d="M9 13c6.667 0 6.667-10 0-10"/>
 </g>
 </svg>
