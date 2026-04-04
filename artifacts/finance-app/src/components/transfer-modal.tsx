@@ -1,5 +1,6 @@
 import { useListAccounts, getListAccountsQueryKey, useCreateTransfer, getGetDashboardSummaryQueryKey, getGetMonthlySurplusQueryKey } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
   fromAccountId: z.string().min(1, "Select source account"),
@@ -38,6 +40,7 @@ interface TransferModalProps {
 export default function TransferModal({ open, onOpenChange, initialValues }: TransferModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const { data: accounts } = useListAccounts({ query: { queryKey: getListAccountsQueryKey() } });
   const createTransfer = useCreateTransfer();
 
@@ -105,114 +108,131 @@ export default function TransferModal({ open, onOpenChange, initialValues }: Tra
     );
   };
 
+  const formContent = (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+        <FormField
+          control={form.control}
+          name="fromAccountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>From Account</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue placeholder="Select source account" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accounts?.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.name} ({a.type === "credit_card" ? "CC" : "Bank"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="toAccountId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>To Account</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue placeholder="Select destination account" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {accounts?.map((a) => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.name} ({a.type === "credit_card" ? "CC" : "Bank"})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="amount"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Amount</FormLabel>
+              <FormControl>
+                <div className="relative">
+                  <span className="absolute left-3 top-3 text-muted-foreground">{"\u20B9"}</span>
+                  <Input type="number" step="0.01" className="pl-7 font-mono min-h-[44px]" placeholder="0.00" {...field} />
+                </div>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="date"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Date</FormLabel>
+              <DatePicker
+                date={field.value ? new Date(field.value + "T00:00:00") : undefined}
+                onSelect={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
+                placeholder="Pick a date"
+                className="w-full"
+              />
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description (optional)</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. CC payment" className="min-h-[44px]" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <DialogFooter className="pt-4">
+          <Button type="submit" disabled={createTransfer.isPending} className="w-full min-h-[44px]">
+            {createTransfer.isPending ? "Processing..." : "Complete Transfer"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
+  );
+
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>Transfer Between Accounts</SheetTitle>
+          </SheetHeader>
+          {formContent}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Transfer Between Accounts</DialogTitle>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-            <FormField
-              control={form.control}
-              name="fromAccountId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>From Account</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="min-h-[44px]">
-                        <SelectValue placeholder="Select source account" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {accounts?.map((a) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          {a.name} ({a.type === "credit_card" ? "CC" : "Bank"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="toAccountId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>To Account</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger className="min-h-[44px]">
-                        <SelectValue placeholder="Select destination account" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {accounts?.map((a) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          {a.name} ({a.type === "credit_card" ? "CC" : "Bank"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="amount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Amount</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <span className="absolute left-3 top-3 text-muted-foreground">{"\u20B9"}</span>
-                      <Input type="number" step="0.01" className="pl-7 font-mono min-h-[44px]" placeholder="0.00" {...field} />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <DatePicker
-                    date={field.value ? new Date(field.value + "T00:00:00") : undefined}
-                    onSelect={(d) => field.onChange(d ? format(d, "yyyy-MM-dd") : "")}
-                    placeholder="Pick a date"
-                    className="w-full"
-                  />
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. CC payment" className="min-h-[44px]" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter className="pt-4">
-              <Button type="submit" disabled={createTransfer.isPending} className="w-full min-h-[44px]">
-                {createTransfer.isPending ? "Processing..." : "Complete Transfer"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+        {formContent}
       </DialogContent>
     </Dialog>
   );

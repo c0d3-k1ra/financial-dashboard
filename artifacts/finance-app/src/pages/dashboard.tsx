@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useGetDashboardSummary,
   getGetDashboardSummaryQueryKey,
@@ -40,7 +41,8 @@ import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight,
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import TransferModal from "@/components/transfer-modal";
 import SurplusDistributeModal from "@/components/surplus-distribute-modal";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { getApiErrorMessage } from "@/lib/constants";
@@ -189,6 +191,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const chartTheme = useChartTheme();
+  const isMobile = useIsMobile();
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -1214,23 +1217,85 @@ export default function Dashboard() {
 
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
 
-      <Dialog open={distributeOpen} onOpenChange={setDistributeOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <SurplusDistributeModal
-            goals={activeGoals}
-            accounts={(allAccounts || []).filter(a => a.type === "bank")}
-            month={currentMonth}
-            onDistribute={(data) => {
-              distribute.mutate(
-                { data },
+      <DashboardModal open={distributeOpen} onOpenChange={setDistributeOpen} isMobile={isMobile}>
+        <SurplusDistributeModal
+          goals={activeGoals}
+          accounts={(allAccounts || []).filter(a => a.type === "bank")}
+          month={currentMonth}
+          onClose={() => setDistributeOpen(false)}
+          onDistribute={(data) => {
+            distribute.mutate(
+              { data },
+              {
+                onSuccess: (res) => {
+                  if (res.success) {
+                    toast({
+                      title: "Cycle Ended — Surplus Distributed",
+                      description: `₹${res.allocatedTotal} allocated across goals. ${res.transfers} transfer(s) created.`,
+                    });
+                    setDistributeOpen(false);
+                    queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
+                    queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
+                    queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
+                    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
+                    queryClient.invalidateQueries({ queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) });
+                    queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+                    queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
+                  }
+                },
+                onError: (err) => {
+                  toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
+                },
+              }
+            );
+          }}
+          isPending={distribute.isPending}
+        />
+      </DashboardModal>
+
+      <DashboardModal open={undoConfirmOpen} onOpenChange={setUndoConfirmOpen} title="Undo Last Distribution" isMobile={isMobile}>
+        <p className="text-sm text-muted-foreground">
+          This will reverse the surplus distribution for {new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}. The following changes will be reverted:
+        </p>
+        <div className="space-y-3 py-2">
+          {canUndoData?.allocations && canUndoData.allocations.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Goal Allocations to Remove</div>
+              {canUndoData.allocations.map((a, i) => (
+                <div key={i} className="flex justify-between items-center p-2 rounded-md bg-secondary/30 text-sm tabular-nums">
+                  <span>{a.goalName}</span>
+                  <span className="text-destructive">-{formatCurrency(a.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {(canUndoData?.transferCount ?? 0) > 0 && (
+            <div className="text-xs font-mono p-2 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              {canUndoData!.transferCount} auto-transfer transaction(s) will be deleted and account balances reversed.
+            </div>
+          )}
+          <div className="text-xs font-mono p-2 rounded-md bg-secondary/30 text-muted-foreground">
+            The next month's starting balance entry will also be removed.
+          </div>
+        </div>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="ghost" onClick={() => setUndoConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={undoSurplus.isPending}
+            onClick={() => {
+              undoSurplus.mutate(
+                { data: { month: currentMonth } },
                 {
                   onSuccess: (res) => {
                     if (res.success) {
                       toast({
-                        title: "Cycle Ended — Surplus Distributed",
-                        description: `₹${res.allocatedTotal} allocated across goals. ${res.transfers} transfer(s) created.`,
+                        title: "Distribution Undone",
+                        description: `Reverted ${res.deletedAllocations} allocation(s) and ${res.deletedTransfers} transfer(s).`,
                       });
-                      setDistributeOpen(false);
+                      setUndoConfirmOpen(false);
                       queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
                       queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
                       queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
@@ -1246,79 +1311,47 @@ export default function Dashboard() {
                 }
               );
             }}
-            isPending={distribute.isPending}
-          />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={undoConfirmOpen} onOpenChange={setUndoConfirmOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Undo Last Distribution</DialogTitle>
-            <DialogDescription>
-              This will reverse the surplus distribution for {new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" })}. The following changes will be reverted:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            {canUndoData?.allocations && canUndoData.allocations.length > 0 && (
-              <div className="space-y-1.5">
-                <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Goal Allocations to Remove</div>
-                {canUndoData.allocations.map((a, i) => (
-                  <div key={i} className="flex justify-between items-center p-2 rounded-md bg-secondary/30 text-sm tabular-nums">
-                    <span>{a.goalName}</span>
-                    <span className="text-destructive">-{formatCurrency(a.amount)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {(canUndoData?.transferCount ?? 0) > 0 && (
-              <div className="text-xs font-mono p-2 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                {canUndoData!.transferCount} auto-transfer transaction(s) will be deleted and account balances reversed.
-              </div>
-            )}
-            <div className="text-xs font-mono p-2 rounded-md bg-secondary/30 text-muted-foreground">
-              The next month's starting balance entry will also be removed.
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setUndoConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              disabled={undoSurplus.isPending}
-              onClick={() => {
-                undoSurplus.mutate(
-                  { data: { month: currentMonth } },
-                  {
-                    onSuccess: (res) => {
-                      if (res.success) {
-                        toast({
-                          title: "Distribution Undone",
-                          description: `Reverted ${res.deletedAllocations} allocation(s) and ${res.deletedTransfers} transfer(s).`,
-                        });
-                        setUndoConfirmOpen(false);
-                        queryClient.invalidateQueries({ queryKey: getListGoalsQueryKey() });
-                        queryClient.invalidateQueries({ queryKey: getGetGoalsWaterfallQueryKey() });
-                        queryClient.invalidateQueries({ queryKey: getListSurplusAllocationsQueryKey() });
-                        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) });
-                        queryClient.invalidateQueries({ queryKey: getCanUndoSurplusQueryKey({ month: currentMonth }) });
-                        queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
-                        queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
-                      }
-                    },
-                    onError: (err) => {
-                      toast({ title: "Error", description: getApiErrorMessage(err), variant: "destructive" });
-                    },
-                  }
-                );
-              }}
-            >
-              <Undo2 className="w-4 h-4 mr-1.5" /> Confirm Undo
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          >
+            <Undo2 className="w-4 h-4 mr-1.5" /> Confirm Undo
+          </Button>
+        </DialogFooter>
+      </DashboardModal>
     </div>
+  );
+}
+
+function DashboardModal({ open, onOpenChange, title, isMobile, children }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title?: string;
+  isMobile: boolean;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+          {title && (
+            <SheetHeader>
+              <SheetTitle>{title}</SheetTitle>
+            </SheetHeader>
+          )}
+          {children}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        {title && (
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+          </DialogHeader>
+        )}
+        {children}
+      </DialogContent>
+    </Dialog>
   );
 }

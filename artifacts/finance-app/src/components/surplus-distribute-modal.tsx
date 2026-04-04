@@ -5,12 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogClose,
-} from "@/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,12 +18,14 @@ export default function SurplusDistributeModal({
   month,
   onDistribute,
   isPending,
+  onClose,
 }: {
   goals: Array<{ id: number; name: string; targetAmount: string; currentAmount: string; accountId?: number | null }>;
   accounts: Array<{ id: number; name: string; currentBalance: string }>;
   month: string;
   onDistribute: (data: { month: string; sourceAccountId: number; allocations: Array<{ goalId: number; amount: string }> }) => void;
   isPending: boolean;
+  onClose?: () => void;
 }) {
   const [sourceAccountId, setSourceAccountId] = useState<string>("");
   const [amounts, setAmounts] = useState<Record<number, string>>({});
@@ -55,9 +51,9 @@ export default function SurplusDistributeModal({
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>Distribute Surplus — {month}</DialogTitle>
-      </DialogHeader>
+      <div className="flex flex-col space-y-1.5 text-center sm:text-left">
+        <h3 className="text-lg font-semibold leading-none tracking-tight">Distribute Surplus — {month}</h3>
+      </div>
       <div className="space-y-4 py-2">
         <div className="p-3 rounded-lg glass-2 font-mono text-xs space-y-1">
           <div className="flex justify-between">
@@ -134,17 +130,15 @@ export default function SurplusDistributeModal({
           </div>
         </div>
       </div>
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button variant="ghost">Cancel</Button>
-        </DialogClose>
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4">
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
         <Button
           onClick={handleSubmit}
           disabled={isPending || !sourceAccountId || totalAllocated === 0 || exceedsBalance || exceedsSurplus || monthlySurplus <= 0}
         >
           {isPending ? "Distributing..." : "Distribute"}
         </Button>
-      </DialogFooter>
+      </div>
     </>
   );
 }

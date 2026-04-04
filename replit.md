@@ -73,7 +73,15 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **Typography:** Inter for headings, JetBrains Mono for monetary values.
 *   **Charts:** Monotone curves with linear gradient fills, matte tooltips (light) / glass-3 tooltips (dark), and subtle gridlines.
 *   **Accessibility:** Fallback for `backdrop-filter` and `prefers-reduced-motion` support.
-*   **Mobile:** Minimum 44px touch targets, bottom-sheet drawer for transaction input.
+*   **Mobile-First Experience:**
+    *   Fixed bottom tab bar (5 tabs: Dashboard, Transactions, Budget, Goals, Accounts) with glass styling and safe-area padding. Settings gear moved to header on mobile.
+    *   AI Assistant renders as full-screen bottom sheet (~95dvh) with swipe-down-to-dismiss on mobile; floating panel on desktop.
+    *   Transaction filters collapse behind a single "Filters" button on mobile with active filter count badge; full filter bar on desktop.
+    *   All dialogs (Transfer, Add/Edit Account, Reconcile, Delete Account, Create/Edit Goal, Distribute Surplus, Undo Distribution) render as bottom sheets on mobile, centered dialogs on desktop. Uses `useIsMobile()` hook + conditional Sheet/Dialog rendering.
+    *   Minimum 44px touch targets on all mobile action buttons (account card icons, goal card icons, Sheet/Dialog close buttons).
+    *   Goals page projection chart collapsed by default on mobile with expandable toggle.
+    *   `ResponsiveModal` helper in accounts.tsx, `GoalFormModal` helper in goals.tsx, `DashboardModal` helper in dashboard.tsx for Sheet/Dialog switching.
+    *   `surplus-distribute-modal.tsx` uses neutral HTML elements instead of Dialog-context primitives for portability across Sheet and Dialog wrappers.
 
 **AI Transaction Assistant:**
 *   A floating action button (FAB) activates a multi-turn chat panel for natural language transaction input.

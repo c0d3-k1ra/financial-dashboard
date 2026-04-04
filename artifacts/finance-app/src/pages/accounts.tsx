@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,7 +27,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Trash2, Wallet, CreditCard, TrendingUp, TrendingDown, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -49,6 +51,7 @@ type FormValues = z.infer<typeof formSchema>;
 export default function Accounts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [reconcileId, setReconcileId] = useState<number | null>(null);
@@ -276,7 +279,7 @@ export default function Accounts() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Manage Accounts</h1>
           <p className="text-muted-foreground text-sm mt-1">Track your bank accounts, credit cards, and loans.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {loanAccounts.length > 0 && (
             <Button variant="outline" onClick={handleProcessEmis} disabled={processEmis.isPending} className="font-mono text-xs uppercase tracking-wider">
               <Landmark className="w-4 h-4 mr-2" /> {processEmis.isPending ? "Processing..." : "Process EMIs"}
@@ -285,12 +288,10 @@ export default function Accounts() {
           <Button variant="outline" onClick={() => setIsTransferOpen(true)} className="font-mono text-xs uppercase tracking-wider">
             <ArrowLeftRight className="w-4 h-4 mr-2" /> Transfer
           </Button>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="font-mono text-xs uppercase tracking-wider">
-                <Plus className="w-4 h-4 mr-2" /> Add Account
-              </Button>
-            </DialogTrigger>
+          <Button className="font-mono text-xs uppercase tracking-wider" onClick={() => setIsDialogOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Add Account
+          </Button>
+          <Dialog open={!isMobile && isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle>New Account</DialogTitle>
@@ -659,27 +660,27 @@ export default function Accounts() {
                               </div>
                               <p className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</p>
                             </div>
-                            <div className="flex items-center gap-4 ml-2">
+                            <div className="flex items-center gap-1 md:gap-4 ml-2">
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                    <RefreshCw className="w-3.5 h-3.5" />
+                                  <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                    <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Sync Balance</TooltipContent>
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                    <Pencil className="w-3.5 h-3.5" />
+                                  <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                    <Pencil className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Edit Account</TooltipContent>
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                  <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                    <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent>Delete Account</TooltipContent>
@@ -749,27 +750,27 @@ export default function Accounts() {
                                   )}
                                 </div>
                               </div>
-                              <div className="flex items-center gap-4 ml-2">
+                              <div className="flex items-center gap-1 md:gap-4 ml-2">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                      <RefreshCw className="w-3.5 h-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                      <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Sync Balance</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                      <Pencil className="w-3.5 h-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                      <Pencil className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Edit Account</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                      <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Delete Account</TooltipContent>
@@ -883,27 +884,27 @@ export default function Accounts() {
                                   <span className="text-[10px] text-muted-foreground/60 font-mono">EMI on {getOrdinalSuffix(account.emiDay)}</span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-4 ml-2">
+                              <div className="flex items-center gap-1 md:gap-4 ml-2">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                      <RefreshCw className="w-3.5 h-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
+                                      <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Sync Balance</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                      <Pencil className="w-3.5 h-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
+                                      <Pencil className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Edit Account</TooltipContent>
                                 </Tooltip>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                      <Trash2 className="w-3.5 h-3.5" />
+                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
+                                      <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
                                     </Button>
                                   </TooltipTrigger>
                                   <TooltipContent>Delete Account</TooltipContent>
@@ -986,165 +987,220 @@ export default function Accounts() {
 
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
 
-      <Dialog open={reconcileId !== null} onOpenChange={(open) => { if (!open) { setReconcileId(null); setReconcileBalance(""); } }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Reconcile: {reconcileTarget?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="text-sm font-mono text-muted-foreground">
-              Current balance: {formatCurrency(reconcileCurrentBalance)}
+      <ResponsiveModal open={reconcileId !== null} onOpenChange={(open) => { if (!open) { setReconcileId(null); setReconcileBalance(""); } }} title={`Reconcile: ${reconcileTarget?.name ?? ""}`} isMobile={isMobile}>
+        <div className="space-y-4 py-2">
+          <div className="text-sm font-mono text-muted-foreground">
+            Current balance: {formatCurrency(reconcileCurrentBalance)}
+          </div>
+          <div>
+            <Label>Actual Balance (from bank statement)</Label>
+            <div className="relative mt-1">
+              <span className="absolute left-3 top-2.5 text-muted-foreground">₹</span>
+              <Input
+                type="number"
+                step="0.01"
+                className="pl-7 font-mono"
+                value={reconcileBalance}
+                onChange={(e) => setReconcileBalance(e.target.value)}
+              />
             </div>
-            <div>
-              <Label>Actual Balance (from bank statement)</Label>
-              <div className="relative mt-1">
-                <span className="absolute left-3 top-2.5 text-muted-foreground">₹</span>
+          </div>
+          {reconcileBalance && Math.abs(reconcileAdjustment) > 0.01 && (
+            <div className={`text-sm font-mono p-2 rounded-md ${reconcileAdjustment >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400"}`}>
+              Adjustment: {reconcileAdjustment >= 0 ? "+" : ""}{formatCurrency(reconcileAdjustment)}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { setReconcileId(null); setReconcileBalance(""); }}>Cancel</Button>
+          <Button onClick={handleReconcile} disabled={reconcileAccount.isPending || !reconcileBalance}>
+            {reconcileAccount.isPending ? "Reconciling..." : "Reconcile"}
+          </Button>
+        </DialogFooter>
+      </ResponsiveModal>
+
+      <ResponsiveModal open={editId !== null} onOpenChange={(open) => { if (!open) setEditId(null); }} title={`Edit: ${editTarget?.name ?? ""}`} isMobile={isMobile}>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label>Name</Label>
+            <Input className="mt-1 font-mono" value={editName} onChange={(e) => setEditName(e.target.value)} />
+          </div>
+          {editTarget?.type === "credit_card" && (
+            <>
+              <div>
+                <Label>Credit Limit</Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                  <Input type="number" step="0.01" className="pl-7 font-mono" value={editCreditLimit} onChange={(e) => setEditCreditLimit(e.target.value)} />
+                </div>
+              </div>
+              <div>
+                <Label>Billing Due Day (1-31)</Label>
+                <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 15" value={editBillingDueDay} onChange={(e) => setEditBillingDueDay(e.target.value)} />
+              </div>
+              <div>
+                <Label>Shared Limit Group</Label>
                 <Input
-                  type="number"
-                  step="0.01"
-                  className="pl-7 font-mono"
-                  value={reconcileBalance}
-                  onChange={(e) => setReconcileBalance(e.target.value)}
+                  className="mt-1 font-mono"
+                  placeholder="Type group name or leave empty"
+                  list="edit-shared-limit-groups"
+                  value={editSharedLimitGroup}
+                  onChange={(e) => setEditSharedLimitGroup(e.target.value)}
                 />
+                <datalist id="edit-shared-limit-groups">
+                  {existingGroups.map((g) => (
+                    <option key={g} value={g} />
+                  ))}
+                </datalist>
               </div>
-            </div>
-            {reconcileBalance && Math.abs(reconcileAdjustment) > 0.01 && (
-              <div className={`text-sm font-mono p-2 rounded-md ${reconcileAdjustment >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400"}`}>
-                Adjustment: {reconcileAdjustment >= 0 ? "+" : ""}{formatCurrency(reconcileAdjustment)}
+            </>
+          )}
+          {editTarget?.type === "loan" && (
+            <>
+              <div>
+                <Label>Monthly EMI</Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                  <Input type="number" step="0.01" className="pl-7 font-mono" value={editEmiAmount} onChange={(e) => setEditEmiAmount(e.target.value)} />
+                </div>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleReconcile} disabled={reconcileAccount.isPending || !reconcileBalance}>
-              {reconcileAccount.isPending ? "Reconciling..." : "Reconcile"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={editId !== null} onOpenChange={(open) => { if (!open) setEditId(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit: {editTarget?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div>
-              <Label>Name</Label>
-              <Input className="mt-1 font-mono" value={editName} onChange={(e) => setEditName(e.target.value)} />
-            </div>
-            {editTarget?.type === "credit_card" && (
-              <>
-                <div>
-                  <Label>Credit Limit</Label>
-                  <div className="relative mt-1">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                    <Input type="number" step="0.01" className="pl-7 font-mono" value={editCreditLimit} onChange={(e) => setEditCreditLimit(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <Label>Billing Due Day (1-31)</Label>
-                  <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 15" value={editBillingDueDay} onChange={(e) => setEditBillingDueDay(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Shared Limit Group</Label>
-                  <Input
-                    className="mt-1 font-mono"
-                    placeholder="Type group name or leave empty"
-                    list="edit-shared-limit-groups"
-                    value={editSharedLimitGroup}
-                    onChange={(e) => setEditSharedLimitGroup(e.target.value)}
-                  />
-                  <datalist id="edit-shared-limit-groups">
-                    {existingGroups.map((g) => (
-                      <option key={g} value={g} />
+              <div>
+                <Label>EMI Debit Day (1-31)</Label>
+                <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 5" value={editEmiDay} onChange={(e) => setEditEmiDay(e.target.value)} />
+              </div>
+              <div>
+                <Label>Interest Rate (%)</Label>
+                <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="e.g. 10.5" value={editInterestRate} onChange={(e) => setEditInterestRate(e.target.value)} />
+              </div>
+              <div>
+                <Label>Tenure (months)</Label>
+                <Input type="number" min="1" step="1" className="mt-1 font-mono" placeholder="e.g. 36" value={editLoanTenure} onChange={(e) => setEditLoanTenure(e.target.value)} />
+              </div>
+              <div>
+                <Label>EMI Debit Account</Label>
+                <Select value={editLinkedAccountId} onValueChange={setEditLinkedAccountId}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((a) => (
+                      <SelectItem key={a.id} value={String(a.id)}>
+                        {a.name}
+                      </SelectItem>
                     ))}
-                  </datalist>
-                </div>
-              </>
-            )}
-            {editTarget?.type === "loan" && (
-              <>
-                <div>
-                  <Label>Monthly EMI</Label>
-                  <div className="relative mt-1">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                    <Input type="number" step="0.01" className="pl-7 font-mono" value={editEmiAmount} onChange={(e) => setEditEmiAmount(e.target.value)} />
-                  </div>
-                </div>
-                <div>
-                  <Label>EMI Debit Day (1-31)</Label>
-                  <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 5" value={editEmiDay} onChange={(e) => setEditEmiDay(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Interest Rate (%)</Label>
-                  <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="e.g. 10.5" value={editInterestRate} onChange={(e) => setEditInterestRate(e.target.value)} />
-                </div>
-                <div>
-                  <Label>Tenure (months)</Label>
-                  <Input type="number" min="1" step="1" className="mt-1 font-mono" placeholder="e.g. 36" value={editLoanTenure} onChange={(e) => setEditLoanTenure(e.target.value)} />
-                </div>
-                <div>
-                  <Label>EMI Debit Account</Label>
-                  <Select value={editLinkedAccountId} onValueChange={setEditLinkedAccountId}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Select bank account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {bankAccounts.map((a) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          {a.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </>
-            )}
-            {editTarget?.type === "bank" && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={editUseInSurplus}
-                  onChange={(e) => setEditUseInSurplus(e.target.checked)}
-                  className="h-4 w-4 rounded border-border accent-primary"
-                  id="edit-use-in-surplus"
-                />
-                <Label htmlFor="edit-use-in-surplus" className="text-sm font-normal cursor-pointer">Use in surplus calculation</Label>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleEdit} disabled={updateAccount.isPending || !editName.trim()}>
-              {updateAccount.isPending ? "Saving..." : "Save"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            </>
+          )}
+          {editTarget?.type === "bank" && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={editUseInSurplus}
+                onChange={(e) => setEditUseInSurplus(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+                id="edit-use-in-surplus"
+              />
+              <Label htmlFor="edit-use-in-surplus" className="text-sm font-normal cursor-pointer">Use in surplus calculation</Label>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
+          <Button onClick={handleEdit} disabled={updateAccount.isPending || !editName.trim()}>
+            {updateAccount.isPending ? "Saving..." : "Save"}
+          </Button>
+        </DialogFooter>
+      </ResponsiveModal>
 
-      <Dialog open={deleteAccountId !== null} onOpenChange={(open) => { if (!open) setDeleteAccountId(null); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Account</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground py-2">
-            Are you sure you want to delete this account? This action cannot be undone.
-          </p>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-            <Button variant="destructive" onClick={confirmDeleteAccount} disabled={deleteAccount.isPending}>
-              {deleteAccount.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveModal open={deleteAccountId !== null} onOpenChange={(open) => { if (!open) setDeleteAccountId(null); }} title="Delete Account" isMobile={isMobile}>
+        <p className="text-sm text-muted-foreground py-2">
+          Are you sure you want to delete this account? This action cannot be undone.
+        </p>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setDeleteAccountId(null)}>Cancel</Button>
+          <Button variant="destructive" onClick={confirmDeleteAccount} disabled={deleteAccount.isPending}>
+            {deleteAccount.isPending ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogFooter>
+      </ResponsiveModal>
+
+      <Sheet open={isMobile && isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>New Account</SheetTitle>
+          </SheetHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g. HDFC Savings" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="bank">Bank Account</SelectItem><SelectItem value="credit_card">Credit Card</SelectItem><SelectItem value="loan">Loan</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="currentBalance" render={({ field }) => (<FormItem><FormLabel>{watchType === "loan" ? "Outstanding Principal" : "Current Balance"}</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
+              {watchType === "bank" && (
+                <FormField control={form.control} name="useInSurplus" render={({ field }) => (
+                  <FormItem className="flex items-center gap-2 space-y-0">
+                    <FormControl><input type="checkbox" checked={field.value ?? false} onChange={field.onChange} className="h-4 w-4 rounded border-border accent-primary" /></FormControl>
+                    <FormLabel className="text-sm font-normal cursor-pointer">Use in surplus calculation</FormLabel>
+                  </FormItem>
+                )} />
+              )}
+              {watchType === "credit_card" && (
+                <>
+                  <FormField control={form.control} name="creditLimit" render={({ field }) => (<FormItem><FormLabel>Credit Limit</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="billingDueDay" render={({ field }) => (<FormItem><FormLabel>Billing Due Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 15" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="sharedLimitGroup" render={({ field }) => (<FormItem><FormLabel>Shared Limit Group</FormLabel><FormControl><div><Input className="font-mono" placeholder="Type group name or leave empty" list="shared-limit-groups-mobile" {...field} /><datalist id="shared-limit-groups-mobile">{existingGroups.map((g) => (<option key={g} value={g} />))}</datalist></div></FormControl><FormMessage /></FormItem>)} />
+                </>
+              )}
+              {watchType === "loan" && (
+                <>
+                  <FormField control={form.control} name="emiAmount" render={({ field }) => (<FormItem><FormLabel>Monthly EMI</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="emiDay" render={({ field }) => (<FormItem><FormLabel>EMI Debit Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (%)</FormLabel><FormControl><Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="loanTenure" render={({ field }) => (<FormItem><FormLabel>Tenure (months)</FormLabel><FormControl><Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="linkedAccountId" render={({ field }) => (<FormItem><FormLabel>EMI Debit Account</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl><SelectContent>{bankAccounts.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                </>
+              )}
+              <DialogFooter className="pt-4">
+                <Button type="submit" disabled={createAccount.isPending} className="w-full">
+                  {createAccount.isPending ? "Creating..." : "Create Account"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </SheetContent>
+      </Sheet>
     </div>
+  );
+}
+
+function ResponsiveModal({ open, onOpenChange, title, isMobile, children }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  isMobile: boolean;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>{title}</SheetTitle>
+          </SheetHeader>
+          {children}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
   );
 }

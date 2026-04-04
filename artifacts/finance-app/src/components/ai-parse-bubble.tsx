@@ -19,6 +19,7 @@ import {
   getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
 import type { AiChatWarning } from "@workspace/api-client-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface ISpeechRecognitionResultItem {
   transcript: string;
@@ -187,7 +188,12 @@ export function AiParseBubble() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isTouchDevice = useIsMobileTouch();
+  const isMobile = useIsMobile();
   const visualViewportHeight = useVisualViewportHeight();
+
+  const dragStartY = useRef<number | null>(null);
+  const dragCurrentY = useRef<number>(0);
+  const sheetRef = useRef<HTMLDivElement>(null);
 
   const speechSupported = !!getSpeechRecognition();
 
@@ -574,6 +580,51 @@ export function AiParseBubble() {
     return accounts.find((a) => a.id === id)?.name ?? "Unknown";
   };
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!isMobile) return;
+    dragStartY.current = e.touches[0].clientY;
+    dragCurrentY.current = 0;
+  }, [isMobile]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isMobile || dragStartY.current === null) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if (delta > 0) {
+      dragCurrentY.current = delta;
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = `translateY(${delta}px)`;
+        sheetRef.current.style.transition = "none";
+      }
+    }
+  }, [isMobile]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (!isMobile || dragStartY.current === null) return;
+    const sheetHeight = sheetRef.current?.offsetHeight || window.innerHeight;
+    const threshold = sheetHeight * 0.3;
+    if (dragCurrentY.current > threshold) {
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = `translateY(100%)`;
+        sheetRef.current.style.transition = "transform 0.3s ease-out";
+      }
+      setTimeout(() => setIsOpen(false), 300);
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transform = "translateY(0)";
+        sheetRef.current.style.transition = "transform 0.3s ease-out";
+      }
+    }
+    dragStartY.current = null;
+    dragCurrentY.current = 0;
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (isOpen && sheetRef.current) {
+      sheetRef.current.style.transform = "translateY(0)";
+      sheetRef.current.style.transition = "transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)";
+    }
+  }, [isOpen]);
+
   const renderWarnings = (warnings: AiChatWarning[]) => {
     return (
       <div className="space-y-2">
@@ -866,6 +917,213 @@ export function AiParseBubble() {
     );
   };
 
+  const chatContent = (
+    <>
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-60">
+            <Sparkles className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+            <p className="text-sm text-muted-foreground">
+              Describe a transaction and I'll help you log it.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              e.g. "Spent 450 at Starbucks" or "Received 50000 salary"
+            </p>
+          </div>
+        )}
+
+        {messages.map((msg) => {
+          if (msg.type === "user") {
+            return (
+              <div key={msg.id} className="flex justify-end">
+                <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-blue-500 border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
+                  <p className="text-sm">{msg.content}</p>
+                </div>
+              </div>
+            );
+          }
+
+          if (msg.type === "done") {
+            return (
+              <div key={msg.id} className="flex justify-start">
+                <div className="max-w-[95%] w-full">
+                  {renderDoneCard(msg)}
+                </div>
+              </div>
+            );
+          }
+
+          if (msg.type === "confirmation") {
+            return (
+              <div key={msg.id} className="flex justify-start">
+                <div className="max-w-[95%] w-full space-y-2">
+                  <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
+                    <p className="text-sm">{msg.content}</p>
+                  </div>
+                  {msg.transaction && renderConfirmationCard(msg)}
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={msg.id} className="flex justify-start">
+              <div className="max-w-[85%] space-y-2">
+                <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
+                  <p className="text-sm">{msg.content}</p>
+                </div>
+                {msg.options && msg.options.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pl-1">
+                    {msg.options.map((opt, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleOptionClick(opt)}
+                        disabled={isProcessing}
+                        className="chat-pill-light px-3 py-1.5 text-xs rounded-full border dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-300 transition-colors disabled:opacity-50 backdrop-blur-sm font-medium pill-button-dark"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+
+        {isProcessing && (
+          <div className="flex justify-start">
+            <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-3 h-3 animate-spin text-amber-600 dark:text-amber-400" />
+                <span className="text-sm text-muted-foreground">Thinking...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="p-3 border-t border-[var(--divider-color)]" style={isMobile ? { paddingBottom: "env(safe-area-inset-bottom, 8px)" } : undefined}>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              ref={inputRef}
+              placeholder={messages.some((m) => m.type === "done")
+                ? "Log another or close"
+                : 'e.g. "Spent 450 at Starbucks"'
+              }
+              className={`bg-background/50 border-amber-500/30 focus-visible:ring-amber-500/30 text-sm ${speechSupported ? "pr-9" : ""}`}
+              value={nlInput}
+              onChange={(e) => setNlInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  sendMessage(nlInput);
+                }
+              }}
+              onFocus={() => {
+                if (isTouchDevice) {
+                  setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 300);
+                }
+              }}
+              disabled={isProcessing}
+            />
+            {speechSupported && (
+              <button
+                type="button"
+                onClick={() => isListening ? stopListening() : startListening()}
+                disabled={isProcessing}
+                className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors disabled:opacity-50 ${
+                  isListening
+                    ? "text-red-500 animate-pulse"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                aria-label={isListening ? "Stop voice input" : "Start voice input"}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            onClick={() => sendMessage(nlInput)}
+            disabled={isProcessing || !nlInput.trim()}
+            className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+            size="icon"
+          >
+            {isProcessing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        {isOpen && (
+          <div className="fixed inset-0 z-50">
+            <div
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setIsOpen(false)}
+            />
+            <div
+              ref={sheetRef}
+              className="absolute bottom-0 left-0 right-0 glass-3 chat-panel-light chat-panel-dark rounded-t-2xl shadow-2xl flex flex-col"
+              style={{
+                height: visualViewportHeight
+                  ? `${Math.min(visualViewportHeight * 0.95, visualViewportHeight - 20)}px`
+                  : "95dvh",
+                transform: "translateY(100%)",
+                transition: "height 0.15s ease-out",
+              }}
+            >
+              <div
+                className="flex flex-col items-center pt-2 pb-1 cursor-grab active:cursor-grabbing"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              >
+                <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+              </div>
+              <div className="flex items-center justify-between px-4 pb-2 border-b border-[var(--divider-color)]">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <span className="text-sm font-medium">AI Assistant</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+              {chatContent}
+            </div>
+          </div>
+        )}
+
+        <div className="fixed z-40 right-4" style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))" }}>
+          <Button
+            onClick={() => setIsOpen(!isOpen)}
+            className="h-14 w-14 rounded-full bg-amber-600 hover:bg-amber-700 text-white shadow-lg hover:shadow-xl transition-all"
+            size="icon"
+            data-testid="ai-parse-bubble"
+          >
+            <Sparkles className="w-6 h-6" />
+          </Button>
+        </div>
+      </>
+    );
+  }
+
   return (
     <div ref={containerRef} className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 md:bottom-8 md:right-8" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
       {isOpen && (
@@ -892,147 +1150,7 @@ export function AiParseBubble() {
               </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
-              {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-center space-y-2 opacity-60">
-                  <Sparkles className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-                  <p className="text-sm text-muted-foreground">
-                    Describe a transaction and I'll help you log it.
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    e.g. "Spent 450 at Starbucks" or "Received 50000 salary"
-                  </p>
-                </div>
-              )}
-
-              {messages.map((msg) => {
-                if (msg.type === "user") {
-                  return (
-                    <div key={msg.id} className="flex justify-end">
-                      <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-blue-500 border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
-                        <p className="text-sm">{msg.content}</p>
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (msg.type === "done") {
-                  return (
-                    <div key={msg.id} className="flex justify-start">
-                      <div className="max-w-[95%] w-full">
-                        {renderDoneCard(msg)}
-                      </div>
-                    </div>
-                  );
-                }
-
-                if (msg.type === "confirmation") {
-                  return (
-                    <div key={msg.id} className="flex justify-start">
-                      <div className="max-w-[95%] w-full space-y-2">
-                        <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
-                          <p className="text-sm">{msg.content}</p>
-                        </div>
-                        {msg.transaction && renderConfirmationCard(msg)}
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div key={msg.id} className="flex justify-start">
-                    <div className="max-w-[85%] space-y-2">
-                      <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
-                        <p className="text-sm">{msg.content}</p>
-                      </div>
-                      {msg.options && msg.options.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pl-1">
-                          {msg.options.map((opt, i) => (
-                            <button
-                              key={i}
-                              onClick={() => handleOptionClick(opt)}
-                              disabled={isProcessing}
-                              className="chat-pill-light px-3 py-1.5 text-xs rounded-full border dark:border-amber-500/30 dark:bg-amber-500/10 dark:hover:bg-amber-500/20 dark:text-amber-300 transition-colors disabled:opacity-50 backdrop-blur-sm font-medium pill-button-dark"
-                            >
-                              {opt.label}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {isProcessing && (
-                <div className="flex justify-start">
-                  <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin text-amber-600 dark:text-amber-400" />
-                      <span className="text-sm text-muted-foreground">Thinking...</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-
-            <div className="p-3 border-t border-[var(--divider-color)]">
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    ref={inputRef}
-                    placeholder={messages.some((m) => m.type === "done")
-                      ? "Log another or close"
-                      : 'e.g. "Spent 450 at Starbucks"'
-                    }
-                    className={`bg-background/50 border-amber-500/30 focus-visible:ring-amber-500/30 text-sm ${speechSupported ? "pr-9" : ""}`}
-                    value={nlInput}
-                    onChange={(e) => setNlInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        sendMessage(nlInput);
-                      }
-                    }}
-                    onFocus={() => {
-                      if (isTouchDevice) {
-                        setTimeout(() => inputRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 300);
-                      }
-                    }}
-                    disabled={isProcessing}
-                  />
-                  {speechSupported && (
-                    <button
-                      type="button"
-                      onClick={() => isListening ? stopListening() : startListening()}
-                      disabled={isProcessing}
-                      className={`absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors disabled:opacity-50 ${
-                        isListening
-                          ? "text-red-500 animate-pulse"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                      aria-label={isListening ? "Stop voice input" : "Start voice input"}
-                    >
-                      <Mic className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                <Button
-                  onClick={() => sendMessage(nlInput)}
-                  disabled={isProcessing || !nlInput.trim()}
-                  className="shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
-                  size="icon"
-                >
-                  {isProcessing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
+            {chatContent}
           </div>
         </div>
       )}

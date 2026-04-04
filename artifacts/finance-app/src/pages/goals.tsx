@@ -26,9 +26,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -47,9 +45,11 @@ import {
   Line,
   ReferenceLine,
 } from "recharts";
-import { Plus, Target, AlertTriangle, TrendingUp, Trash2, Pencil } from "lucide-react";
+import { Plus, Target, AlertTriangle, TrendingUp, Trash2, Pencil, ChevronDown } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useChartTheme } from "@/lib/chart-theme";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const CATEGORY_OPTIONS = ["Emergency", "Debt", "Travel", "Purchase", "General"];
 const CATEGORY_ICONS: Record<string, string> = {
@@ -71,8 +71,10 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Goals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
+  const [chartExpanded, setChartExpanded] = useState(false);
 
   const [newGoal, setNewGoal] = useState({
     name: "",
@@ -201,85 +203,49 @@ export default function Goals() {
         </div>
 
         <div className="flex gap-2">
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="font-mono text-xs uppercase tracking-wider">
-                <Plus className="w-4 h-4 mr-2" /> Create Goal
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Create New Goal</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div>
-                  <Label>Name</Label>
-                  <Input
-                    placeholder="e.g., Vacation Fund"
-                    value={newGoal.name}
-                    onChange={(e) => setNewGoal({ ...newGoal, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Target Amount (₹)</Label>
-                  <Input
-                    type="number"
-                    placeholder="50000"
-                    value={newGoal.targetAmount}
-                    onChange={(e) => setNewGoal({ ...newGoal, targetAmount: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Target Date (optional)</Label>
-                  <DatePicker
-                    date={newGoal.targetDate ? new Date(newGoal.targetDate + "T00:00:00") : undefined}
-                    onSelect={(d) => setNewGoal({ ...newGoal, targetDate: d ? format(d, "yyyy-MM-dd") : "" })}
-                    placeholder="Pick a date"
-                    className="w-full"
-                  />
-                </div>
-                <div>
-                  <Label>Category</Label>
-                  <Select value={newGoal.categoryType} onValueChange={(v) => setNewGoal({ ...newGoal, categoryType: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORY_OPTIONS.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {CATEGORY_ICONS[c]} {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Funding Account</Label>
-                  <Select value={newGoal.accountId} onValueChange={(v) => setNewGoal({ ...newGoal, accountId: v })}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select account" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {accounts?.map((a) => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          {a.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <Button variant="outline" className="font-mono text-xs uppercase tracking-wider" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Create Goal
+          </Button>
+          <GoalFormModal open={createOpen} onOpenChange={setCreateOpen} title="Create New Goal" isMobile={isMobile}>
+            <div className="space-y-4 py-2">
+              <div>
+                <Label>Name</Label>
+                <Input placeholder="e.g., Vacation Fund" value={newGoal.name} onChange={(e) => setNewGoal({ ...newGoal, name: e.target.value })} />
               </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="ghost">Cancel</Button>
-                </DialogClose>
-                <Button onClick={handleCreateGoal} disabled={createGoal.isPending}>
-                  {createGoal.isPending ? "Creating..." : "Create"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
+              <div>
+                <Label>Target Amount (₹)</Label>
+                <Input type="number" placeholder="50000" value={newGoal.targetAmount} onChange={(e) => setNewGoal({ ...newGoal, targetAmount: e.target.value })} />
+              </div>
+              <div>
+                <Label>Target Date (optional)</Label>
+                <DatePicker date={newGoal.targetDate ? new Date(newGoal.targetDate + "T00:00:00") : undefined} onSelect={(d) => setNewGoal({ ...newGoal, targetDate: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="Pick a date" className="w-full" />
+              </div>
+              <div>
+                <Label>Category</Label>
+                <Select value={newGoal.categoryType} onValueChange={(v) => setNewGoal({ ...newGoal, categoryType: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((c) => (<SelectItem key={c} value={c}>{CATEGORY_ICONS[c]} {c}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Funding Account</Label>
+                <Select value={newGoal.accountId} onValueChange={(v) => setNewGoal({ ...newGoal, accountId: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                  <SelectContent>
+                    {accounts?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button onClick={handleCreateGoal} disabled={createGoal.isPending}>
+                {createGoal.isPending ? "Creating..." : "Create"}
+              </Button>
+            </DialogFooter>
+          </GoalFormModal>
         </div>
       </div>
 
@@ -294,21 +260,46 @@ export default function Goals() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6">
-        {selectedGoalId ? (
-          <GoalProjectionChart goalId={selectedGoalId} />
-        ) : (
-          <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
-            <CardHeader>
-              <CardTitle className="text-lg">Goal Projection</CardTitle>
-              <CardDescription>Click a goal card to see its 12-month projection</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-[var(--divider-color)]">
-              Select a goal to view projection
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {isMobile ? (
+        <div>
+          <button
+            onClick={() => setChartExpanded(!chartExpanded)}
+            className="w-full flex items-center justify-between px-4 py-3 glass-1 rounded-xl mb-2"
+          >
+            <span className="text-sm font-semibold">Goal Projection</span>
+            <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${chartExpanded ? "rotate-180" : ""}`} />
+          </button>
+          {chartExpanded && (
+            <div className="grid grid-cols-1 gap-6">
+              {selectedGoalId ? (
+                <GoalProjectionChart goalId={selectedGoalId} />
+              ) : (
+                <Card className="glass-card rounded-xl">
+                  <CardContent className="h-[200px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-[var(--divider-color)]">
+                    Select a goal to view projection
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6">
+          {selectedGoalId ? (
+            <GoalProjectionChart goalId={selectedGoalId} />
+          ) : (
+            <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
+              <CardHeader>
+                <CardTitle className="text-lg">Goal Projection</CardTitle>
+                <CardDescription>Click a goal card to see its 12-month projection</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[250px] flex items-center justify-center text-muted-foreground font-mono text-sm border border-dashed rounded-md border-[var(--divider-color)]">
+                Select a goal to view projection
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       <div>
         <h2 className="text-lg font-semibold mb-4">
@@ -340,7 +331,11 @@ export default function Goals() {
                   className={`glass-card rounded-xl cursor-pointer transition-all hover:border-primary/40 ${
                     isSelected ? "border-primary/60 ring-1 ring-primary/30" : ""
                   } ${goal.status === "Achieved" ? "opacity-70" : ""}`}
-                  onClick={() => setSelectedGoalId(isSelected ? null : goal.id)}
+                  onClick={() => {
+                    const newId = isSelected ? null : goal.id;
+                    setSelectedGoalId(newId);
+                    if (isMobile && newId !== null) setChartExpanded(true);
+                  }}
                 >
                   <CardContent className="p-5 space-y-3">
                     <div className="flex items-start justify-between gap-2">
@@ -366,24 +361,24 @@ export default function Goals() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-primary"
+                          className="h-11 w-11 md:h-6 md:w-6 text-muted-foreground hover:text-primary"
                           onClick={(e) => {
                             e.stopPropagation();
                             openEditDialog(goal);
                           }}
                         >
-                          <Pencil className="w-3 h-3" />
+                          <Pencil className="w-4 h-4 md:w-3 md:h-3" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                          className="h-11 w-11 md:h-6 md:w-6 text-muted-foreground hover:text-destructive"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDeleteGoal(goal.id);
                           }}
                         >
-                          <Trash2 className="w-3 h-3" />
+                          <Trash2 className="w-4 h-4 md:w-3 md:h-3" />
                         </Button>
                       </div>
                     </div>
@@ -430,88 +425,85 @@ export default function Goals() {
         )}
       </div>
 
-      <Dialog open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) setEditGoal(null); }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Goal</DialogTitle>
-          </DialogHeader>
-          {editGoal && (
-            <div className="space-y-4 py-2">
-              <div>
-                <Label>Name</Label>
-                <Input
-                  value={editGoal.name}
-                  onChange={(e) => setEditGoal({ ...editGoal, name: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Target Amount (₹)</Label>
-                <Input
-                  type="number"
-                  value={editGoal.targetAmount}
-                  onChange={(e) => setEditGoal({ ...editGoal, targetAmount: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Current Amount (₹)</Label>
-                <Input
-                  type="number"
-                  value={editGoal.currentAmount}
-                  onChange={(e) => setEditGoal({ ...editGoal, currentAmount: e.target.value })}
-                />
-              </div>
-              <div>
-                <Label>Target Date (optional)</Label>
-                <DatePicker
-                  date={editGoal.targetDate ? new Date(editGoal.targetDate + "T00:00:00") : undefined}
-                  onSelect={(d) => setEditGoal({ ...editGoal, targetDate: d ? format(d, "yyyy-MM-dd") : "" })}
-                  placeholder="Pick a date"
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Label>Category</Label>
-                <Select value={editGoal.categoryType} onValueChange={(v) => setEditGoal({ ...editGoal, categoryType: v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {CATEGORY_ICONS[c]} {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Funding Account</Label>
-                <Select value={editGoal.accountId} onValueChange={(v) => setEditGoal({ ...editGoal, accountId: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts?.map((a) => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+      <GoalFormModal open={editOpen} onOpenChange={(open) => { setEditOpen(open); if (!open) setEditGoal(null); }} title="Edit Goal" isMobile={isMobile}>
+        {editGoal && (
+          <div className="space-y-4 py-2">
+            <div>
+              <Label>Name</Label>
+              <Input value={editGoal.name} onChange={(e) => setEditGoal({ ...editGoal, name: e.target.value })} />
             </div>
-          )}
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button variant="ghost">Cancel</Button>
-            </DialogClose>
-            <Button onClick={handleUpdateGoal} disabled={updateGoal.isPending}>
-              {updateGoal.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div>
+              <Label>Target Amount (₹)</Label>
+              <Input type="number" value={editGoal.targetAmount} onChange={(e) => setEditGoal({ ...editGoal, targetAmount: e.target.value })} />
+            </div>
+            <div>
+              <Label>Current Amount (₹)</Label>
+              <Input type="number" value={editGoal.currentAmount} onChange={(e) => setEditGoal({ ...editGoal, currentAmount: e.target.value })} />
+            </div>
+            <div>
+              <Label>Target Date (optional)</Label>
+              <DatePicker date={editGoal.targetDate ? new Date(editGoal.targetDate + "T00:00:00") : undefined} onSelect={(d) => setEditGoal({ ...editGoal, targetDate: d ? format(d, "yyyy-MM-dd") : "" })} placeholder="Pick a date" className="w-full" />
+            </div>
+            <div>
+              <Label>Category</Label>
+              <Select value={editGoal.categoryType} onValueChange={(v) => setEditGoal({ ...editGoal, categoryType: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.map((c) => (<SelectItem key={c} value={c}>{CATEGORY_ICONS[c]} {c}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Funding Account</Label>
+              <Select value={editGoal.accountId} onValueChange={(v) => setEditGoal({ ...editGoal, accountId: v })}>
+                <SelectTrigger><SelectValue placeholder="Select account" /></SelectTrigger>
+                <SelectContent>
+                  {accounts?.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => { setEditOpen(false); setEditGoal(null); }}>Cancel</Button>
+          <Button onClick={handleUpdateGoal} disabled={updateGoal.isPending}>
+            {updateGoal.isPending ? "Saving..." : "Save Changes"}
+          </Button>
+        </DialogFooter>
+      </GoalFormModal>
     </div>
+  );
+}
+
+function GoalFormModal({ open, onOpenChange, title, isMobile, children }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  isMobile: boolean;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader>
+            <SheetTitle>{title}</SheetTitle>
+          </SheetHeader>
+          {children}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        {children}
+      </DialogContent>
+    </Dialog>
   );
 }
 
