@@ -43,7 +43,7 @@ export default defineConfig({
         display: "standalone",
         start_url: basePath,
         scope: basePath,
-        theme_color: "#FF3C00",
+        theme_color: "#16a34a",
         background_color: "#ffffff",
         icons: [
           {
