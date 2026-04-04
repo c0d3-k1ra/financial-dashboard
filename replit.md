@@ -22,7 +22,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 
 **Monorepo Structure:**
 *   `artifacts/`: Contains deployable applications (`api-server`, `finance-app`).
-*   `lib/`: Houses shared libraries (`api-spec`, `api-client-react`, `api-zod`, `db`, `integrations-anthropic-ai`, `replit-auth-web`).
+*   `lib/`: Houses shared libraries (`api-spec`, `api-client-react`, `api-zod`, `db`, `integrations-anthropic-ai`).
 *   `scripts/`: Utility scripts.
 
 **Frontend (`artifacts/finance-app`):**
@@ -48,20 +48,9 @@ SurplusEngine is structured as a pnpm workspace monorepo.
     *   AI-powered transaction parsing and intent routing.
     *   Custom billing cycle: 25th of previous month to 24th of current month.
 
-**Authentication:**
-*   Replit Auth (OpenID Connect with PKCE) for user authentication.
-*   `openid-client` v6 for OIDC flow on the server.
-*   `@workspace/replit-auth-web` browser auth package provides `useAuth()` hook.
-*   Session management via PostgreSQL-backed `sessions` table with httpOnly cookies.
-*   All `/api` data routes protected behind `requireAuth` middleware (returns 401 for unauthenticated requests).
-*   Auth routes (`/auth/user`, `/login`, `/callback`, `/logout`) remain public.
-*   Login page shows a branded glass UI themed landing with "Log in" button.
-*   User profile (name + avatar) displayed in the header.
-*   Logout available in the Settings page.
-
 **Database (`lib/db`):**
 *   PostgreSQL database managed with Drizzle ORM.
-*   Key tables: `accounts`, `categories`, `transactions`, `monthly_config`, `budget_goals`, `goals`, `surplus_allocations`, `merchant_mappings`, `sessions`, `users`.
+*   Key tables: `accounts`, `categories`, `transactions`, `monthly_config`, `budget_goals`, `goals`, `surplus_allocations`, `merchant_mappings`.
 *   Includes a seed script for initial data population.
 
 **API Specification and Generation:**

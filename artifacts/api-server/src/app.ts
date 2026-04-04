@@ -1,14 +1,10 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
-import { authMiddleware } from "./middlewares/authMiddleware";
 
 const app: Express = express();
-
-app.set("trust proxy", 1);
 
 app.use(
   pinoHttp({
@@ -29,11 +25,9 @@ app.use(
     },
   }),
 );
-app.use(cors({ credentials: true, origin: true }));
-app.use(cookieParser());
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(authMiddleware);
 
 app.use("/api", router);
 

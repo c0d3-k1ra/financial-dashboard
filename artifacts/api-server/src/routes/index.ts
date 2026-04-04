@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
-import authRouter from "./auth";
 import transactionsRouter from "./transactions";
 import monthlyConfigRouter from "./monthly-config";
 import budgetGoalsRouter from "./budget-goals";
@@ -16,15 +15,10 @@ import analyticsRouter from "./analytics";
 import settingsRouter from "./settings";
 import aiRouter from "./ai";
 import aiChatRouter from "./ai-chat";
-import { requireAuth } from "./requireAuth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(authRouter);
-
-router.use(requireAuth);
-
 router.use(transactionsRouter);
 router.use(aiChatRouter);
 router.use(monthlyConfigRouter);
