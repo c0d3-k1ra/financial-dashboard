@@ -85,6 +85,8 @@ async function upsertUser(claims: Record<string, unknown>) {
 }
 
 router.get("/auth/user", (req: Request, res: Response) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  res.set("Pragma", "no-cache");
   res.json(
     GetCurrentAuthUserResponse.parse({
       user: req.isAuthenticated() ? req.user : null,
@@ -94,7 +96,10 @@ router.get("/auth/user", (req: Request, res: Response) => {
 
 router.get("/login", async (req: Request, res: Response) => {
   const config = await getOidcConfig();
-  const callbackUrl = `${getOrigin(req)}/api/callback`;
+  const origin = getOrigin(req);
+  const callbackUrl = `${origin}/api/callback`;
+
+  req.log.info({ origin, callbackUrl, headers: { host: req.headers.host, xfh: req.headers["x-forwarded-host"], xfp: req.headers["x-forwarded-proto"] } }, "Login initiated");
 
   const returnTo = getSafeReturnTo(req.query.returnTo);
 
@@ -125,13 +130,17 @@ router.get("/login", async (req: Request, res: Response) => {
 // parameters not expressed in the schema.
 router.get("/callback", async (req: Request, res: Response) => {
   const config = await getOidcConfig();
-  const callbackUrl = `${getOrigin(req)}/api/callback`;
+  const origin = getOrigin(req);
+  const callbackUrl = `${origin}/api/callback`;
 
   const codeVerifier = req.cookies?.code_verifier;
   const nonce = req.cookies?.nonce;
   const expectedState = req.cookies?.state;
 
+  req.log.info({ origin, callbackUrl, hasCookies: { codeVerifier: !!codeVerifier, nonce: !!nonce, state: !!expectedState }, headers: { host: req.headers.host, xfh: req.headers["x-forwarded-host"], xfp: req.headers["x-forwarded-proto"] } }, "Callback received");
+
   if (!codeVerifier || !expectedState) {
+    req.log.warn("Callback missing OIDC cookies — redirecting to login");
     res.redirect("/api/login");
     return;
   }
