@@ -1314,7 +1314,7 @@ export function AiParseBubble() {
         </div>
       )}
 
-      <div className="p-3 border-t border-[var(--divider-color)]" style={isMobile ? { paddingBottom: "env(safe-area-inset-bottom, 8px)" } : undefined}>
+      <div className="p-3 border-t border-[var(--divider-color)]" style={isMobile ? { paddingBottom: "calc(env(safe-area-inset-bottom, 8px) + 8px)" } : undefined}>
         <div className="flex gap-2 items-end">
           <Input
             ref={inputRef}

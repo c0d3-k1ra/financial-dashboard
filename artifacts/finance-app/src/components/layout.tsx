@@ -38,7 +38,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           background: "radial-gradient(circle, rgba(45, 212, 191, 0.05) 0%, transparent 70%)",
         }} />
       )}
-      <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`} style={{ isolation: "isolate" }}>
+      <header className={`sticky top-0 z-40 w-full ${theme.navClassName}`} style={{ isolation: "isolate", paddingTop: "env(safe-area-inset-top, 0px)" }}>
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
