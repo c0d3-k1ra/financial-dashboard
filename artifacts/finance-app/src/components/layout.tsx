@@ -2,10 +2,12 @@ import { Link, useLocation } from "wouter";
 import { IndianRupee, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
 import { AiParseBubble } from "@/components/ai-parse-bubble";
 import { useTheme } from "@/lib/theme-context";
+import { useAuth } from "@workspace/replit-auth-web";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   const mainNavItems = [
     { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -69,13 +71,37 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <Link
-            href="/settings"
-            className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            data-testid="nav-mobile-settings"
-          >
-            <Settings className="w-5 h-5" />
-          </Link>
+          <div className="flex items-center gap-2">
+            {user && (
+              <Link
+                href="/settings"
+                className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/50 transition-colors"
+                data-testid="nav-user-profile"
+              >
+                {user.profileImageUrl ? (
+                  <img
+                    src={user.profileImageUrl}
+                    alt=""
+                    className="w-7 h-7 rounded-full object-cover ring-1 ring-border"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-medium text-primary">
+                    {(user.firstName?.[0] ?? user.email?.[0] ?? "U").toUpperCase()}
+                  </div>
+                )}
+                <span className="hidden md:inline text-sm font-medium truncate max-w-[120px]">
+                  {user.firstName ?? user.email ?? "User"}
+                </span>
+              </Link>
+            )}
+            <Link
+              href="/settings"
+              className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              data-testid="nav-mobile-settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
       </header>
 

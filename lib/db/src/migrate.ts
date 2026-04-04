@@ -196,4 +196,30 @@ export async function runStartupMigrations() {
     CREATE INDEX IF NOT EXISTS "merchant_mappings_keyword_idx"
     ON "merchant_mappings" ("keyword")
   `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "sessions" (
+      "sid" varchar PRIMARY KEY NOT NULL,
+      "sess" jsonb NOT NULL,
+      "expire" timestamp NOT NULL
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire"
+    ON "sessions" USING btree ("expire")
+  `);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS "users" (
+      "id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+      "email" varchar,
+      "first_name" varchar,
+      "last_name" varchar,
+      "profile_image_url" varchar,
+      "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+      "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+      CONSTRAINT "users_email_unique" UNIQUE("email")
+    )
+  `);
 }

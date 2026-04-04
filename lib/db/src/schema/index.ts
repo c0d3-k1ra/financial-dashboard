@@ -7,3 +7,4 @@ export * from "./goals";
 export * from "./surplus-allocations";
 export * from "./app-settings";
 export * from "./merchant-mappings";
+export * from "./auth";

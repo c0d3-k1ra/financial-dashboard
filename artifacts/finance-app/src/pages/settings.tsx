@@ -17,9 +17,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage, setActiveCurrency } from "@/lib/constants";
-import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2, Palette } from "lucide-react";
+import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2, Palette, LogOut } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { getCategoryIcon } from "@/lib/category-icons";
+import { useAuth } from "@workspace/replit-auth-web";
 
 const CYCLE_DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
 const CURRENCIES = [
@@ -44,6 +45,7 @@ export default function Settings() {
   const [billingSaved, setBillingSaved] = useState(false);
   const [currencySaved, setCurrencySaved] = useState(false);
   const { themeId, setThemeId, themes } = useTheme();
+  const { user, logout } = useAuth();
 
   const { data: categories, isLoading } = useListCategories(
     {},
@@ -505,6 +507,36 @@ export default function Settings() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="glass-card glass-animate-in rounded-xl">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <LogOut className="w-5 h-5" /> Account
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">
+                {user?.firstName
+                  ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ""}`
+                  : user?.email ?? "Signed in"}
+              </p>
+              {user?.email && (
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              onClick={logout}
+              className="font-mono text-xs uppercase tracking-wider gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Log out
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
