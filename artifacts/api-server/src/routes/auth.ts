@@ -24,9 +24,11 @@ const OIDC_COOKIE_TTL = 10 * 60 * 1000;
 const router: IRouter = Router();
 
 function getOrigin(req: Request): string {
-  const proto = req.headers["x-forwarded-proto"] || "https";
-  const host =
+  const rawProto = req.headers["x-forwarded-proto"] || "https";
+  const proto = String(rawProto).split(",")[0].trim();
+  const rawHost =
     req.headers["x-forwarded-host"] || req.headers["host"] || "localhost";
+  const host = String(rawHost).split(",")[0].trim();
   return `${proto}://${host}`;
 }
 
@@ -146,7 +148,8 @@ router.get("/callback", async (req: Request, res: Response) => {
       expectedState,
       idTokenExpected: true,
     });
-  } catch {
+  } catch (err) {
+    req.log.error({ err }, "OIDC authorizationCodeGrant failed");
     res.redirect("/api/login");
     return;
   }
