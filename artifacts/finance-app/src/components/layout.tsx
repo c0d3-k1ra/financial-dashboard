@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { DollarSign, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
+import { IndianRupee, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
 import { AiParseBubble } from "@/components/ai-parse-bubble";
 import { useTheme } from "@/lib/theme-context";
 
@@ -42,7 +42,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center">
-              <DollarSign className="w-5 h-5 text-primary-foreground" />
+              <IndianRupee className="w-5 h-5 text-primary-foreground" />
             </div>
             <span className="font-bold text-lg tracking-tight">SurplusEngine</span>
           </div>
