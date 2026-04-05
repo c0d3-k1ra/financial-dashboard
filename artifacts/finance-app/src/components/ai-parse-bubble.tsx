@@ -1384,7 +1384,7 @@ export function AiParseBubble() {
               style={{
                 height: visualViewportHeight
                   ? `${Math.min(visualViewportHeight * 0.95, visualViewportHeight - 20)}px`
-                  : "95dvh",
+                  : "85dvh",
                 transform: "translateY(100%)",
                 transition: "height 0.15s ease-out",
               }}

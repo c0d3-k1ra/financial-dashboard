@@ -484,7 +484,7 @@ export default function Dashboard() {
       </div>
 
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl shadow-lg min-h-[200px] flex flex-col">
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Liquidity</CardTitle>

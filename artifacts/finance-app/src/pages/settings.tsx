@@ -298,7 +298,7 @@ export default function Settings() {
         <p className="text-muted-foreground text-sm mt-1">Manage your categories, billing cycle, currency, and data.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">

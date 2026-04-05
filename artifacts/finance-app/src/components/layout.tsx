@@ -47,7 +47,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="font-bold text-lg tracking-tight">SurplusEngine</span>
           </div>
           
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             {allNavItems.map((item) => {
               const isActive = location === item.href;
               const Icon = item.icon;
@@ -71,7 +71,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <Link
             href="/settings"
-            className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             data-testid="nav-mobile-settings"
           >
             <Settings className="w-5 h-5" />
@@ -79,12 +79,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 container mx-auto px-4 py-6 md:py-8 pb-24 md:pb-8 relative z-10" style={{ isolation: "isolate" }}>
+      <main className="flex-1 container mx-auto px-4 py-6 lg:py-8 pb-24 lg:pb-8 relative z-10" style={{ isolation: "isolate" }}>
         {children}
       </main>
 
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 mobile-bottom-tab-bar"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 mobile-bottom-tab-bar"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
       >
         <div className="flex items-center justify-around h-16 px-1">

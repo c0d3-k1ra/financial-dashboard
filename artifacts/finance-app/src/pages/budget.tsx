@@ -382,7 +382,7 @@ function BudgetSkeleton() {
         <Skeleton className="h-9 w-48 rounded-lg" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="glass-card rounded-xl border p-6 space-y-3">
             <Skeleton className="h-3 w-20" />
@@ -619,7 +619,7 @@ export default function Budget() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Cycle Progress</CardTitle>
