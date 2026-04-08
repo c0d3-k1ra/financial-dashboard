@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { SettingsProvider } from "@/lib/settings-provider";
 import { AiParseProvider } from "@/lib/ai-parse-context";
 import { ThemeProvider } from "@/lib/theme-context";
@@ -26,15 +27,17 @@ const queryClient = new QueryClient({
 function Router() {
   return (
     <AppLayout>
-      <Switch>
-        <Route path="/" component={Dashboard} />
-        <Route path="/transactions" component={Transactions} />
-        <Route path="/budget" component={Budget} />
-        <Route path="/goals" component={Goals} />
-        <Route path="/accounts" component={Accounts} />
-        <Route path="/settings" component={Settings} />
-        <Route component={NotFound} />
-      </Switch>
+      <ErrorBoundary>
+        <Switch>
+          <Route path="/" component={Dashboard} />
+          <Route path="/transactions" component={Transactions} />
+          <Route path="/budget" component={Budget} />
+          <Route path="/goals" component={Goals} />
+          <Route path="/accounts" component={Accounts} />
+          <Route path="/settings" component={Settings} />
+          <Route component={NotFound} />
+        </Switch>
+      </ErrorBoundary>
     </AppLayout>
   );
 }
