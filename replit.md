@@ -44,13 +44,14 @@ SurplusEngine is structured as a pnpm workspace monorepo.
     *   Monthly configuration and budget goal management.
     *   Dashboard summaries, monthly trends, and budget analysis.
     *   Waterfall surplus distribution logic.
-    *   Account reconciliation and EMI processing.
+    *   Account reconciliation and EMI processing with proper amortization (principal/interest split).
     *   AI-powered transaction parsing and intent routing.
     *   Custom billing cycle: 25th of previous month to 24th of current month.
 
 **Database (`lib/db`):**
 *   PostgreSQL database managed with Drizzle ORM.
 *   Key tables: `accounts`, `categories`, `transactions`, `monthly_config`, `budget_goals`, `goals`, `surplus_allocations`, `merchant_mappings`.
+*   Accounts table includes loan amortization fields: `original_loan_amount`, `loan_start_date`, `emis_paid` for tracking principal/interest breakdown and EMI progress.
 *   Includes a seed script for initial data population.
 
 **API Specification and Generation:**

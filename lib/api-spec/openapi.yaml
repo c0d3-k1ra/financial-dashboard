@@ -1298,10 +1298,22 @@ components:
         interestRate:
           type: string
           nullable: true
+        linkedAccountId:
+          type: integer
+          nullable: true
         useInSurplus:
           type: boolean
         sharedLimitGroup:
           type: string
+          nullable: true
+        originalLoanAmount:
+          type: string
+          nullable: true
+        loanStartDate:
+          type: string
+          nullable: true
+        emisPaid:
+          type: integer
           nullable: true
       required:
         - id
@@ -1336,10 +1348,22 @@ components:
         interestRate:
           type: string
           nullable: true
+        linkedAccountId:
+          type: integer
+          nullable: true
         useInSurplus:
           type: boolean
         sharedLimitGroup:
           type: string
+          nullable: true
+        originalLoanAmount:
+          type: string
+          nullable: true
+        loanStartDate:
+          type: string
+          nullable: true
+        emisPaid:
+          type: integer
           nullable: true
       required:
         - name

@@ -45,7 +45,15 @@ const formSchema = z.object({
   linkedAccountId: z.string().optional(),
   useInSurplus: z.boolean().optional(),
   sharedLimitGroup: z.string().optional(),
-});
+  originalLoanAmount: z.string().optional(),
+  loanStartDate: z.string().optional(),
+  emisPaid: z.string().optional(),
+}).refine((data) => {
+  if (data.type === "loan") {
+    return !!data.originalLoanAmount && Number(data.originalLoanAmount) > 0;
+  }
+  return true;
+}, { message: "Original loan amount is required for loan accounts", path: ["originalLoanAmount"] });
 
 type FormValues = z.infer<typeof formSchema>;
 
@@ -68,6 +76,9 @@ export default function Accounts() {
   const [editLinkedAccountId, setEditLinkedAccountId] = useState("");
   const [editUseInSurplus, setEditUseInSurplus] = useState(false);
   const [editSharedLimitGroup, setEditSharedLimitGroup] = useState("");
+  const [editOriginalLoanAmount, setEditOriginalLoanAmount] = useState("");
+  const [editLoanStartDate, setEditLoanStartDate] = useState("");
+  const [editEmisPaid, setEditEmisPaid] = useState("");
   const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
   const [bankOpen, setBankOpen] = useState(true);
   const [ccOpen, setCcOpen] = useState(false);
@@ -103,6 +114,9 @@ export default function Accounts() {
     setEditLinkedAccountId(acct.linkedAccountId ? String(acct.linkedAccountId) : "");
     setEditUseInSurplus(acct.useInSurplus ?? false);
     setEditSharedLimitGroup(acct.sharedLimitGroup ?? "");
+    setEditOriginalLoanAmount(acct.originalLoanAmount ? String(acct.originalLoanAmount) : "");
+    setEditLoanStartDate(acct.loanStartDate ? String(acct.loanStartDate) : "");
+    setEditEmisPaid(acct.emisPaid != null ? String(acct.emisPaid) : "");
   };
 
   const handleEdit = () => {
@@ -123,6 +137,9 @@ export default function Accounts() {
           linkedAccountId: editTarget.type === "loan" && editLinkedAccountId ? Number(editLinkedAccountId) : null,
           useInSurplus: editTarget.type === "bank" ? editUseInSurplus : false,
           sharedLimitGroup: editTarget.type === "credit_card" ? editSharedLimitGroup || null : null,
+          originalLoanAmount: editTarget.type === "loan" ? editOriginalLoanAmount || null : null,
+          loanStartDate: editTarget.type === "loan" ? editLoanStartDate || null : null,
+          emisPaid: editTarget.type === "loan" && editEmisPaid ? Number(editEmisPaid) : null,
         },
       },
       {
@@ -165,7 +182,7 @@ export default function Accounts() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "", useInSurplus: false, sharedLimitGroup: "" },
+    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "", useInSurplus: false, sharedLimitGroup: "", originalLoanAmount: "", loanStartDate: "", emisPaid: "0" },
   });
 
   const watchType = form.watch("type");
@@ -195,6 +212,9 @@ export default function Accounts() {
           linkedAccountId: data.type === "loan" && data.linkedAccountId ? Number(data.linkedAccountId) : null,
           useInSurplus: data.type === "bank" ? (data.useInSurplus ?? false) : false,
           sharedLimitGroup: data.type === "credit_card" ? data.sharedLimitGroup || null : null,
+          originalLoanAmount: data.type === "loan" ? data.originalLoanAmount || null : null,
+          loanStartDate: data.type === "loan" ? data.loanStartDate || null : null,
+          emisPaid: data.type === "loan" && data.emisPaid ? Number(data.emisPaid) : null,
         },
       },
       {
@@ -431,6 +451,22 @@ export default function Accounts() {
                     <>
                       <FormField
                         control={form.control}
+                        name="originalLoanAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Original Loan Amount</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                                <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="e.g. 2000000" {...field} />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
                         name="emiAmount"
                         render={({ field }) => (
                           <FormItem>
@@ -463,7 +499,7 @@ export default function Accounts() {
                         name="interestRate"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Interest Rate (%)</FormLabel>
+                            <FormLabel>Interest Rate (% p.a.)</FormLabel>
                             <FormControl>
                               <Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} />
                             </FormControl>
@@ -479,6 +515,32 @@ export default function Accounts() {
                             <FormLabel>Tenure (months)</FormLabel>
                             <FormControl>
                               <Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="loanStartDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Loan Start Date</FormLabel>
+                            <FormControl>
+                              <Input type="date" className="font-mono" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="emisPaid"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>EMIs Already Paid</FormLabel>
+                            <FormControl>
+                              <Input type="number" min="0" step="1" className="font-mono" placeholder="0" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -840,39 +902,35 @@ export default function Accounts() {
                   <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     <TooltipProvider delayDuration={300}>
                     {loanAccounts.map((account) => {
-                      const principal = Number(account.currentBalance);
+                      const outstanding = Number(account.currentBalance);
                       const emi = account.emiAmount ? Number(account.emiAmount) : null;
                       const tenure = account.loanTenure ? Number(account.loanTenure) : null;
                       const rate = account.interestRate ? Number(account.interestRate) : null;
-                      let paidPct = 0;
-                      let totalLoan = 0;
-                      if (emi && tenure) {
-                        totalLoan = emi * tenure;
-                        paidPct = totalLoan > 0 ? Math.max(0, Math.min(100, ((totalLoan - principal) / totalLoan) * 100)) : 0;
-                      }
-                      const barColor = paidPct > 60 ? "bg-emerald-500" : paidPct > 30 ? "bg-yellow-500" : "bg-amber-500";
+                      const originalAmount = account.originalLoanAmount ? Number(account.originalLoanAmount) : null;
+                      const emisPaidCount = Number(account.emisPaid ?? 0);
 
-                      let monthsRemaining: number | null = null;
+                      const principalPaid = originalAmount ? originalAmount - outstanding : 0;
+                      const paidPct = originalAmount && originalAmount > 0
+                        ? Math.max(0, Math.min(100, (principalPaid / originalAmount) * 100))
+                        : 0;
+
+                      const totalPayable = emi && tenure ? emi * tenure : null;
+                      const totalInterest = totalPayable && originalAmount ? totalPayable - originalAmount : null;
+                      const interestPaidSoFar = emi && originalAmount
+                        ? Math.max(0, (emi * emisPaidCount) - principalPaid)
+                        : 0;
+
+                      const emisRemaining = tenure ? tenure - emisPaidCount : null;
+
                       let estimatedPayoff: string | null = null;
-                      if (emi && emi > 0 && principal > 0) {
-                        monthsRemaining = Math.ceil(principal / emi);
+                      if (account.loanStartDate && tenure) {
+                        const startDate = new Date(account.loanStartDate);
+                        startDate.setMonth(startDate.getMonth() + tenure);
+                        estimatedPayoff = startDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                      } else if (emisRemaining && emisRemaining > 0) {
                         const payoffDate = new Date();
-                        payoffDate.setMonth(payoffDate.getMonth() + monthsRemaining);
+                        payoffDate.setMonth(payoffDate.getMonth() + emisRemaining);
                         estimatedPayoff = payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-                      }
-
-                      let principalPortion = 0;
-                      let interestPortion = 0;
-                      if (emi && tenure && totalLoan > 0) {
-                        const totalPaid = totalLoan - principal;
-                        if (rate && rate > 0) {
-                          const totalInterest = totalLoan - (totalLoan / (1 + (rate / 100) * (tenure / 12)));
-                          const paidRatio = totalPaid / totalLoan;
-                          interestPortion = Math.min(totalInterest * paidRatio, totalPaid);
-                          principalPortion = totalPaid - interestPortion;
-                        } else {
-                          principalPortion = totalPaid;
-                        }
                       }
 
                       return (
@@ -912,7 +970,10 @@ export default function Accounts() {
                                 </Tooltip>
                               </div>
                             </div>
-                            <SensitiveValue as="div" className="text-lg font-bold font-mono text-red-500">{formatCurrency(Math.abs(principal))}</SensitiveValue>
+                            {originalAmount && (
+                              <p className="text-[10px] text-muted-foreground/60 font-mono mb-0.5">Loan: {formatCurrency(originalAmount)}</p>
+                            )}
+                            <p className="text-lg font-bold font-mono text-red-500">{formatCurrency(Math.abs(outstanding))}</p>
                             <div className="mt-2 space-y-1">
                               {emi && (
                                 <div className="flex justify-between text-[11px] font-mono">
@@ -923,7 +984,25 @@ export default function Accounts() {
                               {rate != null && rate > 0 && (
                                 <div className="flex justify-between text-[11px] font-mono">
                                   <span className="text-muted-foreground/60">Rate</span>
-                                  <span className="text-muted-foreground">{rate}%</span>
+                                  <span className="text-muted-foreground">{rate}% p.a.</span>
+                                </div>
+                              )}
+                              {originalAmount && principalPaid > 0 && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">Principal Paid</span>
+                                  <span className="text-emerald-500">{formatCurrency(principalPaid)}</span>
+                                </div>
+                              )}
+                              {interestPaidSoFar > 0 && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">Interest Paid</span>
+                                  <span className="text-orange-400">{formatCurrency(interestPaidSoFar)}</span>
+                                </div>
+                              )}
+                              {tenure && (
+                                <div className="flex justify-between text-[11px] font-mono">
+                                  <span className="text-muted-foreground/60">EMIs</span>
+                                  <span className="text-muted-foreground">{emisPaidCount}/{tenure} paid{emisRemaining != null && emisRemaining > 0 ? `, ${emisRemaining} left` : ""}</span>
                                 </div>
                               )}
                               {account.linkedAccountId && (
@@ -932,45 +1011,34 @@ export default function Accounts() {
                                   <span className="text-muted-foreground truncate ml-2">{accounts?.find((a) => a.id === account.linkedAccountId)?.name ?? "—"}</span>
                                 </div>
                               )}
-                              {monthsRemaining != null && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">Months remaining</span>
-                                  <span className="text-muted-foreground">{monthsRemaining}</span>
-                                </div>
-                              )}
                               {estimatedPayoff && (
                                 <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">Estimated payoff</span>
+                                  <span className="text-muted-foreground/60">Payoff</span>
                                   <span className="text-muted-foreground">{estimatedPayoff}</span>
                                 </div>
                               )}
                             </div>
-                            {emi && tenure && (
+                            {originalAmount && originalAmount > 0 && (
                               <div className="mt-3">
                                 <div className="flex justify-between text-[10px] font-mono mb-1.5">
-                                  <span className="text-muted-foreground/50">{Math.round(paidPct)}% repaid</span>
-                                  <span className="font-semibold" style={{ color: paidPct > 60 ? "hsl(var(--chart-1))" : paidPct > 30 ? "hsl(var(--chart-4))" : "hsl(var(--chart-4))" }}>{Math.round(paidPct)}%</span>
+                                  <span className="text-muted-foreground/50">{Math.round(paidPct)}% principal repaid</span>
+                                  <span className="font-semibold" style={{ color: paidPct > 60 ? "hsl(var(--chart-1))" : "hsl(var(--chart-4))" }}>{Math.round(paidPct)}%</span>
                                 </div>
                                 <div className="w-full h-3 bg-secondary rounded-full overflow-hidden flex">
-                                  {principalPortion > 0 && (
-                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(principalPortion / totalLoan) * 100}%` }} />
-                                  )}
-                                  {interestPortion > 0 && (
-                                    <div className="h-full bg-orange-400 transition-all duration-500" style={{ width: `${(interestPortion / totalLoan) * 100}%` }} />
+                                  {principalPaid > 0 && (
+                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${paidPct}%` }} />
                                   )}
                                 </div>
-                                {(principalPortion > 0 || interestPortion > 0) && (
-                                  <div className="flex gap-3 mt-1.5 text-[9px] font-mono text-muted-foreground/60">
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />
-                                      Principal
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 rounded-sm bg-orange-400 inline-block" />
-                                      Interest
-                                    </span>
-                                  </div>
-                                )}
+                                <div className="flex gap-3 mt-1.5 text-[9px] font-mono text-muted-foreground/60">
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />
+                                    Principal Paid {formatCurrency(principalPaid)}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-sm bg-secondary inline-block" />
+                                    Outstanding {formatCurrency(outstanding)}
+                                  </span>
+                                </div>
                               </div>
                             )}
                           </CardContent>
@@ -1059,6 +1127,13 @@ export default function Accounts() {
           {editTarget?.type === "loan" && (
             <>
               <div>
+                <Label>Original Loan Amount</Label>
+                <div className="relative mt-1">
+                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
+                  <Input type="number" step="0.01" className="pl-7 font-mono" value={editOriginalLoanAmount} onChange={(e) => setEditOriginalLoanAmount(e.target.value)} />
+                </div>
+              </div>
+              <div>
                 <Label>Monthly EMI</Label>
                 <div className="relative mt-1">
                   <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
@@ -1070,12 +1145,20 @@ export default function Accounts() {
                 <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 5" value={editEmiDay} onChange={(e) => setEditEmiDay(e.target.value)} />
               </div>
               <div>
-                <Label>Interest Rate (%)</Label>
+                <Label>Interest Rate (% p.a.)</Label>
                 <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="e.g. 10.5" value={editInterestRate} onChange={(e) => setEditInterestRate(e.target.value)} />
               </div>
               <div>
                 <Label>Tenure (months)</Label>
                 <Input type="number" min="1" step="1" className="mt-1 font-mono" placeholder="e.g. 36" value={editLoanTenure} onChange={(e) => setEditLoanTenure(e.target.value)} />
+              </div>
+              <div>
+                <Label>Loan Start Date</Label>
+                <Input type="date" className="mt-1 font-mono" value={editLoanStartDate} onChange={(e) => setEditLoanStartDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>EMIs Already Paid</Label>
+                <Input type="number" min="0" step="1" className="mt-1 font-mono" placeholder="0" value={editEmisPaid} onChange={(e) => setEditEmisPaid(e.target.value)} />
               </div>
               <div>
                 <Label>EMI Debit Account</Label>
@@ -1154,10 +1237,13 @@ export default function Accounts() {
               )}
               {watchType === "loan" && (
                 <>
+                  <FormField control={form.control} name="originalLoanAmount" render={({ field }) => (<FormItem><FormLabel>Original Loan Amount</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="e.g. 2000000" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="emiAmount" render={({ field }) => (<FormItem><FormLabel>Monthly EMI</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="emiDay" render={({ field }) => (<FormItem><FormLabel>EMI Debit Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (%)</FormLabel><FormControl><Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (% p.a.)</FormLabel><FormControl><Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="loanTenure" render={({ field }) => (<FormItem><FormLabel>Tenure (months)</FormLabel><FormControl><Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="loanStartDate" render={({ field }) => (<FormItem><FormLabel>Loan Start Date</FormLabel><FormControl><Input type="date" className="font-mono" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="emisPaid" render={({ field }) => (<FormItem><FormLabel>EMIs Already Paid</FormLabel><FormControl><Input type="number" min="0" step="1" className="font-mono" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="linkedAccountId" render={({ field }) => (<FormItem><FormLabel>EMI Debit Account</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl><SelectContent>{bankAccounts.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
                 </>
               )}

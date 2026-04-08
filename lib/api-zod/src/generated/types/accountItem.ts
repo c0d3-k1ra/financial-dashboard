@@ -17,6 +17,10 @@ export interface AccountItem {
   emiDay?: number | null;
   loanTenure?: number | null;
   interestRate?: string | null;
+  linkedAccountId?: number | null;
   useInSurplus?: boolean;
   sharedLimitGroup?: string | null;
+  originalLoanAmount?: string | null;
+  loanStartDate?: string | null;
+  emisPaid?: number | null;
 }

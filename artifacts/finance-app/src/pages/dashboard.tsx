@@ -178,15 +178,6 @@ function formatAxisValue(value: number): string {
   return `₹${value}`;
 }
 
-function calcMonthsRemaining(balance: number, emi: number, annualRate: number): number {
-  if (emi <= 0 || balance <= 0) return 0;
-  const r = annualRate / 100 / 12;
-  if (r <= 0) return Math.ceil(balance / emi);
-  const ratio = 1 - (r * balance) / emi;
-  if (ratio <= 0) return 999;
-  return Math.ceil(-Math.log(ratio) / Math.log(1 + r));
-}
-
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
@@ -888,13 +879,31 @@ export default function Dashboard() {
                   {loanAccounts.map((loan) => {
                     const balance = Number(loan.currentBalance ?? 0);
                     const emi = Number(loan.emiAmount ?? 0);
-                    const rate = Number(loan.interestRate ?? 0);
-                    const monthsLeft = calcMonthsRemaining(balance, emi, rate);
-                    const isAmortizing = monthsLeft > 0 && monthsLeft < 600;
-                    const payoffDate = new Date();
-                    if (isAmortizing) payoffDate.setMonth(payoffDate.getMonth() + monthsLeft);
-                    const maxMonthsVisual = 240;
-                    const progressPct = isAmortizing ? Math.max(0, 100 - (monthsLeft / maxMonthsVisual) * 100) : 0;
+                    const originalAmount = loan.originalLoanAmount ? Number(loan.originalLoanAmount) : null;
+                    const emisPaidCount = Number(loan.emisPaid ?? 0);
+                    const tenure = loan.loanTenure ? Number(loan.loanTenure) : null;
+
+                    const principalPaid = originalAmount ? originalAmount - balance : 0;
+                    const paidPct = originalAmount && originalAmount > 0
+                      ? Math.max(0, Math.min(100, (principalPaid / originalAmount) * 100))
+                      : 0;
+
+                    const interestPaidSoFar = emi && originalAmount
+                      ? Math.max(0, (emi * emisPaidCount) - principalPaid)
+                      : 0;
+
+                    const emisRemaining = tenure ? tenure - emisPaidCount : null;
+
+                    let estimatedPayoff: string | null = null;
+                    if (loan.loanStartDate && tenure) {
+                      const startDate = new Date(loan.loanStartDate);
+                      startDate.setMonth(startDate.getMonth() + tenure);
+                      estimatedPayoff = startDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                    } else if (emisRemaining && emisRemaining > 0) {
+                      const payoffDate = new Date();
+                      payoffDate.setMonth(payoffDate.getMonth() + emisRemaining);
+                      estimatedPayoff = payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+                    }
 
                     return (
                       <div key={loan.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
@@ -904,28 +913,37 @@ export default function Dashboard() {
                             {emi > 0 ? `${formatCurrency(emi)}/mo` : "—"}
                           </SensitiveValue>
                         </div>
-                        {emi > 0 && isAmortizing && (
+                        {originalAmount && originalAmount > 0 && (
                           <>
                             <div className="flex items-center gap-2 mb-1.5">
                               <Progress
-                                value={progressPct}
+                                value={paidPct}
                                 className="h-1.5 bg-secondary flex-1"
                                 indicatorClassName="bg-amber-500"
                               />
-                              <span className="text-[10px] tabular-nums text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap" title="Estimated repayment progress based on remaining term">
-                                ~{progressPct.toFixed(0)}% paid
+                              <span className="text-[10px] tabular-nums text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap">
+                                {paidPct.toFixed(0)}% paid
                               </span>
                             </div>
-                            <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
-                              <span>{monthsLeft} months remaining</span>
-                              <span>
-                                Payoff: {payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                              </span>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                              <span>Outstanding: {formatCurrency(balance)}</span>
+                              <span>Principal Paid: {formatCurrency(principalPaid)}</span>
+                              {interestPaidSoFar > 0 && (
+                                <span>Interest Paid: {formatCurrency(interestPaidSoFar)}</span>
+                              )}
+                              {emisRemaining != null && (
+                                <span>EMIs: {emisPaidCount}/{tenure}{emisRemaining > 0 ? ` (${emisRemaining} left)` : ""}</span>
+                              )}
                             </div>
+                            {estimatedPayoff && (
+                              <div className="text-xs text-muted-foreground tabular-nums mt-0.5">
+                                Payoff: {estimatedPayoff}
+                              </div>
+                            )}
                           </>
                         )}
-                        {emi > 0 && !isAmortizing && (
-                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">EMI insufficient to amortize — review repayment plan</p>
+                        {!originalAmount && emi > 0 && (
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Set original loan amount for accurate tracking</p>
                         )}
                       </div>
                     );

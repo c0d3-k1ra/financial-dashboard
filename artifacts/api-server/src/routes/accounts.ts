@@ -31,6 +31,10 @@ router.post("/accounts", async (req, res) => {
       return;
     }
     if (data.type === "loan") {
+      if (!data.originalLoanAmount || Number(data.originalLoanAmount) <= 0) {
+        res.status(400).json({ error: "Original loan amount is required and must be greater than zero." });
+        return;
+      }
       if (data.emiAmount != null && Number(data.emiAmount) <= 0) {
         res.status(400).json({ error: "EMI amount must be greater than zero." });
         return;
@@ -41,6 +45,10 @@ router.post("/accounts", async (req, res) => {
       }
       if (data.loanTenure != null && data.loanTenure < 1) {
         res.status(400).json({ error: "Loan tenure must be at least 1 month." });
+        return;
+      }
+      if (data.emisPaid != null && data.emisPaid < 0) {
+        res.status(400).json({ error: "EMIs paid must be non-negative." });
         return;
       }
     }
@@ -73,6 +81,9 @@ router.post("/accounts", async (req, res) => {
         linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
         useInSurplus: data.useInSurplus ?? false,
         sharedLimitGroup,
+        originalLoanAmount: data.type === "loan" ? (data.originalLoanAmount || null) : null,
+        loanStartDate: data.type === "loan" ? (data.loanStartDate || null) : null,
+        emisPaid: data.type === "loan" ? (data.emisPaid ?? 0) : null,
       })
       .returning();
 
@@ -107,6 +118,10 @@ router.put("/accounts/:id", async (req, res) => {
       return;
     }
     if (data.type === "loan") {
+      if (!data.originalLoanAmount || Number(data.originalLoanAmount) <= 0) {
+        res.status(400).json({ error: "Original loan amount is required and must be greater than zero." });
+        return;
+      }
       if (data.emiAmount != null && Number(data.emiAmount) <= 0) {
         res.status(400).json({ error: "EMI amount must be greater than zero." });
         return;
@@ -117,6 +132,10 @@ router.put("/accounts/:id", async (req, res) => {
       }
       if (data.loanTenure != null && data.loanTenure < 1) {
         res.status(400).json({ error: "Loan tenure must be at least 1 month." });
+        return;
+      }
+      if (data.emisPaid != null && data.emisPaid < 0) {
+        res.status(400).json({ error: "EMIs paid must be non-negative." });
         return;
       }
     }
@@ -149,6 +168,9 @@ router.put("/accounts/:id", async (req, res) => {
         linkedAccountId: data.type === "loan" ? (data.linkedAccountId ?? null) : null,
         useInSurplus: data.useInSurplus ?? false,
         sharedLimitGroup,
+        originalLoanAmount: data.type === "loan" ? (data.originalLoanAmount || null) : null,
+        loanStartDate: data.type === "loan" ? (data.loanStartDate || null) : null,
+        emisPaid: data.type === "loan" ? (data.emisPaid ?? 0) : null,
       })
       .where(eq(accountsTable.id, id))
       .returning();
@@ -297,8 +319,15 @@ router.post("/accounts/process-emis", async (req, res) => {
       for (const loan of activeLoanAccounts) {
         const emiAmount = Number(loan.emiAmount);
         const currentBalance = Number(loan.currentBalance ?? 0);
-        const principalReduction = Math.min(emiAmount, currentBalance);
+        const annualRate = Number(loan.interestRate ?? 0);
+        const monthlyRate = annualRate / 100 / 12;
+
+        const interestPortion = Math.min(currentBalance * monthlyRate, emiAmount);
+        const principalPortion = Math.max(0, emiAmount - interestPortion);
+        const principalReduction = Math.min(principalPortion, currentBalance);
         const newBalance = currentBalance - principalReduction;
+        const actualDebit = Math.min(interestPortion + principalReduction, emiAmount);
+
         const [yearStr, monthStr] = month.split("-");
         const year = Number(yearStr);
         const mon = Number(monthStr);
@@ -313,23 +342,30 @@ router.post("/accounts/process-emis", async (req, res) => {
 
         if (Number(existing[0].count) > 0) continue;
 
+        const newEmisPaid = (Number(loan.emisPaid) || 0) + 1;
+
         await tx
           .update(accountsTable)
-          .set({ currentBalance: newBalance.toFixed(2) })
+          .set({
+            currentBalance: newBalance.toFixed(2),
+            emisPaid: newEmisPaid,
+          })
           .where(eq(accountsTable.id, loan.id));
 
         const linkedAccount = loan.linkedAccountId ? accountMap.get(loan.linkedAccountId) : null;
+        const isFinal = newBalance < 0.01;
+        const txDescription = `EMI Payment — ${loan.name}${isFinal ? " (final)" : ""} [Principal: ₹${principalReduction.toFixed(0)}, Interest: ₹${interestPortion.toFixed(0)}]`;
 
         if (linkedAccount) {
           await tx
             .update(accountsTable)
-            .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${principalReduction.toFixed(2)}::numeric` })
+            .set({ currentBalance: sql`${accountsTable.currentBalance}::numeric - ${actualDebit.toFixed(2)}::numeric` })
             .where(eq(accountsTable.id, linkedAccount.id));
 
           await tx.insert(transactionsTable).values({
             date: emiDate,
-            amount: principalReduction.toFixed(2),
-            description: `EMI Payment — ${loan.name}${principalReduction < emiAmount ? " (final)" : ""}`,
+            amount: actualDebit.toFixed(2),
+            description: txDescription,
             category: "EMI",
             type: "Transfer",
             accountId: linkedAccount.id,
@@ -338,8 +374,8 @@ router.post("/accounts/process-emis", async (req, res) => {
         } else {
           await tx.insert(transactionsTable).values({
             date: emiDate,
-            amount: principalReduction.toFixed(2),
-            description: `EMI Payment — ${loan.name}${principalReduction < emiAmount ? " (final)" : ""}`,
+            amount: actualDebit.toFixed(2),
+            description: txDescription,
             category: "EMI",
             type: "Expense",
             accountId: loan.id,
@@ -349,7 +385,7 @@ router.post("/accounts/process-emis", async (req, res) => {
         processed++;
         results.push({
           accountName: loan.name,
-          emiAmount: principalReduction.toFixed(2),
+          emiAmount: actualDebit.toFixed(2),
           newBalance: newBalance.toFixed(2),
           fromAccount: linkedAccount?.name,
         });
