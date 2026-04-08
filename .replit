@@ -30,6 +30,10 @@ args = "lint"
 task = "workflow.run"
 args = "test"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "coverage"
+
 [[workflows.workflow]]
 name = "lint"
 author = "agent"
@@ -48,6 +52,17 @@ author = "agent"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/finance-app test"
+
+[workflows.workflow.metadata]
+isValidation = true
+
+[[workflows.workflow]]
+name = "coverage"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server test:coverage && pnpm --filter @workspace/finance-app test:coverage"
 
 [workflows.workflow.metadata]
 isValidation = true

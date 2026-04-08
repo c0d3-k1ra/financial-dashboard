@@ -13,6 +13,26 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary", "lcov", "json-summary"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.ts"],
+      exclude: [
+        "src/test/**",
+        "src/**/*.test.ts",
+        "src/**/*.spec.ts",
+        "src/**/*.d.ts",
+        "src/**/types.ts",
+        "src/**/types/**",
+      ],
+      thresholds: {
+        lines: 45,
+        branches: 31,
+        functions: 47,
+        statements: 43,
+      },
+    },
   },
   resolve: {
     conditions: ["workspace"],
