@@ -93,7 +93,21 @@ interface ChatOption {
   value: string;
 }
 
-type ChatMessageType = "user" | "assistant" | "confirmation" | "success" | "done";
+interface QueryDataItem {
+  label: string;
+  value: string;
+  sublabel?: string;
+}
+
+interface QueryData {
+  queryType: string;
+  title: string;
+  total?: string;
+  items: QueryDataItem[];
+  summary: string;
+}
+
+type ChatMessageType = "user" | "assistant" | "confirmation" | "success" | "done" | "query_result";
 
 interface ChatMessage {
   id: string;
@@ -107,6 +121,7 @@ interface ChatMessage {
   loggedTransactionId?: number;
   undoExpiry?: number;
   warnings?: AiChatWarning[];
+  queryData?: QueryData;
 }
 
 const CHAT_STORAGE_KEY = "ai-chat-state";
@@ -207,7 +222,8 @@ const QUICK_ACTIONS: { label: string; icon: LucideIcon; message: string }[] = [
   { label: "Record salary", icon: Wallet, message: "Record my salary" },
   { label: "Transfer money", icon: ArrowLeftRight, message: "Transfer money between accounts" },
   { label: "What did I spend today?", icon: Search, message: "What did I spend today?" },
-  { label: "Show my balance", icon: Landmark, message: "Show my account balances" },
+  { label: "Check my balances", icon: Landmark, message: "Show my balance" },
+  { label: "Monthly summary", icon: TrendingUp, message: "Monthly summary" },
 ];
 
 const TYPE_CONFIG: Record<string, { icon: LucideIcon; colorClass: string; bgClass: string }> = {
@@ -435,6 +451,17 @@ export function AiParseBubble() {
           },
         ]);
         clearPersistedChat();
+      } else if (result.type === "query_result") {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: genId(),
+            type: "query_result",
+            content: result.reply,
+            timestamp: Date.now(),
+            queryData: result.queryData as QueryData | undefined,
+          },
+        ]);
       } else if (result.type === "confirmation" && result.transaction) {
         setMessages((prev) => [
           ...prev,
@@ -1072,6 +1099,51 @@ export function AiParseBubble() {
     );
   };
 
+  const renderQueryResultCard = (msg: ChatMessage) => {
+    const qd = msg.queryData;
+    if (!qd) return null;
+
+    return (
+      <div className="glass-2 rounded-xl overflow-hidden">
+        <div className="p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-semibold">{qd.title}</h4>
+            {qd.total && (
+              <span className="text-lg font-bold tracking-tight">{qd.total}</span>
+            )}
+          </div>
+
+          {qd.items.length > 0 && (
+            <div className="space-y-1">
+              {qd.items.map((item, i) => (
+                <div
+                  key={i}
+                  className={`flex items-center justify-between py-2 px-2 rounded-lg ${
+                    i % 2 === 0 ? "bg-[rgba(var(--glass-overlay-rgb),0.03)]" : ""
+                  }`}
+                >
+                  <div className="flex-1 min-w-0 mr-3">
+                    <p className="text-sm font-medium truncate">{item.label}</p>
+                    {item.sublabel && (
+                      <p className="text-[11px] text-muted-foreground truncate">{item.sublabel}</p>
+                    )}
+                  </div>
+                  <span className="text-sm font-semibold tabular-nums whitespace-nowrap">{item.value}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {qd.summary && (
+            <div className="pt-2 border-t border-[var(--divider-color)]">
+              <p className="text-xs text-muted-foreground">{qd.summary}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderDoneCard = (msg: ChatMessage) => {
     const hasUndo = msg.undoExpiry && Date.now() < msg.undoExpiry && msg.loggedTransactionId;
     const originalTx = msg.transaction;
@@ -1251,6 +1323,17 @@ export function AiParseBubble() {
                 <div className="flex justify-end ai-message-enter">
                   <div className="dark:bg-amber-600/20 dark:border-amber-600/30 bg-blue-500 border border-transparent dark:text-inherit text-white rounded-lg rounded-br-sm px-3 py-2 max-w-[85%] shadow-sm dark:border-0 bubble-user-dark">
                     <p className="text-sm">{msg.content}</p>
+                  </div>
+                </div>
+              )}
+
+              {msg.type === "query_result" && (
+                <div className="flex justify-start ai-message-enter">
+                  <div className="max-w-[95%] w-full space-y-2">
+                    <div className="glass-1 rounded-lg rounded-bl-sm px-3 py-2 bubble-ai-dark">
+                      <p className="text-sm">{msg.content}</p>
+                    </div>
+                    {msg.queryData && renderQueryResultCard(msg)}
                   </div>
                 </div>
               )}

@@ -16,6 +16,8 @@ export * from "./aiChatRequestAccountsItem";
 export * from "./aiChatRequestCategoriesItem";
 export * from "./aiChatResponse";
 export * from "./aiChatResponseOptionsItem";
+export * from "./aiChatResponseQueryData";
+export * from "./aiChatResponseQueryDataItemsItem";
 export * from "./aiChatResponseTransaction";
 export * from "./aiChatResponseType";
 export * from "./aiChatWarning";

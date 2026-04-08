@@ -155,7 +155,13 @@ export const AiChatBody = zod.object({
 
 export const AiChatResponse = zod.object({
   reply: zod.string(),
-  type: zod.enum(["question", "confirmation", "error", "cancelled"]),
+  type: zod.enum([
+    "question",
+    "confirmation",
+    "error",
+    "cancelled",
+    "query_result",
+  ]),
   options: zod
     .array(
       zod.object({
@@ -196,6 +202,23 @@ export const AiChatResponse = zod.object({
         existingAmount: zod.string().optional(),
       }),
     )
+    .optional(),
+  queryData: zod
+    .object({
+      queryType: zod.string().optional(),
+      title: zod.string().optional(),
+      total: zod.string().optional(),
+      items: zod
+        .array(
+          zod.object({
+            label: zod.string().optional(),
+            value: zod.string().optional(),
+            sublabel: zod.string().optional(),
+          }),
+        )
+        .optional(),
+      summary: zod.string().optional(),
+    })
     .optional(),
 });
 

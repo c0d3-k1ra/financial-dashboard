@@ -88,7 +88,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 **AI Transaction Assistant:**
 *   A floating action button (FAB) activates a multi-turn chat panel for natural language transaction input.
 *   **Smart Slot-Filling:** Extracts fields from natural language, applies defaults, and only prompts for missing information.
-*   **Rich Empty State:** Time-of-day greeting ("Good morning/afternoon/evening") with 5 tappable quick-action chips (Log expense, Record salary, Transfer money, Spending query, Balance check). Mobile: full-width stacked cards; Desktop: 2-column grid.
+*   **Rich Empty State:** Time-of-day greeting ("Good morning/afternoon/evening") with 6 tappable quick-action chips (Log expense, Record salary, Transfer money, Today's spending, Check balances, Monthly summary). Mobile: full-width stacked cards; Desktop: 2-column grid.
 *   **Animated Typing Indicator:** 3-dot bouncing animation in AI bubble replaces "Thinking..." spinner. Header shimmer on mobile during processing.
 *   **Premium Confirmation Cards:** Large amount display with INR formatting, colored type pill (Expense/Income/Transfer) with icon, category chip with icon, account line with type icon. "Log It" button full-width 48px on mobile; Edit as pencil icon button in top-right corner. Warning cards have colored left borders (orange/red/yellow).
 *   **Redesigned Edit Mode:** Proper Radix Select components, DatePicker, 44px+ touch inputs, ₹ prefix on amount, category selector as scrollable icon+label chip grid, account selector as tappable cards, type selector as chips.
@@ -102,6 +102,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **Budget Awareness:** Warns if a transaction pushes spending over budget.
 *   **Duplicate Detection:** Identifies and warns about near-duplicate transactions.
 *   **Recurring Pattern Detection:** Automatically identifies and pre-fills recurring transactions.
+*   **Query Capabilities (Financial Copilot):** Detects question-style messages (spending queries, balance checks, debt summaries, category breakdowns, recent transactions, top expenses, monthly summaries) and routes them directly to database queries instead of the AI model. Returns structured `query_result` responses with styled cards showing titles, item lists, totals, and summaries. Supports period-aware queries (today, this week, this month, last month) using the billing cycle configuration.
 
 # External Dependencies
 

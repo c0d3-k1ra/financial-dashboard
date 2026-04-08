@@ -2009,7 +2009,7 @@ components:
           type: string
         type:
           type: string
-          enum: [question, confirmation, error, cancelled]
+          enum: [question, confirmation, error, cancelled, query_result]
         options:
           type: array
           items:
@@ -2048,6 +2048,28 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AiChatWarning"
+        queryData:
+          type: object
+          properties:
+            queryType:
+              type: string
+            title:
+              type: string
+            total:
+              type: string
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  label:
+                    type: string
+                  value:
+                    type: string
+                  sublabel:
+                    type: string
+            summary:
+              type: string
       required:
         - reply
         - type

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AiChatResponseOptionsItem } from "./aiChatResponseOptionsItem";
+import type { AiChatResponseQueryData } from "./aiChatResponseQueryData";
 import type { AiChatResponseTransaction } from "./aiChatResponseTransaction";
 import type { AiChatResponseType } from "./aiChatResponseType";
 import type { AiChatWarning } from "./aiChatWarning";
@@ -16,4 +17,5 @@ export interface AiChatResponse {
   options?: AiChatResponseOptionsItem[];
   transaction?: AiChatResponseTransaction;
   warnings?: AiChatWarning[];
+  queryData?: AiChatResponseQueryData;
 }

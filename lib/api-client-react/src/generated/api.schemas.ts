@@ -460,6 +460,7 @@ export const AiChatResponseType = {
   confirmation: "confirmation",
   error: "error",
   cancelled: "cancelled",
+  query_result: "query_result",
 } as const;
 
 export type AiChatResponseOptionsItem = {
@@ -476,6 +477,20 @@ export type AiChatResponseTransaction = {
   accountId?: number | null;
   fromAccountId?: number | null;
   toAccountId?: number | null;
+};
+
+export type AiChatResponseQueryDataItemsItem = {
+  label?: string;
+  value?: string;
+  sublabel?: string;
+};
+
+export type AiChatResponseQueryData = {
+  queryType?: string;
+  title?: string;
+  total?: string;
+  items?: AiChatResponseQueryDataItemsItem[];
+  summary?: string;
 };
 
 export type AiChatWarningType =
@@ -519,6 +534,7 @@ export interface AiChatResponse {
   options?: AiChatResponseOptionsItem[];
   transaction?: AiChatResponseTransaction;
   warnings?: AiChatWarning[];
+  queryData?: AiChatResponseQueryData;
 }
 
 export interface AiChatConfirmRequest {

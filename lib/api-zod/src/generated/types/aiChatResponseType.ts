@@ -14,4 +14,5 @@ export const AiChatResponseType = {
   confirmation: "confirmation",
   error: "error",
   cancelled: "cancelled",
+  query_result: "query_result",
 } as const;
