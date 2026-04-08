@@ -6,6 +6,7 @@ import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { globalRateLimiter } from "./lib/rate-limit";
+import { errorHandler } from "./lib/error-middleware";
 
 const app: Express = express();
 
@@ -53,22 +54,6 @@ app.use(authMiddleware);
 
 app.use("/api", router);
 
-app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-  const httpErr = err as { status?: number; statusCode?: number; type?: string; message?: string; expose?: boolean };
-  const status = httpErr.status || httpErr.statusCode || 500;
-
-  if (status >= 500) {
-    logger.error({ err }, "Unhandled error");
-  } else {
-    logger.warn({ err }, "Client error");
-  }
-
-  const message =
-    status < 500 && httpErr.expose && httpErr.message
-      ? httpErr.message
-      : "Internal server error";
-
-  res.status(status).json({ error: message });
-});
+app.use(errorHandler);
 
 export default app;
