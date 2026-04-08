@@ -15,10 +15,13 @@ import analyticsRouter from "./analytics";
 import settingsRouter from "./settings";
 import aiRouter from "./ai";
 import aiChatRouter from "./ai-chat";
+import { aiRateLimiter } from "../lib/rate-limit";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use("/ai", aiRateLimiter);
+router.use("/transactions/parse-natural", aiRateLimiter);
 router.use(transactionsRouter);
 router.use(aiChatRouter);
 router.use(monthlyConfigRouter);

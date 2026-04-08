@@ -121,4 +121,5 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **Validation:** Zod
 *   **API Codegen:** Orval
 *   **AI Integration:** Anthropic Claude (via `integrations-anthropic-ai` library)
+*   **Rate Limiting:** express-rate-limit (in-memory, 20 req/min for AI endpoints, 200 req/min global)
 *   **Package Manager:** pnpm

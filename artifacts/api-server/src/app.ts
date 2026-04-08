@@ -3,8 +3,11 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { globalRateLimiter } from "./lib/rate-limit";
 
 const app: Express = express();
+
+app.set("trust proxy", 1);
 
 const isProduction = process.env["NODE_ENV"] === "production";
 
@@ -42,6 +45,7 @@ app.use(
 app.use(cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(globalRateLimiter);
 
 app.use("/api", router);
 
