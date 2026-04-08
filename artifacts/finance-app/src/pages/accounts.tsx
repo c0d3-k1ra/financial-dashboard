@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-error-state";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Trash2, Wallet, CreditCard, TrendingUp, TrendingDown, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
+import { DatePicker } from "@/components/ui/date-picker";
 import TransferModal from "@/components/transfer-modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -60,17 +61,28 @@ type FormValues = z.infer<typeof formSchema>;
 
 function calculateEmi(principal: number, annualRate: number, tenureMonths: number): number {
   if (principal <= 0 || tenureMonths <= 0) return 0;
-  if (annualRate <= 0) return principal / tenureMonths;
+  if (annualRate <= 0) return Math.ceil(principal / tenureMonths);
   const r = annualRate / 100 / 12;
   const emi = principal * r * Math.pow(1 + r, tenureMonths) / (Math.pow(1 + r, tenureMonths) - 1);
-  return Math.round(emi * 100) / 100;
+  return Math.ceil(emi);
 }
 
-function calculateEmisPaid(loanStartDate: string): number {
-  if (!loanStartDate) return 0;
+function calculateEmisPaid(loanStartDate: string, emiDay: number): number {
+  if (!loanStartDate || !emiDay) return 0;
   const start = new Date(loanStartDate);
   const now = new Date();
-  const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  let firstEmiYear = start.getFullYear();
+  let firstEmiMonth = start.getMonth() + 1;
+  if (firstEmiMonth > 11) {
+    firstEmiYear += Math.floor(firstEmiMonth / 12);
+    firstEmiMonth = firstEmiMonth % 12;
+  }
+  const firstEmi = new Date(firstEmiYear, firstEmiMonth, emiDay);
+  if (now < firstEmi) return 0;
+  let months = (now.getFullYear() - firstEmi.getFullYear()) * 12 + (now.getMonth() - firstEmi.getMonth());
+  if (now.getDate() >= emiDay) {
+    months += 1;
+  }
   return Math.max(0, months);
 }
 
@@ -216,6 +228,7 @@ export default function Accounts() {
   const watchInterestRate = form.watch("interestRate");
   const watchTenure = form.watch("loanTenure");
   const watchLoanStartDate = form.watch("loanStartDate");
+  const watchEmiDay = form.watch("emiDay");
 
   useEffect(() => {
     if (watchType !== "loan") return;
@@ -223,19 +236,20 @@ export default function Accounts() {
     const rate = Number(watchInterestRate) || 0;
     const tenure = Number(watchTenure) || 0;
     const startDate = watchLoanStartDate || "";
+    const emiDay = Number(watchEmiDay) || 0;
 
     if (principal > 0 && tenure > 0) {
       const emi = calculateEmi(principal, rate, tenure);
       form.setValue("emiAmount", String(emi));
 
-      if (startDate) {
-        const paid = calculateEmisPaid(startDate);
+      if (startDate && emiDay > 0) {
+        const paid = calculateEmisPaid(startDate, emiDay);
         form.setValue("emisPaid", String(paid));
         const outstanding = calculateOutstandingPrincipal(principal, rate, tenure, paid);
         form.setValue("currentBalance", String(outstanding));
       }
     }
-  }, [watchType, watchOriginalAmount, watchInterestRate, watchTenure, watchLoanStartDate]);
+  }, [watchType, watchOriginalAmount, watchInterestRate, watchTenure, watchLoanStartDate, watchEmiDay]);
 
   const bankAccounts = accounts?.filter((a) => a.type === "bank") ?? [];
   const ccAccounts = accounts?.filter((a) => a.type === "credit_card") ?? [];
@@ -550,7 +564,21 @@ export default function Accounts() {
                           <FormItem>
                             <FormLabel>Loan Start Date</FormLabel>
                             <FormControl>
-                              <Input type="date" className="font-mono" {...field} />
+                              <DatePicker
+                                date={field.value ? new Date(field.value + "T00:00:00") : undefined}
+                                onSelect={(date) => {
+                                  if (date) {
+                                    const y = date.getFullYear();
+                                    const m = String(date.getMonth() + 1).padStart(2, "0");
+                                    const d = String(date.getDate()).padStart(2, "0");
+                                    field.onChange(`${y}-${m}-${d}`);
+                                  } else {
+                                    field.onChange("");
+                                  }
+                                }}
+                                placeholder="Select start date"
+                                className="w-full font-mono"
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -1200,7 +1228,21 @@ export default function Accounts() {
               </div>
               <div>
                 <Label>Loan Start Date</Label>
-                <Input type="date" className="mt-1 font-mono" value={editLoanStartDate} onChange={(e) => setEditLoanStartDate(e.target.value)} />
+                <DatePicker
+                  date={editLoanStartDate ? new Date(editLoanStartDate + "T00:00:00") : undefined}
+                  onSelect={(date) => {
+                    if (date) {
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, "0");
+                      const d = String(date.getDate()).padStart(2, "0");
+                      setEditLoanStartDate(`${y}-${m}-${d}`);
+                    } else {
+                      setEditLoanStartDate("");
+                    }
+                  }}
+                  placeholder="Select start date"
+                  className="w-full mt-1 font-mono"
+                />
               </div>
               <div>
                 <Label>EMIs Already Paid</Label>
@@ -1286,7 +1328,7 @@ export default function Accounts() {
                   <FormField control={form.control} name="originalLoanAmount" render={({ field }) => (<FormItem><FormLabel>Original Loan Amount</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="e.g. 2000000" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (% p.a.)</FormLabel><FormControl><Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="loanTenure" render={({ field }) => (<FormItem><FormLabel>Tenure (months)</FormLabel><FormControl><Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="loanStartDate" render={({ field }) => (<FormItem><FormLabel>Loan Start Date</FormLabel><FormControl><Input type="date" className="font-mono" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="loanStartDate" render={({ field }) => (<FormItem><FormLabel>Loan Start Date</FormLabel><FormControl><DatePicker date={field.value ? new Date(field.value + "T00:00:00") : undefined} onSelect={(date) => { if (date) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, "0"); const d = String(date.getDate()).padStart(2, "0"); field.onChange(`${y}-${m}-${d}`); } else { field.onChange(""); } }} placeholder="Select start date" className="w-full font-mono" /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="emiDay" render={({ field }) => (<FormItem><FormLabel>EMI Debit Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="linkedAccountId" render={({ field }) => (<FormItem><FormLabel>EMI Debit Account</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl><SelectContent>{bankAccounts.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
                   {Number(watchOriginalAmount) > 0 && Number(watchTenure) > 0 && (
