@@ -3,7 +3,7 @@ import { sql, eq } from "drizzle-orm";
 import { db, transactionsTable, budgetGoalsTable, categoriesTable, accountsTable } from "@workspace/db";
 import { GetBudgetAnalysisQueryParams } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
-import { getAppSettings } from "../lib/settings-helper";
+import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 
 const FIXED_CATEGORY_PATTERNS = [/emi/i, /sip/i, /insurance/i];
 
@@ -37,6 +37,7 @@ router.get("/budget-analysis", async (req, res) => {
     }
 
     const settings = await getAppSettings();
+    const cs = getCurrencySymbol(settings.currencyCode);
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const start = new Date(startDate + "T00:00:00");
@@ -114,7 +115,7 @@ router.get("/budget-analysis", async (req, res) => {
 
       if (actual > planned && planned > 0) {
         paceStatus = "over_budget";
-        paceMessage = `Over by ₹${Math.abs(difference).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+        paceMessage = `Over by ${cs}${Math.abs(difference).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
       } else if (isFixed) {
         if (actual >= planned && planned > 0) {
           paceStatus = "on_pace";
@@ -130,17 +131,17 @@ router.get("/budget-analysis", async (req, res) => {
         const expectedSpent = planned * timeRatio;
         if (planned === 0) {
           paceStatus = actual > 0 ? "over_budget" : "on_pace";
-          paceMessage = actual > 0 ? `Over by ₹${actual.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "No budget set";
+          paceMessage = actual > 0 ? `Over by ${cs}${actual.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "No budget set";
         } else if (actual <= expectedSpent * 1.1) {
           paceStatus = "on_pace";
           paceMessage = "On pace";
         } else if (actual <= planned) {
           paceStatus = "ahead";
           const aheadBy = actual - expectedSpent;
-          paceMessage = `Ahead by ₹${aheadBy.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+          paceMessage = `Ahead by ${cs}${aheadBy.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
         } else {
           paceStatus = "over_budget";
-          paceMessage = `Over by ₹${Math.abs(difference).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+          paceMessage = `Over by ${cs}${Math.abs(difference).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
         }
       }
 

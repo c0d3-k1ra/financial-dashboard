@@ -3,6 +3,7 @@ import { eq, and, ne } from "drizzle-orm";
 import { db, categoriesTable, budgetGoalsTable, accountsTable, goalsTable } from "@workspace/db";
 import { AiParseBody } from "@workspace/api-zod";
 import { BUDGET_DEFAULTS, DEFAULT_PLANNED } from "../lib/budget-defaults";
+import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 
 async function validateGoalAccountBalance(
   accountId: number,
@@ -13,6 +14,8 @@ async function validateGoalAccountBalance(
     return { valid: false, error: "Funding account not found." };
   }
 
+  const { currencyCode } = await getAppSettings();
+  const cs = getCurrencySymbol(currencyCode);
   const accountBalance = Number(account[0].currentBalance ?? 0);
 
   const existingGoals = await db
@@ -29,7 +32,7 @@ async function validateGoalAccountBalance(
     const shortfall = totalRequired - accountBalance;
     return {
       valid: false,
-      error: `Insufficient account balance. Account "${account[0].name}" has ₹${accountBalance.toFixed(2)} but goals would require ₹${totalRequired.toFixed(2)} (shortfall: ₹${shortfall.toFixed(2)}).`,
+      error: `Insufficient account balance. Account "${account[0].name}" has ${cs}${accountBalance.toFixed(2)} but goals would require ${cs}${totalRequired.toFixed(2)} (shortfall: ${cs}${shortfall.toFixed(2)}).`,
     };
   }
 
@@ -113,6 +116,8 @@ router.post("/ai/parse", async (req, res) => {
   try {
     const data = AiParseBody.parse(req.body);
     const { text, categories: userCategories, accounts: userAccounts } = data;
+    const { currencyCode } = await getAppSettings();
+    const cs = getCurrencySymbol(currencyCode);
 
     const categoryList = userCategories.length > 0
       ? userCategories.map((c: { id: number; name: string; type: string }) => `${c.name} (id: ${c.id}, type: ${c.type})`).join(", ")
@@ -353,7 +358,7 @@ For add_savings_goal:
         intent: "set_budget",
         amount: plannedAmount,
         category: categoryName,
-        message: `Set budget for "${categoryName}" to ₹${Number(plannedAmount).toLocaleString()}`,
+        message: `Set budget for "${categoryName}" to ${cs}${Number(plannedAmount).toLocaleString()}`,
         createdEntityId: result.id,
         createdEntityName: categoryName,
       }));
@@ -398,7 +403,7 @@ For add_savings_goal:
         intent: "add_savings_goal",
         amount: targetAmount,
         date: targetDate,
-        message: `Created savings goal "${goalName}" for ₹${Number(targetAmount).toLocaleString()}${targetDate ? ` by ${targetDate}` : ""}`,
+        message: `Created savings goal "${goalName}" for ${cs}${Number(targetAmount).toLocaleString()}${targetDate ? ` by ${targetDate}` : ""}`,
         createdEntityId: created.id,
         createdEntityName: goalName,
       }));

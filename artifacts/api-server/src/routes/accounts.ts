@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, accountsTable, transactionsTable, goalsTable, surplusAllocationsTable } from "@workspace/db";
 import { CreateAccountBody, ReconcileAccountBody, ProcessEmisBody } from "@workspace/api-zod";
+import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
@@ -311,6 +312,8 @@ router.post("/accounts/process-emis", async (req, res) => {
 
     const allAccounts = await db.select().from(accountsTable);
     const accountMap = new Map(allAccounts.map((a) => [a.id, a]));
+    const { currencyCode } = await getAppSettings();
+    const cs = getCurrencySymbol(currencyCode);
 
     let processed = 0;
     const results: Array<{ accountName: string; emiAmount: string; newBalance: string; fromAccount?: string }> = [];
@@ -354,7 +357,7 @@ router.post("/accounts/process-emis", async (req, res) => {
 
         const linkedAccount = loan.linkedAccountId ? accountMap.get(loan.linkedAccountId) : null;
         const isFinal = newBalance < 0.01;
-        const txDescription = `EMI Payment — ${loan.name}${isFinal ? " (final)" : ""} [Principal: ₹${principalReduction.toFixed(0)}, Interest: ₹${interestPortion.toFixed(0)}]`;
+        const txDescription = `EMI Payment — ${loan.name}${isFinal ? " (final)" : ""} [Principal: ${cs}${principalReduction.toFixed(0)}, Interest: ${cs}${interestPortion.toFixed(0)}]`;
 
         if (linkedAccount) {
           await tx

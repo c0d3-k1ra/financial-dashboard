@@ -3,6 +3,7 @@ import { eq, sql, and, ne } from "drizzle-orm";
 import { db, goalsTable, accountsTable, surplusAllocationsTable, transactionsTable } from "@workspace/db";
 import { CreateGoalBody, UpdateGoalBody } from "@workspace/api-zod";
 import { computeGoalIntelligence } from "../lib/goal-intelligence";
+import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
@@ -11,6 +12,8 @@ async function validateAccountBalance(
   newGoalAmount: number,
   excludeGoalId?: number,
 ): Promise<{ valid: boolean; error?: string }> {
+  const { currencyCode } = await getAppSettings();
+  const cs = getCurrencySymbol(currencyCode);
   const account = await db.select().from(accountsTable).where(eq(accountsTable.id, accountId));
   if (!account.length) {
     return { valid: false, error: "Funding account not found." };
@@ -34,7 +37,7 @@ async function validateAccountBalance(
     const shortfall = totalRequired - accountBalance;
     return {
       valid: false,
-      error: `Insufficient account balance. Account "${account[0].name}" has ₹${accountBalance.toFixed(2)} but goals would require ₹${totalRequired.toFixed(2)} (shortfall: ₹${shortfall.toFixed(2)}).`,
+      error: `Insufficient account balance. Account "${account[0].name}" has ${cs}${accountBalance.toFixed(2)} but goals would require ${cs}${totalRequired.toFixed(2)} (shortfall: ${cs}${shortfall.toFixed(2)}).`,
     };
   }
 

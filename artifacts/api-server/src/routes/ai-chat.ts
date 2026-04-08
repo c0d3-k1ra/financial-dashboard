@@ -11,6 +11,7 @@ import {
 } from "@workspace/db";
 import { z } from "zod";
 import { escapeLike, likeContains } from "../lib/escape-like";
+import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 
 const AiChatBody = z.object({
   messages: z.array(
@@ -706,6 +707,11 @@ async function getBillingCycleDay(): Promise<number> {
   return settings?.billingCycleDay ?? 25;
 }
 
+async function getCurrencyCode(): Promise<string> {
+  const settings = await getAppSettings();
+  return settings.currencyCode;
+}
+
 interface QueryResultData {
   queryType: string;
   title: string;
@@ -716,6 +722,7 @@ interface QueryResultData {
 
 async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name: string; type: string }[]): Promise<{ reply: string; queryData: QueryResultData }> {
   const billingDay = await getBillingCycleDay();
+  const cs = getCurrencySymbol(await getCurrencyCode());
 
   switch (intent.type) {
     case "today_spending":
@@ -753,7 +760,7 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
       const title = periodLabels[period] || "Spending";
       const items = rows.slice(0, 10).map(r => ({
         label: r.description || r.category,
-        value: `₹${formatAmount(r.amount)}`,
+        value: `${cs}${formatAmount(r.amount)}`,
         sublabel: `${r.category}${r.accountId ? ` • ${acctNameMap.get(r.accountId) || ""}` : ""}`,
       }));
 
@@ -764,10 +771,10 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         queryData: {
           queryType: intent.type,
           title,
-          total: `₹${formatAmount(total)}`,
+          total: `${cs}${formatAmount(total)}`,
           items,
           summary: rows.length > 0
-            ? `${rows.length} transaction${rows.length !== 1 ? "s" : ""} totaling ₹${formatAmount(total)}`
+            ? `${rows.length} transaction${rows.length !== 1 ? "s" : ""} totaling ${cs}${formatAmount(total)}`
             : "No transactions found.",
         },
       };
@@ -819,13 +826,13 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         queryData: {
           queryType: "category_spending",
           title: `${catName} Spending`,
-          total: `₹${formatAmount(total)}`,
+          total: `${cs}${formatAmount(total)}`,
           items: rows.slice(0, 10).map(r => ({
             label: r.description || catName,
-            value: `₹${formatAmount(r.amount)}`,
+            value: `${cs}${formatAmount(r.amount)}`,
             sublabel: `${r.date}${r.accountId ? ` • ${acctNameMap.get(r.accountId) || ""}` : ""}`,
           })),
-          summary: `${rows.length} transaction${rows.length !== 1 ? "s" : ""} on ${catName} ${periodLabels[period] || ""} totaling ₹${formatAmount(total)}`,
+          summary: `${rows.length} transaction${rows.length !== 1 ? "s" : ""} on ${catName} ${periodLabels[period] || ""} totaling ${cs}${formatAmount(total)}`,
         },
       };
     }
@@ -849,11 +856,11 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         if (a.type === "credit_card" && a.creditLimit) {
           const limit = Number(a.creditLimit);
           const used = limit - balance;
-          sublabel += ` • ₹${formatAmount(used > 0 ? used : 0)} outstanding`;
+          sublabel += ` • ${cs}${formatAmount(used > 0 ? used : 0)} outstanding`;
         }
         return {
           label: a.name,
-          value: `₹${formatAmount(balance)}`,
+          value: `${cs}${formatAmount(balance)}`,
           sublabel,
         };
       });
@@ -867,9 +874,9 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         queryData: {
           queryType: "account_balance",
           title: "Account Balances",
-          total: `₹${formatAmount(bankTotal)}`,
+          total: `${cs}${formatAmount(bankTotal)}`,
           items,
-          summary: `${allAccounts.length} account${allAccounts.length !== 1 ? "s" : ""} • Bank balance: ₹${formatAmount(bankTotal)}`,
+          summary: `${allAccounts.length} account${allAccounts.length !== 1 ? "s" : ""} • Bank balance: ${cs}${formatAmount(bankTotal)}`,
         },
       };
     }
@@ -903,8 +910,8 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
           totalCcOutstanding += outstanding;
           items.push({
             label: cc.name,
-            value: `₹${formatAmount(outstanding)}`,
-            sublabel: `Credit Card • Limit: ₹${formatAmount(limit)}`,
+            value: `${cs}${formatAmount(outstanding)}`,
+            sublabel: `Credit Card • Limit: ${cs}${formatAmount(limit)}`,
           });
         }
       }
@@ -917,7 +924,7 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
           totalLoanOutstanding += outstanding;
           items.push({
             label: loan.name,
-            value: `₹${formatAmount(outstanding)}`,
+            value: `${cs}${formatAmount(outstanding)}`,
             sublabel: "Loan",
           });
         }
@@ -930,10 +937,10 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         queryData: {
           queryType: "debt_summary",
           title: "Debt Summary",
-          total: `₹${formatAmount(totalDebt)}`,
+          total: `${cs}${formatAmount(totalDebt)}`,
           items,
           summary: totalDebt > 0
-            ? `CC outstanding: ₹${formatAmount(totalCcOutstanding)} • Loans: ₹${formatAmount(totalLoanOutstanding)}`
+            ? `CC outstanding: ${cs}${formatAmount(totalCcOutstanding)} • Loans: ${cs}${formatAmount(totalLoanOutstanding)}`
             : "No outstanding debt.",
         },
       };
@@ -963,7 +970,7 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
           title: `Recent Transactions`,
           items: rows.map(r => ({
             label: r.description || r.category,
-            value: `${r.type === "Income" ? "+" : r.type === "Transfer" ? "" : "−"}₹${formatAmount(r.amount)}`,
+            value: `${r.type === "Income" ? "+" : r.type === "Transfer" ? "" : "−"}${cs}${formatAmount(r.amount)}`,
             sublabel: `${r.category} • ${r.date}${r.accountId ? ` • ${acctNameMap.get(r.accountId) || ""}` : ""}`,
           })),
           summary: `Showing ${rows.length} most recent transaction${rows.length !== 1 ? "s" : ""}`,
@@ -1009,13 +1016,13 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         queryData: {
           queryType: "top_expenses",
           title: `Top Expenses — ${periodLabels[period] || ""}`,
-          total: `₹${formatAmount(total)}`,
+          total: `${cs}${formatAmount(total)}`,
           items: rows.map(r => ({
             label: r.description || r.category,
-            value: `₹${formatAmount(r.amount)}`,
+            value: `${cs}${formatAmount(r.amount)}`,
             sublabel: `${r.category} • ${r.date}${r.accountId ? ` • ${acctNameMap.get(r.accountId) || ""}` : ""}`,
           })),
-          summary: `Top ${rows.length} expense${rows.length !== 1 ? "s" : ""} totaling ₹${formatAmount(total)}`,
+          summary: `Top ${rows.length} expense${rows.length !== 1 ? "s" : ""} totaling ${cs}${formatAmount(total)}`,
         },
       };
     }
@@ -1070,15 +1077,15 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         .limit(8);
 
       const items = [
-        { label: "Income", value: `₹${formatAmount(income)}`, sublabel: `${incomeRow?.count || 0} transactions` },
-        { label: "Expenses", value: `₹${formatAmount(expenses)}`, sublabel: `${expenseRow?.count || 0} transactions` },
-        { label: "Surplus", value: `₹${formatAmount(surplus)}`, sublabel: `${savingsRate}% savings rate` },
+        { label: "Income", value: `${cs}${formatAmount(income)}`, sublabel: `${incomeRow?.count || 0} transactions` },
+        { label: "Expenses", value: `${cs}${formatAmount(expenses)}`, sublabel: `${expenseRow?.count || 0} transactions` },
+        { label: "Surplus", value: `${cs}${formatAmount(surplus)}`, sublabel: `${savingsRate}% savings rate` },
       ];
 
       for (const cat of catBreakdown) {
         items.push({
           label: cat.category,
-          value: `₹${formatAmount(cat.total)}`,
+          value: `${cs}${formatAmount(cat.total)}`,
           sublabel: "Expense category",
         });
       }
@@ -1088,9 +1095,9 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         queryData: {
           queryType: "monthly_summary",
           title: "Monthly Summary",
-          total: `₹${formatAmount(surplus)}`,
+          total: `${cs}${formatAmount(surplus)}`,
           items,
-          summary: `Income ₹${formatAmount(income)} — Expenses ₹${formatAmount(expenses)} — Surplus ₹${formatAmount(surplus)} (${savingsRate}% savings rate)`,
+          summary: `Income ${cs}${formatAmount(income)} — Expenses ${cs}${formatAmount(expenses)} — Surplus ${cs}${formatAmount(surplus)} (${savingsRate}% savings rate)`,
         },
       };
     }

@@ -3,7 +3,7 @@ import { eq, sql, and, ne } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, goalsTable, surplusAllocationsTable, accountsTable } from "@workspace/db";
 import { DistributeSurplusBody, UndoSurplusDistributionBody } from "@workspace/api-zod";
 import { getCycleDates } from "../lib/billing-cycle";
-import { getAppSettings } from "../lib/settings-helper";
+import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 import { calculateTotalEmiDue } from "../lib/emi-due";
 
 const router: IRouter = Router();
@@ -76,12 +76,14 @@ router.post("/surplus/distribute", async (req, res) => {
     const sourceBalance = Number(sourceAccount[0].currentBalance ?? 0);
     const totalAllocation = allocations.reduce((s, a) => s + Number(a.amount), 0);
 
+    const settings = await getAppSettings();
+    const cs = getCurrencySymbol(settings.currencyCode);
+
     if (totalAllocation > sourceBalance) {
-      res.status(400).json({ error: `Insufficient balance. Source account has ₹${sourceBalance.toFixed(2)} but ₹${totalAllocation.toFixed(2)} requested.` });
+      res.status(400).json({ error: `Insufficient balance. Source account has ${cs}${sourceBalance.toFixed(2)} but ${cs}${totalAllocation.toFixed(2)} requested.` });
       return;
     }
 
-    const settings = await getAppSettings();
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
     const surplusAccounts = await db
@@ -105,7 +107,7 @@ router.post("/surplus/distribute", async (req, res) => {
     }
 
     if (totalAllocation > surplus) {
-      res.status(400).json({ error: `Total allocation (₹${totalAllocation.toFixed(2)}) exceeds available surplus (₹${surplus.toFixed(2)}).` });
+      res.status(400).json({ error: `Total allocation (${cs}${totalAllocation.toFixed(2)}) exceeds available surplus (${cs}${surplus.toFixed(2)}).` });
       return;
     }
 
@@ -150,7 +152,7 @@ router.post("/surplus/distribute", async (req, res) => {
       if (totalRequired > effectiveBalance) {
         const shortfall = totalRequired - effectiveBalance;
         res.status(400).json({
-          error: `Account "${account[0].name}" cannot support this allocation. Balance would be ₹${effectiveBalance.toFixed(2)} but goals would require ₹${totalRequired.toFixed(2)} (shortfall: ₹${shortfall.toFixed(2)}).`,
+          error: `Account "${account[0].name}" cannot support this allocation. Balance would be ${cs}${effectiveBalance.toFixed(2)} but goals would require ${cs}${totalRequired.toFixed(2)} (shortfall: ${cs}${shortfall.toFixed(2)}).`,
         });
         return;
       }
