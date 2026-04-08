@@ -2,6 +2,8 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, budgetGoalsTable, categoriesTable } from "@workspace/db";
 import { UpsertBudgetGoalBody } from "@workspace/api-zod";
+import { ZodError } from "zod";
+import { validateIdParam } from "../lib/validate-id";
 
 const router: IRouter = Router();
 
@@ -59,13 +61,18 @@ router.post("/budget-goals", async (req, res) => {
     res.json(withCategory);
   } catch (e) {
     req.log.error({ err: e }, "Failed to upsert budget goal");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
 router.delete("/budget-goals/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = validateIdParam(req, res);
+    if (id === null) return;
     await db.delete(budgetGoalsTable).where(eq(budgetGoalsTable.id, id));
     res.status(204).send();
   } catch (e) {

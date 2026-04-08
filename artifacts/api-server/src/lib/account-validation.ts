@@ -1,4 +1,16 @@
-export function validateAccountData(data: Record<string, any>): string | null {
+export interface AccountData {
+  type: string;
+  billingDueDay?: number | null;
+  creditLimit?: string | null;
+  emiDay?: number | null;
+  originalLoanAmount?: string | null;
+  emiAmount?: string | null;
+  interestRate?: string | null;
+  loanTenure?: number | null;
+  emisPaid?: number | null;
+}
+
+export function validateAccountFields(data: AccountData): string | null {
   if (data.billingDueDay != null && (data.billingDueDay < 1 || data.billingDueDay > 31)) {
     return "billingDueDay must be between 1 and 31";
   }

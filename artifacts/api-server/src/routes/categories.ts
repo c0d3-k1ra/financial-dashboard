@@ -2,7 +2,9 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, categoriesTable, transactionsTable, budgetGoalsTable } from "@workspace/db";
 import { CreateCategoryBody, ListCategoriesQueryParams, RenameCategoryBody } from "@workspace/api-zod";
+import { ZodError } from "zod";
 import { BUDGET_DEFAULTS, DEFAULT_PLANNED } from "../lib/budget-defaults";
+import { validateIdParam } from "../lib/validate-id";
 
 const router: IRouter = Router();
 
@@ -44,17 +46,18 @@ router.post("/categories", async (req, res) => {
     res.status(201).json(created);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create category");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
 router.patch("/categories/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
-      res.status(400).json({ error: "Invalid category id." });
-      return;
-    }
+    const id = validateIdParam(req, res);
+    if (id === null) return;
 
     const { name } = RenameCategoryBody.parse(req.body);
     const trimmedName = name.trim();
@@ -99,7 +102,7 @@ router.patch("/categories/:id", async (req, res) => {
     res.json(updated);
   } catch (e: unknown) {
     req.log.error({ err: e }, "Failed to rename category");
-    if (e && typeof e === "object" && "name" in e && (e as { name: string }).name === "ZodError") {
+    if (e instanceof ZodError) {
       res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
@@ -109,7 +112,8 @@ router.patch("/categories/:id", async (req, res) => {
 
 router.delete("/categories/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = validateIdParam(req, res);
+    if (id === null) return;
 
     const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id));
     if (!cat) {

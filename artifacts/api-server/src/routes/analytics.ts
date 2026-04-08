@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
+import { ZodError } from "zod";
 import { db, transactionsTable, accountsTable } from "@workspace/db";
 import { getCycleDates, buildLast6Cycles } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
@@ -57,7 +58,11 @@ router.get("/analytics/spend-by-category", async (req, res) => {
     res.json(result);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get spend by category");
-    res.status(500).json({ error: "Internal error" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: e.errors });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -116,7 +121,11 @@ router.get("/analytics/category-trend", async (req, res) => {
     res.json(result);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get category trend");
-    res.status(500).json({ error: "Internal error" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: e.errors });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -221,8 +230,14 @@ router.get("/analytics/cc-dues", async (req, res) => {
     res.json(result);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get CC dues");
-    res.status(500).json({ error: "Internal error" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: e.errors });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
+
+export default router;
 
 export default router;

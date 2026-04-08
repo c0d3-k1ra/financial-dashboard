@@ -3,7 +3,9 @@ import { eq, sql } from "drizzle-orm";
 import { db, accountsTable, transactionsTable, goalsTable, surplusAllocationsTable } from "@workspace/db";
 import { CreateAccountBody, ReconcileAccountBody, ProcessEmisBody } from "@workspace/api-zod";
 import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
-import { validateAccountData } from "../lib/account-validation";
+import { ZodError } from "zod";
+import { validateAccountFields } from "../lib/account-validation";
+import { validateIdParam } from "../lib/validate-id";
 
 const router: IRouter = Router();
 
@@ -20,7 +22,7 @@ router.get("/accounts", async (req, res) => {
 router.post("/accounts", async (req, res) => {
   try {
     const data = CreateAccountBody.parse(req.body);
-    const validationError = validateAccountData(data);
+    const validationError = validateAccountFields(data);
     if (validationError) {
       res.status(400).json({ error: validationError });
       return;
@@ -70,15 +72,20 @@ router.post("/accounts", async (req, res) => {
     res.status(201).json(created);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create account");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
 router.put("/accounts/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = validateIdParam(req, res);
+    if (id === null) return;
     const data = CreateAccountBody.parse(req.body);
-    const validationError = validateAccountData(data);
+    const validationError = validateAccountFields(data);
     if (validationError) {
       res.status(400).json({ error: validationError });
       return;
@@ -133,13 +140,18 @@ router.put("/accounts/:id", async (req, res) => {
     res.json(updated);
   } catch (e) {
     req.log.error({ err: e }, "Failed to update account");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
 router.delete("/accounts/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = validateIdParam(req, res);
+    if (id === null) return;
 
     const [linked] = await db
       .select({ count: sql<number>`count(*)` })
@@ -187,7 +199,8 @@ router.delete("/accounts/:id", async (req, res) => {
 
 router.post("/accounts/:id/reconcile", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = validateIdParam(req, res);
+    if (id === null) return;
     const data = ReconcileAccountBody.parse(req.body);
     const actualBalance = Number(data.actualBalance);
 
@@ -227,7 +240,11 @@ router.post("/accounts/:id/reconcile", async (req, res) => {
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to reconcile account");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -341,7 +358,7 @@ router.post("/accounts/process-emis", async (req, res) => {
     res.json({ processed, results });
   } catch (e: unknown) {
     req.log.error({ err: e }, "Failed to process EMIs");
-    if (e && typeof e === "object" && "name" in e && (e as { name: string }).name === "ZodError") {
+    if (e instanceof ZodError) {
       res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });

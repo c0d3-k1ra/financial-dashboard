@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { sql, eq } from "drizzle-orm";
+import { ZodError } from "zod";
 import { db, transactionsTable, accountsTable } from "@workspace/db";
 import { buildLast6Cycles } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
@@ -53,7 +54,11 @@ router.get("/trends/cc-spend", async (req, res) => {
     res.json(results);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get CC spend trend");
-    res.status(500).json({ error: "Internal error" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: e.errors });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -102,7 +107,11 @@ router.get("/trends/living-expenses", async (req, res) => {
     res.json(results);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get living expenses trend");
-    res.status(500).json({ error: "Internal error" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: e.errors });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

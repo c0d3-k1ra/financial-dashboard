@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql, and, ne } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, goalsTable, surplusAllocationsTable, accountsTable } from "@workspace/db";
 import { DistributeSurplusBody, UndoSurplusDistributionBody } from "@workspace/api-zod";
+import { ZodError } from "zod";
 import { getCycleDates } from "../lib/billing-cycle";
 import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
 import { calculateTotalEmiDue } from "../lib/emi-due";
@@ -91,7 +92,6 @@ router.post("/surplus/distribute", async (req, res) => {
     const grossBalance = allAccountsForSurplus
       .filter(a => a.useInSurplus)
       .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
-
     const totalCcOutstandingForSurplus = allAccountsForSurplus
       .filter(a => a.type === "credit_card")
       .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
@@ -253,7 +253,13 @@ router.post("/surplus/distribute", async (req, res) => {
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to distribute surplus");
-    res.status(400).json({ error: String(e instanceof Error ? e.message : "Invalid request") });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else if (e instanceof Error) {
+      res.status(400).json({ error: e.message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -472,7 +478,13 @@ router.post("/surplus/undo", async (req, res) => {
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to undo surplus distribution");
-    res.status(400).json({ error: String(e instanceof Error ? e.message : "Invalid request") });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else if (e instanceof Error) {
+      res.status(400).json({ error: e.message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

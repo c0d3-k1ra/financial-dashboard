@@ -9,6 +9,8 @@ import {
   ParseNaturalTransactionBody,
 } from "@workspace/api-zod";
 import { getAnthropicClient } from "../lib/ai-client";
+import { ZodError } from "zod";
+import { validateIdParam } from "../lib/validate-id";
 
 const router: IRouter = Router();
 
@@ -52,7 +54,11 @@ router.get("/transactions", async (req, res) => {
     res.json(results);
   } catch (e) {
     req.log.error({ err: e }, "Failed to list transactions");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -117,7 +123,11 @@ router.post("/transactions", async (req, res) => {
     res.status(201).json(result);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create transaction");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -193,13 +203,18 @@ router.put("/transactions/:id", async (req, res) => {
     res.json(updated);
   } catch (e) {
     req.log.error({ err: e }, "Failed to update transaction");
-    res.status(400).json({ error: "Invalid request" });
+    if (e instanceof ZodError) {
+      res.status(400).json({ error: "Invalid request" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
 router.delete("/transactions/:id", async (req, res) => {
   try {
-    const id = Number(req.params.id);
+    const id = validateIdParam(req, res);
+    if (id === null) return;
 
     const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
 
