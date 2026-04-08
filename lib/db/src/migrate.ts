@@ -196,4 +196,14 @@ export async function runStartupMigrations() {
     CREATE INDEX IF NOT EXISTS "merchant_mappings_keyword_idx"
     ON "merchant_mappings" ("keyword")
   `);
+
+  await db.execute(sql`
+    ALTER TABLE "accounts" ADD COLUMN IF NOT EXISTS "created_at" timestamp NOT NULL DEFAULT '2026-03-24 00:00:00'
+  `);
+  await db.execute(sql`
+    UPDATE "accounts" SET "created_at" = '2026-03-24 00:00:00' WHERE "created_at" = '2000-01-01 00:00:00'
+  `);
+  await db.execute(sql`
+    ALTER TABLE "accounts" ALTER COLUMN "created_at" SET DEFAULT now()
+  `);
 }

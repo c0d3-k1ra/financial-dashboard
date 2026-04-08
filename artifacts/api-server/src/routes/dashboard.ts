@@ -4,6 +4,7 @@ import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable, accountsTa
 import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { getCycleDates, generateCycleOptions } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
+import { calculateTotalEmiDue } from "../lib/emi-due";
 
 const router: IRouter = Router();
 
@@ -72,28 +73,7 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalLoanOutstanding = allAccounts
       .filter(a => a.type === "loan")
       .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);
-    const activeLoanAccounts = allAccounts.filter(a => a.type === "loan" && Number(a.currentBalance ?? 0) > 0 && a.emiAmount && Number(a.emiAmount) > 0);
-
-    const activeLoanIds = activeLoanAccounts.map(a => a.id);
-    const emiPaidResult = activeLoanIds.length > 0
-      ? await db
-          .select({ toAccountId: transactionsTable.toAccountId, accountId: transactionsTable.accountId })
-          .from(transactionsTable)
-          .where(sql`${transactionsTable.category} = 'EMI' AND ${transactionsTable.date}::text LIKE ${month + '%'}`)
-      : [];
-
-    const emiPaidLoanIds = new Set<number>();
-    for (const r of emiPaidResult) {
-      if (r.toAccountId && activeLoanIds.includes(r.toAccountId)) {
-        emiPaidLoanIds.add(r.toAccountId);
-      } else if (r.accountId && activeLoanIds.includes(r.accountId)) {
-        emiPaidLoanIds.add(r.accountId);
-      }
-    }
-
-    const totalEmiDue = activeLoanAccounts
-      .filter(a => !emiPaidLoanIds.has(a.id))
-      .reduce((sum, a) => sum + Number(a.emiAmount ?? 0), 0);
+    const { totalEmiDue } = await calculateTotalEmiDue(allAccounts, startDate, endDate);
     const monthlySurplus = grossSurplusBalance - totalEmiDue - totalCcOutstanding;
     const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
 
