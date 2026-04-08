@@ -8,7 +8,7 @@ import {
   surplusAllocationsTable,
   monthlyConfigTable,
 } from "./schema";
-import { sql, eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 async function testSeed() {
   console.log("Truncating all tables...");
@@ -92,13 +92,13 @@ async function testSeed() {
     categoryType: "Purchase", icon: "🏠",
   }).returning();
 
-  const [achievedGoal] = await db.insert(goalsTable).values({
+  const [_achievedGoal] = await db.insert(goalsTable).values({
     name: "New Laptop", targetAmount: "80000", currentAmount: "80000",
     accountId: hdfc.id, status: "Achieved", targetDate: "2025-06-30",
     categoryType: "Purchase", icon: "💻",
   }).returning();
 
-  const [newGoal] = await db.insert(goalsTable).values({
+  const [_newGoal] = await db.insert(goalsTable).values({
     name: "Debt Payoff", targetAmount: "200000", currentAmount: "0",
     accountId: sbi.id, status: "Active", targetDate: "2027-03-31",
     categoryType: "Debt", icon: "💳",
@@ -120,7 +120,7 @@ async function testSeed() {
   const months = ["2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03"];
 
   for (const month of months) {
-    const [year, mo] = month.split("-");
+    const [_year, mo] = month.split("-");
 
     await db.insert(transactionsTable).values({
       date: `${month}-01`, amount: "85000.00", description: "Monthly Salary - TCS",

@@ -15,7 +15,6 @@ import {
   Plane,
   Tag,
   Briefcase,
-  Award,
   Percent,
   HelpCircle,
   Landmark,

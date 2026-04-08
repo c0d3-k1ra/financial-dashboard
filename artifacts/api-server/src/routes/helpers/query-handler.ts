@@ -51,8 +51,8 @@ export function detectQueryIntent(message: string): QueryIntent | null {
     return { type: "today_spending" };
   }
 
-  if (/\bhow\s+much\s+(?:on|for|in)\s+([\w&'\-][\w&'\-\s]*?)(?:\s+(?:today|this\s+week|this\s+month|last\s+month))?\s*\??$/i.test(lower)) {
-    const match = lower.match(/\bhow\s+much\s+(?:on|for|in)\s+([\w&'\-][\w&'\-\s]*?)(?:\s+(?:today|this\s+week|this\s+month|last\s+month))?\s*\??$/i);
+  if (/\bhow\s+much\s+(?:on|for|in)\s+([\w&'-][\w&'-\s]*?)(?:\s+(?:today|this\s+week|this\s+month|last\s+month))?\s*\??$/i.test(lower)) {
+    const match = lower.match(/\bhow\s+much\s+(?:on|for|in)\s+([\w&'-][\w&'-\s]*?)(?:\s+(?:today|this\s+week|this\s+month|last\s+month))?\s*\??$/i);
     if (match) {
       const cat = match[1].trim();
       let period = "this_month";
@@ -63,7 +63,7 @@ export function detectQueryIntent(message: string): QueryIntent | null {
     }
   }
   if (/\b(spending\s+(?:on|for|in)\s+|(\w+)\s+spending|breakdown\s+by\s+category|category\s+breakdown)\b/.test(lower)) {
-    const match = lower.match(/\bspending\s+(?:on|for|in)\s+([\w&'\-][\w&'\-\s]*?)(?:\s*\?)?$/i);
+    const match = lower.match(/\bspending\s+(?:on|for|in)\s+([\w&'-][\w&'-\s]*?)(?:\s*\?)?$/i);
     if (match) {
       return { type: "category_spending", category: match[1].trim(), period: "this_month" };
     }

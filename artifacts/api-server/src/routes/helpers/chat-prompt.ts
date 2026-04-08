@@ -116,8 +116,7 @@ export async function fetchMerchantContext(userMessage: string): Promise<Merchan
       getRecentCategoryUsage(),
       getMerchantMapping(possibleMerchant),
     ]);
-  } catch {
-  }
+  } catch { /* merchant lookup is best-effort */ }
 
   if (merchantMapping) {
     merchantDefaults.dominantCategory = merchantMapping.category;
@@ -131,8 +130,7 @@ export async function fetchMerchantContext(userMessage: string): Promise<Merchan
     const amountMatch = userMessage.match(/[\d,]+\.?\d*/);
     const possibleAmount = amountMatch ? Number(amountMatch[0].replace(/,/g, "")) : undefined;
     recurringPattern = await detectRecurringPattern(possibleMerchant, possibleAmount);
-  } catch {
-  }
+  } catch { /* recurring pattern detection is best-effort */ }
 
   return { merchantDefaults, recentAccounts, recentCategories, recurringPattern };
 }

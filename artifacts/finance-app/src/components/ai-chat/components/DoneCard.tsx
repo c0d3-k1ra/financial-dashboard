@@ -1,6 +1,5 @@
 import { Undo2, Plus } from "lucide-react";
 import type { ChatMessage } from "../types";
-import { getAccountTypeIcon } from "../constants";
 
 interface Account {
   id: number;

@@ -275,7 +275,7 @@ export function AccountCardSections({
                   : 0;
 
                 const totalPayable = emi && tenure ? emi * tenure : null;
-                const totalInterest = totalPayable && originalAmount ? totalPayable - originalAmount : null;
+                const _totalInterest = totalPayable && originalAmount ? totalPayable - originalAmount : null;
 
                 const interestPaidSoFar = emi && originalAmount
                   ? Math.max(0, (emi * emisPaidCount) - principalPaid)

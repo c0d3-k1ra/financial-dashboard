@@ -135,8 +135,7 @@ async function collectWarnings(
         typicalAmount: anomaly.typicalAmount,
       });
     }
-  } catch {
-  }
+  } catch { /* anomaly detection is best-effort */ }
 
   try {
     const budgetWarning = await checkBudgetWarning(category, amount, userCategories);
@@ -150,8 +149,7 @@ async function collectWarnings(
         isOverBudget: budgetWarning.isOverBudget,
       });
     }
-  } catch {
-  }
+  } catch { /* budget check is best-effort */ }
 
   try {
     const duplicate = await detectDuplicate(amount, category, description, date);
@@ -164,8 +162,7 @@ async function collectWarnings(
         existingAmount: duplicate.existingAmount,
       });
     }
-  } catch {
-  }
+  } catch { /* duplicate detection is best-effort */ }
 
   return warnings;
 }

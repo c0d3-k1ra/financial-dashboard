@@ -73,6 +73,7 @@ export default function TransferModal({ open, onOpenChange, initialValues }: Tra
         description: "",
       });
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- form is stable from useForm; including it causes infinite re-renders
   }, [open, initialValues]);
 
   const onSubmit = (data: FormValues) => {

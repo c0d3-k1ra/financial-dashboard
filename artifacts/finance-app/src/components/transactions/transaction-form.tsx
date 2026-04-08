@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import type { Transaction } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

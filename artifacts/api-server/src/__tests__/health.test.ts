@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../app";
-import type { AccountResponse } from "../test/types";
 
 describe("Health & Validation API", () => {
   it("V-01: health check endpoint", async () => {

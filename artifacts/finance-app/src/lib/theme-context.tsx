@@ -32,7 +32,7 @@ function getStoredTheme(): string {
     if (urlTheme && THEMES.some((t) => t.id === urlTheme)) return urlTheme;
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored && THEMES.some((t) => t.id === stored)) return stored;
-  } catch {}
+  } catch { /* localStorage may be unavailable */ }
   return DEFAULT_THEME;
 }
 
@@ -55,7 +55,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setThemeIdState(id);
     try {
       localStorage.setItem(STORAGE_KEY, id);
-    } catch {}
+    } catch { /* localStorage may be unavailable */ }
   }, []);
 
   useEffect(() => {

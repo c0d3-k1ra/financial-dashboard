@@ -131,3 +131,4 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **AI Integration:** Anthropic Claude (via `integrations-anthropic-ai` library)
 *   **Rate Limiting:** express-rate-limit (in-memory, 20 req/min for AI endpoints, 200 req/min global)
 *   **Package Manager:** pnpm
+*   **Linting:** ESLint 9 (flat config) with typescript-eslint, eslint-plugin-react-hooks, eslint-config-prettier

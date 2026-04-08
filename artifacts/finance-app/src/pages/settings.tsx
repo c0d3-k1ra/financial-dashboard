@@ -61,6 +61,7 @@ export default function Settings() {
   const updateSettings = useUpdateSettings();
   const resetData = useResetData();
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- allCategories is a simple fallback; wrapping in useMemo is unnecessary overhead
   const allCategories = categories ?? [];
 
   const expenseCategories = useMemo(() => {

@@ -74,8 +74,7 @@ router.post("/ai/chat", asyncHandler(async (req, res) => {
               pendingTx = parsed.transaction;
               pendingTx!.category = newCatName;
             }
-          } catch {
-          }
+          } catch { /* ignore malformed JSON in previous assistant message */ }
         }
         res.json({
           reply: `Created category "${newCatName}". ${pendingTx ? "Here's your updated transaction:" : "You can now use this category."}`,
@@ -83,7 +82,7 @@ router.post("/ai/chat", asyncHandler(async (req, res) => {
           transaction: pendingTx ?? undefined,
         });
         return;
-      } catch {
+      } catch { /* category may already exist */
         res.json({
           reply: `Category "${newCatName}" may already exist. Try selecting it from the list.`,
           type: "question" as const,

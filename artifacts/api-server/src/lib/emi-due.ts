@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { db, transactionsTable, accountsTable } from "@workspace/db";
+import { db, transactionsTable } from "@workspace/db";
 import type { Account } from "@workspace/db";
 
 export interface EmiDueResult {

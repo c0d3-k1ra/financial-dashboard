@@ -25,7 +25,7 @@ export function PrivacyProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, String(isHidden));
-    } catch {}
+    } catch { /* localStorage may be unavailable */ }
   }, [isHidden]);
 
   const toggleVisibility = useCallback(() => {

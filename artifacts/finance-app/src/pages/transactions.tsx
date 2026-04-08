@@ -128,6 +128,7 @@ export default function Transactions() {
         setIsDialogOpen(true);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- consumeResult and form are stable; including them causes infinite re-renders
   }, [parsedResult]);
 
   const watchType = form.watch("type");

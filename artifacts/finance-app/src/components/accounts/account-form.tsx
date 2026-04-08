@@ -78,6 +78,7 @@ export function useAutoCalcLoan(form: ReturnType<typeof useForm<AccountFormValue
         form.setValue("currentBalance", String(outstanding));
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- form is stable from useForm; including it causes infinite re-renders
   }, [watchType, watchOriginalAmount, watchInterestRate, watchTenure, watchLoanStartDate, watchEmiDay]);
 
   return { watchType, watchOriginalAmount, watchTenure };

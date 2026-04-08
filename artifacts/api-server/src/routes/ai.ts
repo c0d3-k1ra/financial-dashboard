@@ -40,7 +40,6 @@ async function validateGoalAccountBalance(
   return { valid: true };
 }
 
-const VALID_ACCOUNT_TYPES = ["bank", "credit_card", "loan"];
 const ACCOUNT_TYPE_ALIASES: Record<string, string> = {
   savings: "bank",
   current: "bank",

@@ -554,6 +554,7 @@ export default function Budget() {
     });
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- rows is derived from analysisData and changes identity each render; wrapping in useMemo would be redundant
   const rows: BudgetAnalysisRow[] = analysisData?.rows ?? [];
   const budgetedRows = useMemo<BudgetAnalysisRow[]>(() => rows.filter(r => r.budgetGoalId != null), [rows]);
   const daysElapsed = analysisData?.daysElapsed ?? 0;

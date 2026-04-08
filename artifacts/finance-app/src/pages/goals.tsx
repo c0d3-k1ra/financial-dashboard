@@ -75,7 +75,7 @@ export default function Goals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const { isHidden: privacyHidden } = usePrivacy();
+  const { isHidden: _privacyHidden } = usePrivacy();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [chartExpanded, setChartExpanded] = useState(false);

@@ -1,6 +1,5 @@
 import React from "react";
 import { formatCurrency } from "@/lib/constants";
-import { SensitiveValue } from "@/components/sensitive-value";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

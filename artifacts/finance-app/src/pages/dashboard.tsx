@@ -53,7 +53,7 @@ import { IncomeExpenseTrend } from "@/components/dashboard/income-expense-trend"
 import { MonthlyFlowChart, BurnRateCard } from "@/components/dashboard/monthly-flow-burn";
 
 export default function Dashboard() {
-  const [, navigate] = useLocation();
+  const [, _navigate] = useLocation();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const isMobile = useIsMobile();
@@ -102,7 +102,7 @@ export default function Dashboard() {
   );
 
   const { data: goals, isError: isErrorGoals, refetch: refetchGoals } = useListGoals();
-  const { data: waterfall } = useGetGoalsWaterfall();
+  const { data: _waterfall } = useGetGoalsWaterfall();
   const { data: allAccounts, isError: isErrorAccounts, refetch: refetchAccounts } = useListAccounts();
   const { refetch: refetchSurplus } = useGetMonthlySurplus(
     { month: currentMonth },
@@ -159,7 +159,7 @@ export default function Dashboard() {
 
   const allCategoryNames = useMemo(() => (categoryTrend ?? []).map((c) => c.category), [categoryTrend]);
 
-  const { top5Categories, categoryTrendLineData, visibleCategories } = useMemo(
+  const { top5Categories: _top5Categories, categoryTrendLineData, visibleCategories } = useMemo(
     () => computeCategoryTrendData(categoryTrend, selectedCategory),
     [categoryTrend, selectedCategory],
   );

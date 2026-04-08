@@ -1,6 +1,5 @@
 import { useCallback } from "react";
 import { formatCurrency } from "@/lib/constants";
-import { SensitiveValue } from "@/components/sensitive-value";
 import { usePrivacy } from "@/lib/privacy-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
