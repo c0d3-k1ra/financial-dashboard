@@ -166,4 +166,5 @@ export const handlers = [
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({ ...mockSettings, ...body });
   }),
+  http.get("/api/healthz", () => HttpResponse.json({ status: "ok" })),
 ];

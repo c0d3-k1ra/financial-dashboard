@@ -162,6 +162,7 @@ pnpm --filter @workspace/finance-app test:coverage
 | Writing too much code to pass the test | Only the minimum. One behavior per cycle. |
 | Skipping the run step | You MUST run and show output at each phase |
 | "I'll add tests after" | No. Test first or not at all. |
+| Fixing code review findings without tests first | Post-review fixes with new behavior need TDD too. |
 | Testing implementation details | Test behavior (inputs/outputs), not internals |
 | Large tests covering multiple behaviors | One assertion focus per test, split into multiple cycles |
 
@@ -189,3 +190,25 @@ The code-review skill's verification gates apply on top of TDD:
 - After all TDD cycles for a feature are complete, run full lint + test + coverage
 - Request architect review with `includeGitDiff: true`
 - Fix any Critical/Important findings before marking complete
+
+### Post-Review Changes MUST Follow TDD Too
+
+When the code review identifies issues that require new production code (missing edge cases, cleanup logic, robustness improvements, etc.), you MUST apply full Red-Green-Refactor to those fixes — they are not exempt from TDD just because they came from a review.
+
+**Common mistake:** Treating post-review fixes as "refactoring" and skipping the test-first step. If the fix changes observable behavior or adds new logic (e.g., abort handling, error states, edge cases), it is NOT a refactor — it is new behavior and needs a failing test first.
+
+Workflow for post-review fixes:
+
+1. **RED:** Write a test that exposes the gap the review identified (e.g., test that unmount cancels in-flight requests, test for missing loading state). Run it — it MUST fail.
+2. **GREEN:** Write the minimum production code to make the new test pass.
+3. **REFACTOR:** Clean up if needed, run full suite.
+
+Only skip the test-first step for true refactors: renaming, extracting functions, reordering code — changes where all existing tests continue to pass and no new behavior is introduced.
+
+| Post-Review Change | TDD Required? |
+|---|---|
+| Add AbortController for unmount cleanup | YES — new behavior (abort on unmount) |
+| Add missing loading/error state handling | YES — new observable state |
+| Extract a helper function (no new behavior) | NO — pure refactor |
+| Rename variables for clarity | NO — pure refactor |
+| Add missing test coverage the review flagged | YES — write the test, see it pass/fail, then fix |

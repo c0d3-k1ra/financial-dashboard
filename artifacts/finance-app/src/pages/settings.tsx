@@ -18,9 +18,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-error-state";
 import { getApiErrorMessage, setActiveCurrency } from "@/lib/constants";
-import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2, Palette } from "lucide-react";
+import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2, Palette, Activity } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { getCategoryIcon } from "@/lib/category-icons";
+import { ApiHealthIndicator } from "@/components/api-health-indicator";
 
 const CYCLE_DAYS = Array.from({ length: 28 }, (_, i) => i + 1);
 const CURRENCIES = [
@@ -300,7 +301,7 @@ export default function Settings() {
         <p className="text-muted-foreground text-sm mt-1">Manage your categories, billing cycle, currency, and data.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -417,6 +418,22 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card glass-animate-in glass-stagger-4 rounded-xl">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5" /> API Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col justify-center flex-1">
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Backend connection health check.
+              </p>
+              <ApiHealthIndicator />
             </div>
           </CardContent>
         </Card>
