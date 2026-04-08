@@ -12,7 +12,7 @@ import {
 
 import type { MerchantDefaults } from "./merchant-mapping";
 
-interface TransactionSlots {
+export interface TransactionSlots {
   transactionType?: string;
   amount?: string;
   date?: string;
@@ -23,7 +23,7 @@ interface TransactionSlots {
   toAccountId?: number | null;
 }
 
-interface ResponsePayload {
+export interface ResponsePayload {
   reply: string;
   type: string;
   options?: { label: string; value: string }[];

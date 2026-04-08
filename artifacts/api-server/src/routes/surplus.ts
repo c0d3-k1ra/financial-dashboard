@@ -17,11 +17,6 @@ function getNextMonth(month: string): string {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
-function extractTotal(result: unknown): number {
-  const rows = (result as { rows: { total: string }[] }).rows;
-  return Number(rows?.[0]?.total ?? 0);
-}
-
 router.get("/surplus/monthly", async (req, res) => {
   try {
     const month = req.query.month as string;
@@ -405,8 +400,8 @@ router.post("/surplus/undo", async (req, res) => {
     const otherAllocMonths = await db.execute(sql`
       SELECT DISTINCT month FROM ${surplusAllocationsTable} WHERE month != ${month}
     `);
-    const hasOtherMonthsWithNextConfig = (otherAllocMonths as { rows: { month: string }[] }).rows?.some(
-      (r) => getNextMonth(r.month) === nextMonth
+    const hasOtherMonthsWithNextConfig = otherAllocMonths.rows.some(
+      (r) => getNextMonth(String(r.month)) === nextMonth
     );
 
     await db.transaction(async (tx) => {

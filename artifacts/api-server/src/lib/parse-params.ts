@@ -1,17 +1,23 @@
+class ParamError extends Error {
+  readonly isParamError = true;
+  constructor(message: string) {
+    super(message);
+    this.name = "ParamError";
+  }
+}
+
 export function parseIntParam(value: string, name: string = "id"): number {
   const num = Number(value);
   if (!Number.isInteger(num) || num <= 0) {
-    const err = new Error(`Invalid ${name} parameter`);
-    (err as any).isParamError = true;
-    throw err;
+    throw new ParamError(`Invalid ${name} parameter`);
   }
   return num;
 }
 
 export function isZodError(e: unknown): boolean {
-  return !!(e && typeof e === "object" && "name" in e && (e as { name: string }).name === "ZodError");
+  return !!(e && typeof e === "object" && "name" in e && e.name === "ZodError");
 }
 
 export function isParamError(e: unknown): boolean {
-  return !!(e && typeof e === "object" && "isParamError" in e && (e as any).isParamError === true);
+  return e instanceof ParamError;
 }

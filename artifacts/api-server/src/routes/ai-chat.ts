@@ -5,7 +5,7 @@ import { z } from "zod";
 import { upsertMerchantMapping } from "./helpers/merchant-mapping";
 import { detectQueryIntent, handleQuery } from "./helpers/query-handler";
 import { buildSystemPrompt, buildHistoryContext, fetchMerchantContext } from "./helpers/chat-prompt";
-import { validateAndEnrichConfirmation, parseAiResponse } from "./helpers/chat-confirmation";
+import { validateAndEnrichConfirmation, parseAiResponse, type TransactionSlots, type ResponsePayload } from "./helpers/chat-confirmation";
 
 const AiChatBody = z.object({
   messages: z.array(
@@ -157,17 +157,17 @@ router.post("/ai/chat", async (req, res) => {
       return;
     }
 
-    const responsePayload: Record<string, unknown> = {
-      reply: parsed.reply ?? "I couldn't understand that.",
-      type: parsed.type ?? "error",
-      options: parsed.options ?? undefined,
-      transaction: parsed.transaction ?? undefined,
+    const responsePayload: ResponsePayload = {
+      reply: String(parsed.reply ?? "I couldn't understand that."),
+      type: String(parsed.type ?? "error"),
+      options: Array.isArray(parsed.options) ? parsed.options as ResponsePayload["options"] : undefined,
+      transaction: parsed.transaction as TransactionSlots | undefined,
     };
 
     if (parsed.type === "confirmation" && parsed.transaction) {
-      const tx = parsed.transaction as Record<string, unknown>;
+      const tx = parsed.transaction as TransactionSlots;
       const earlyReturn = await validateAndEnrichConfirmation(
-        tx, responsePayload as { reply: string; type: string },
+        tx, responsePayload,
         userCategories, userAccounts, merchantDefaults, recentAccounts,
       );
       if (earlyReturn) {
