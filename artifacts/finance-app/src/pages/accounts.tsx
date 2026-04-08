@@ -25,6 +25,7 @@ import * as z from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/query-error-state";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Plus, Trash2, Wallet, CreditCard, TrendingUp, TrendingDown, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
@@ -109,7 +110,7 @@ export default function Accounts() {
   const [ccOpen, setCcOpen] = useState(false);
   const [loanOpen, setLoanOpen] = useState(false);
 
-  const { data: accounts, isLoading } = useListAccounts({
+  const { data: accounts, isLoading, isError, refetch } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
   });
 
@@ -638,6 +639,8 @@ export default function Accounts() {
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-3 w-60" />
             </div>
+          ) : isError ? (
+            <QueryErrorState onRetry={() => refetch()} message="Failed to load accounts" />
           ) : (
             <>
               <SensitiveValue as="div" className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
@@ -721,6 +724,8 @@ export default function Accounts() {
             </div>
           ))}
         </div>
+      ) : isError ? (
+        <QueryErrorState onRetry={() => refetch()} message="Failed to load accounts" />
       ) : allAccounts.length === 0 ? (
         <div className="text-center py-16 px-4 border border-dashed border-[var(--divider-color)] rounded-xl glass-1">
           <Wallet className="w-10 h-10 mx-auto text-muted-foreground/40 mb-3" />

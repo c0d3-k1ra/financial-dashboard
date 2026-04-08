@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/query-error-state";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -97,7 +98,7 @@ export default function Goals() {
     accountId: string;
   } | null>(null);
 
-  const { data: goals, isLoading: isLoadingGoals } = useListGoals();
+  const { data: goals, isLoading: isLoadingGoals, isError: isErrorGoals, refetch: refetchGoals } = useListGoals();
   const { data: waterfall } = useGetGoalsWaterfall();
   const { data: accounts } = useListAccounts();
   const createGoal = useCreateGoal();
@@ -320,6 +321,8 @@ export default function Goals() {
               </Card>
             ))}
           </div>
+        ) : isErrorGoals ? (
+          <QueryErrorState onRetry={() => refetchGoals()} message="Failed to load goals" />
         ) : goals && goals.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {goals.map((goal) => {
@@ -513,7 +516,7 @@ function GoalFormModal({ open, onOpenChange, title, isMobile, children }: {
 function GoalProjectionChart({ goalId }: { goalId: number }) {
   const ct = useChartTheme();
   const { isHidden: privacyHidden } = usePrivacy();
-  const { data: projection, isLoading } = useGetGoalProjectionById(
+  const { data: projection, isLoading, isError, refetch } = useGetGoalProjectionById(
     goalId,
     { query: { queryKey: getGetGoalProjectionByIdQueryKey(goalId) } }
   );
@@ -545,6 +548,8 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
       <CardContent className="h-[300px] w-full pt-4">
         {isLoading ? (
           <Skeleton className="w-full h-full" />
+        ) : isError ? (
+          <QueryErrorState onRetry={() => refetch()} message="Failed to load projection" />
         ) : chartData && chartData.length > 0 ? (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>

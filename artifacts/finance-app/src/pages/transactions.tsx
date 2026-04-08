@@ -33,6 +33,7 @@ import * as z from "zod";
 import { Plus, Search, Trash2, Pencil, ArrowDownRight, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeftRight, X, Info, ChevronLeft, ChevronRight, Filter, ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/query-error-state";
 import { CategoryBadge } from "@/components/category-badge";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -117,7 +118,7 @@ export default function Transactions() {
     return params;
   }, [search, filterCategory, filterType, filterAccount, amountMin, amountMax, dateRangeParams]);
 
-  const { data: transactions, isLoading } = useListTransactions(queryParams, {
+  const { data: transactions, isLoading, isError, refetch } = useListTransactions(queryParams, {
     query: { enabled: true, queryKey: getListTransactionsQueryKey(queryParams) },
   });
 
@@ -855,6 +856,8 @@ export default function Transactions() {
             <Skeleton className="h-14 w-full rounded-lg" />
             <Skeleton className="h-14 w-full rounded-lg" />
           </div>
+        ) : isError ? (
+          <QueryErrorState onRetry={() => refetch()} message="Failed to load transactions" className="mt-4" />
         ) : (
           <>
             {paginatedTransactions.length === 0 ? (

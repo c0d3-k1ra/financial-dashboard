@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/query-error-state";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, Save, TrendingUp, TrendingDown, CheckCircle2, Clock, Minus, Trash2, Plus, Pencil, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -477,12 +478,12 @@ export default function Budget() {
     return new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" });
   }, [currentMonth]);
 
-  const { data: analysisData, isLoading: isLoadingAnalysis } = useGetBudgetAnalysis(
+  const { data: analysisData, isLoading: isLoadingAnalysis, isError: isErrorAnalysis, refetch: refetchAnalysis } = useGetBudgetAnalysis(
     { month: currentMonth },
     { query: { enabled: true, queryKey: getGetBudgetAnalysisQueryKey({ month: currentMonth }) } }
   );
 
-  const { isLoading: isLoadingGoals } = useListBudgetGoals(
+  const { isLoading: isLoadingGoals, isError: isErrorGoals, refetch: refetchGoals } = useListBudgetGoals(
     { query: { enabled: true, queryKey: getListBudgetGoalsQueryKey() } }
   );
 
@@ -583,9 +584,22 @@ export default function Budget() {
   }, [categories, budgetedCategoryIds]);
 
   const isLoading = isLoadingAnalysis || isLoadingGoals;
+  const isError = isErrorAnalysis || isErrorGoals;
 
   if (isLoading) {
     return <BudgetSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Budget Analysis</h1>
+          <p className="text-muted-foreground text-sm mt-1">Plan vs actual spending for {monthLabel}.</p>
+        </div>
+        <QueryErrorState onRetry={() => { refetchAnalysis(); refetchGoals(); }} message="Failed to load budget data" />
+      </div>
+    );
   }
 
   return (

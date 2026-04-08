@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/query-error-state";
 import { getApiErrorMessage, setActiveCurrency } from "@/lib/constants";
 import { Plus, Trash2, Tag, Pencil, Check, X, Calendar, DollarSign, AlertTriangle, Search, CheckCircle2, Palette } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
@@ -45,12 +46,12 @@ export default function Settings() {
   const [currencySaved, setCurrencySaved] = useState(false);
   const { themeId, setThemeId, themes } = useTheme();
 
-  const { data: categories, isLoading } = useListCategories(
+  const { data: categories, isLoading, isError: isErrorCategories, refetch: refetchCategories } = useListCategories(
     {},
     { query: { queryKey: ["/api/categories"] } }
   );
 
-  const { data: settings, isLoading: settingsLoading } = useGetSettings({
+  const { data: settings, isLoading: settingsLoading, isError: isErrorSettings, refetch: refetchSettings } = useGetSettings({
     query: { queryKey: ["/api/settings"] },
   });
 
@@ -308,6 +309,8 @@ export default function Settings() {
           <CardContent className="flex flex-col justify-center flex-1">
             {settingsLoading ? (
               <Skeleton className="h-10 w-full" />
+            ) : isErrorSettings ? (
+              <QueryErrorState onRetry={() => refetchSettings()} message="Failed to load settings" />
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
@@ -351,6 +354,8 @@ export default function Settings() {
           <CardContent className="flex flex-col justify-center flex-1">
             {settingsLoading ? (
               <Skeleton className="h-10 w-full" />
+            ) : isErrorSettings ? (
+              <QueryErrorState onRetry={() => refetchSettings()} message="Failed to load settings" />
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
@@ -472,6 +477,8 @@ export default function Settings() {
                 <Skeleton key={i} className="h-10 w-full" />
               ))}
             </div>
+          ) : isErrorCategories ? (
+            <QueryErrorState onRetry={() => refetchCategories()} message="Failed to load categories" />
           ) : (
             <div className="space-y-6">
               <div>

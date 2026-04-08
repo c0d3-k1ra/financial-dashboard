@@ -38,6 +38,7 @@ import { usePrivacy } from "@/lib/privacy-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { QueryErrorState } from "@/components/query-error-state";
 import { Button } from "@/components/ui/button";
 import { ArrowDownRight, ArrowUpRight, Wallet, CreditCard, Activity, ArrowRight, Droplets, Target, Landmark, Plus, ArrowLeftRight, CheckCircle2, Undo2, TrendingUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -226,42 +227,42 @@ export default function Dashboard() {
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
 
-  const { data: summary, isLoading: isLoadingSummary } = useGetDashboardSummary(
+  const { data: summary, isLoading: isLoadingSummary, isError: isErrorSummary, refetch: refetchSummary } = useGetDashboardSummary(
     { month: currentMonth },
     { query: { enabled: true, queryKey: getGetDashboardSummaryQueryKey({ month: currentMonth }) } }
   );
 
-  const { data: recentTxs, isLoading: isLoadingTxs } = useGetRecentTransactions(
+  const { data: recentTxs, isLoading: isLoadingTxs, isError: isErrorTxs, refetch: refetchTxs } = useGetRecentTransactions(
     { limit: 5 },
     { query: { enabled: true, queryKey: getGetRecentTransactionsQueryKey({ limit: 5 }) } }
   );
 
-  const { data: monthlyTrend, isLoading: isLoadingTrend } = useGetMonthlyTrend({
+  const { data: monthlyTrend, isLoading: isLoadingTrend, isError: isErrorTrend, refetch: refetchTrend } = useGetMonthlyTrend({
     query: { enabled: true, queryKey: getGetMonthlyTrendQueryKey() },
   });
 
-  const { data: ccSpendTrend, isLoading: isLoadingCcSpend } = useGetCcSpendTrend(
+  const { data: ccSpendTrend, isLoading: isLoadingCcSpend, isError: isErrorCcSpend, refetch: refetchCcSpend } = useGetCcSpendTrend(
     { month: currentMonth },
     { query: { enabled: true, queryKey: getGetCcSpendTrendQueryKey({ month: currentMonth }) } }
   );
 
-  const { data: spendByCategory, isLoading: isLoadingCatSpend } = useGetSpendByCategory(
+  const { data: spendByCategory, isLoading: isLoadingCatSpend, isError: isErrorCatSpend, refetch: refetchCatSpend } = useGetSpendByCategory(
     { month: currentMonth, accountType: spendAccountFilter },
     { query: { enabled: true, queryKey: getGetSpendByCategoryQueryKey({ month: currentMonth, accountType: spendAccountFilter }) } }
   );
 
-  const { data: ccDues, isLoading: isLoadingCcDues } = useGetCcDues({
+  const { data: ccDues, isLoading: isLoadingCcDues, isError: isErrorCcDues, refetch: refetchCcDues } = useGetCcDues({
     query: { enabled: true, queryKey: getGetCcDuesQueryKey() },
   });
 
-  const { data: categoryTrend, isLoading: isLoadingCatTrend } = useGetCategoryTrend(
+  const { data: categoryTrend, isLoading: isLoadingCatTrend, isError: isErrorCatTrend, refetch: refetchCatTrend } = useGetCategoryTrend(
     { month: currentMonth },
     { query: { enabled: true, queryKey: getGetCategoryTrendQueryKey({ month: currentMonth }) } }
   );
 
-  const { data: goals } = useListGoals();
+  const { data: goals, isError: isErrorGoals, refetch: refetchGoals } = useListGoals();
   const { data: waterfall } = useGetGoalsWaterfall();
-  const { data: allAccounts } = useListAccounts();
+  const { data: allAccounts, isError: isErrorAccounts, refetch: refetchAccounts } = useListAccounts();
   const { refetch: refetchSurplus } = useGetMonthlySurplus(
     { month: currentMonth },
     { query: { enabled: false, queryKey: getGetMonthlySurplusQueryKey({ month: currentMonth }) } }
@@ -517,6 +518,8 @@ export default function Dashboard() {
           <CardContent className="flex-1 flex flex-col justify-between">
             {isLoadingSummary ? (
               <Skeleton className="h-12 w-48" />
+            ) : isErrorSummary ? (
+              <QueryErrorState onRetry={() => refetchSummary()} message="Failed to load summary" />
             ) : (
               <>
                 <div>
@@ -528,24 +531,24 @@ export default function Dashboard() {
                     Covers {liquidityRatio.toFixed(1)}x monthly expenses
                   </SensitiveValue>
                 </div>
+                <SensitiveValue as="div" className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                    {formatCurrency(summary?.bankBalance || 0)}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-destructive" />
+                    -{formatCurrency(summary?.unpaidCcDues || 0)}
+                  </span>
+                  {Number(summary?.totalEmiDue || 0) > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <Landmark className="w-3.5 h-3.5 text-amber-500" />
+                      -{formatCurrency(summary?.totalEmiDue || 0)}
+                    </span>
+                  )}
+                </SensitiveValue>
               </>
             )}
-            <SensitiveValue as="div" className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5 text-emerald-500" />
-                {formatCurrency(summary?.bankBalance || 0)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-destructive" />
-                -{formatCurrency(summary?.unpaidCcDues || 0)}
-              </span>
-              {Number(summary?.totalEmiDue || 0) > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <Landmark className="w-3.5 h-3.5 text-amber-500" />
-                  -{formatCurrency(summary?.totalEmiDue || 0)}
-                </span>
-              )}
-            </SensitiveValue>
           </CardContent>
         </Card>
 
@@ -555,36 +558,40 @@ export default function Dashboard() {
             <TrendingUp className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent className="flex-1 flex flex-col justify-between">
-            {!allAccounts ? (
+            {!allAccounts && !isErrorAccounts ? (
               <Skeleton className="h-10 w-40" />
+            ) : isErrorAccounts ? (
+              <QueryErrorState onRetry={() => refetchAccounts()} message="Failed to load accounts" />
             ) : (
-              <div>
-                <SensitiveValue as="div" className={`text-4xl font-bold tabular-nums tracking-tight dark-heading-shadow ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-                  {formatCurrency(Math.abs(netWorth))}
-                </SensitiveValue>
-                <SensitiveValue as="div" className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
-                  <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                    Debt-to-asset ratio: {debtToAssetRatio.toFixed(1)}%
+              <>
+                <div>
+                  <SensitiveValue as="div" className={`text-4xl font-bold tabular-nums tracking-tight dark-heading-shadow ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                    {formatCurrency(Math.abs(netWorth))}
+                  </SensitiveValue>
+                  <SensitiveValue as="div" className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
+                    <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                      Debt-to-asset ratio: {debtToAssetRatio.toFixed(1)}%
+                    </span>
+                  </SensitiveValue>
+                </div>
+                <SensitiveValue as="div" className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-emerald-500" />
+                    {formatCurrency(totalBank)}
                   </span>
+                  <span className="flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-destructive" />
+                    -{formatCurrency(totalCcOutstanding)}
+                  </span>
+                  {totalLoanOutstanding > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <Landmark className="w-3.5 h-3.5 text-amber-500" />
+                      -{formatCurrency(totalLoanOutstanding)}
+                    </span>
+                  )}
                 </SensitiveValue>
-              </div>
+              </>
             )}
-            <SensitiveValue as="div" className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Wallet className="w-3.5 h-3.5 text-emerald-500" />
-                {formatCurrency(totalBank)}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <CreditCard className="w-3.5 h-3.5 text-destructive" />
-                -{formatCurrency(totalCcOutstanding)}
-              </span>
-              {totalLoanOutstanding > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <Landmark className="w-3.5 h-3.5 text-amber-500" />
-                  -{formatCurrency(totalLoanOutstanding)}
-                </span>
-              )}
-            </SensitiveValue>
           </CardContent>
         </Card>
 
@@ -594,7 +601,9 @@ export default function Dashboard() {
             <Target className="w-4 h-4 text-primary" />
           </CardHeader>
           <CardContent className="flex-1">
-            {goals && goals.length > 0 ? (
+            {isErrorGoals ? (
+              <QueryErrorState onRetry={() => refetchGoals()} message="Failed to load goals" />
+            ) : goals && goals.length > 0 ? (
               <GoalProgressRing goals={goals} />
             ) : (
               <div className="h-full flex items-center justify-center text-muted-foreground font-mono text-sm">
@@ -613,6 +622,8 @@ export default function Dashboard() {
         <CardContent className="h-[220px] w-full pt-2">
           {isLoadingSummary ? (
             <Skeleton className="w-full h-full" />
+          ) : isErrorSummary ? (
+            <QueryErrorState onRetry={() => refetchSummary()} message="Failed to load summary" />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={waterfallData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -645,6 +656,8 @@ export default function Dashboard() {
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-24" />
               </div>
+            ) : isErrorSummary ? (
+              <QueryErrorState onRetry={() => refetchSummary()} message="Failed to load summary" />
             ) : (
               <>
                 <div className="flex justify-between items-end mb-2">
@@ -693,6 +706,8 @@ export default function Dashboard() {
           <CardContent className="pt-4">
             {isLoadingCatSpend ? (
               <Skeleton className="w-full h-[280px]" />
+            ) : isErrorCatSpend ? (
+              <QueryErrorState onRetry={() => refetchCatSpend()} message="Failed to load spending data" />
             ) : pieData.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 items-start">
                 <div className="h-[260px]">
@@ -801,6 +816,8 @@ export default function Dashboard() {
                 <Skeleton className="h-16 w-full" />
                 <Skeleton className="h-16 w-full" />
               </div>
+            ) : isErrorCcDues ? (
+              <QueryErrorState onRetry={() => refetchCcDues()} message="Failed to load CC dues" />
             ) : ccDues && ccDues.length > 0 ? (
               <div className="relative">
                 <div
@@ -1024,6 +1041,8 @@ export default function Dashboard() {
           <CardContent className="h-[320px] w-full pt-4">
             {isLoadingCatTrend ? (
               <Skeleton className="w-full h-full" />
+            ) : isErrorCatTrend ? (
+              <QueryErrorState onRetry={() => refetchCatTrend()} message="Failed to load category trends" />
             ) : categoryTrendLineData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={categoryTrendLineData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -1087,6 +1106,8 @@ export default function Dashboard() {
           <CardContent className="h-[280px] w-full pt-4">
             {isLoadingCcSpend ? (
               <Skeleton className="w-full h-full" />
+            ) : isErrorCcSpend ? (
+              <QueryErrorState onRetry={() => refetchCcSpend()} message="Failed to load CC spend trend" />
             ) : ccSpendTrend && ccSpendTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={ccSpendTrend} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -1122,6 +1143,8 @@ export default function Dashboard() {
           <CardContent className="h-[300px] w-full pt-4">
             {isLoadingTrend ? (
               <Skeleton className="w-full h-full" />
+            ) : isErrorTrend ? (
+              <QueryErrorState onRetry={() => refetchTrend()} message="Failed to load income/expense trend" />
             ) : monthlyTrend && monthlyTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={monthlyTrend} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
@@ -1223,6 +1246,8 @@ export default function Dashboard() {
                   <Skeleton key={i} className="h-12 w-full" />
                 ))}
               </div>
+            ) : isErrorTxs ? (
+              <QueryErrorState onRetry={() => refetchTxs()} message="Failed to load recent transactions" />
             ) : groupedTxs.length > 0 ? (
               <div className="pt-2 space-y-1">
                 {groupedTxs.map((group) => (
