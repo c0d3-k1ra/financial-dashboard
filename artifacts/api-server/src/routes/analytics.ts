@@ -1,36 +1,12 @@
 import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, accountsTable } from "@workspace/db";
-import { getCycleDates } from "../lib/billing-cycle";
+import { getCycleDates, buildLast6Cycles } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
 
 const router: IRouter = Router();
 
 const EXCLUDED_CATEGORIES = ["Adjustment", "Transfer"];
-
-function buildLast6Cycles(month: string, cycleDay: number = 25): { label: string; startDate: string; endDate: string }[] {
-  const [yearStr, monthStr] = month.split("-");
-  const year = parseInt(yearStr);
-  const mo = parseInt(monthStr);
-  const cycles: { label: string; startDate: string; endDate: string }[] = [];
-
-  for (let i = 5; i >= 0; i--) {
-    let cYear = year;
-    let cMonth = mo - i;
-    while (cMonth <= 0) {
-      cMonth += 12;
-      cYear--;
-    }
-    const cMonthStr = `${cYear}-${String(cMonth).padStart(2, "0")}`;
-    const { startDate, endDate } = getCycleDates(cMonthStr, cycleDay);
-
-    const startLabel = new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    const endLabel = new Date(endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    cycles.push({ label: `${startLabel} – ${endLabel}`, startDate, endDate });
-  }
-
-  return cycles;
-}
 
 router.get("/analytics/spend-by-category", async (req, res) => {
   try {
@@ -96,32 +72,41 @@ router.get("/analytics/category-trend", async (req, res) => {
     const settings = await getAppSettings();
     const cycles = buildLast6Cycles(month, settings.billingCycleDay);
 
-    const allCategories = await db
-      .selectDistinct({ category: transactionsTable.category })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense'
-          AND ${transactionsTable.category} NOT IN (${sql.join(EXCLUDED_CATEGORIES.map(c => sql`${c}`), sql`, `)})`);
+    const dateRangeConditions = cycles.map((cycle, idx) =>
+      sql`WHEN ${transactionsTable.date}::date >= ${cycle.startDate}::date AND ${transactionsTable.date}::date <= ${cycle.endDate}::date THEN ${idx.toString()}`
+    );
 
-    const categoryNames = allCategories.map((c) => c.category);
+    const globalStart = cycles[0].startDate;
+    const globalEnd = cycles[cycles.length - 1].endDate;
+
+    const rows = await db
+      .select({
+        category: transactionsTable.category,
+        cycleIdx: sql<string>`CASE ${sql.join(dateRangeConditions, sql` `)} END`,
+        total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
+      })
+      .from(transactionsTable)
+      .where(
+        sql`${transactionsTable.type} = 'Expense'
+            AND ${transactionsTable.category} NOT IN (${sql.join(EXCLUDED_CATEGORIES.map(c => sql`${c}`), sql`, `)})
+            AND ${transactionsTable.date}::date >= ${globalStart}::date
+            AND ${transactionsTable.date}::date <= ${globalEnd}::date`
+      )
+      .groupBy(sql`1`, sql`2`);
+
+    const grouped: Record<string, Record<string, number>> = {};
+    for (const row of rows) {
+      if (row.cycleIdx == null) continue;
+      if (!grouped[row.category]) grouped[row.category] = {};
+      grouped[row.category][row.cycleIdx] = Number(row.total);
+    }
 
     const result: { category: string; data: { cycle: string; total: string }[] }[] = [];
-
-    for (const catName of categoryNames) {
-      const data: { cycle: string; total: string }[] = [];
-      for (const cycle of cycles) {
-        const [row] = await db
-          .select({
-            total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
-          })
-          .from(transactionsTable)
-          .where(
-            sql`${transactionsTable.type} = 'Expense'
-                AND ${transactionsTable.category} = ${catName}
-                AND ${transactionsTable.date}::date >= ${cycle.startDate}::date
-                AND ${transactionsTable.date}::date <= ${cycle.endDate}::date`
-          );
-        data.push({ cycle: cycle.label, total: Number(row.total).toFixed(2) });
-      }
+    for (const [catName, cycleTotals] of Object.entries(grouped)) {
+      const data = cycles.map((cycle, idx) => ({
+        cycle: cycle.label,
+        total: (cycleTotals[idx.toString()] ?? 0).toFixed(2),
+      }));
       const hasAnySpend = data.some((d) => Number(d.total) > 0);
       if (hasAnySpend) {
         result.push({ category: catName, data });

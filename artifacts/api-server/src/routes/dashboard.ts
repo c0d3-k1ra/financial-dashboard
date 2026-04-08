@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, transactionsTable, monthlyConfigTable, budgetGoalsTable, accountsTable, categoriesTable } from "@workspace/db";
 import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
-import { getCycleDates, generateCycleOptions } from "../lib/billing-cycle";
+import { getCycleDates, generateCycleOptions, buildLast6Cycles } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
 import { calculateTotalEmiDue } from "../lib/emi-due";
 
@@ -26,30 +26,49 @@ router.get("/dashboard/summary", async (req, res) => {
 
     const startingBalance = config.length > 0 ? Number(config[0].startingBalance) : 0;
 
-    const incomeResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
-
-    const bankExpenseResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
-      .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
-      .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
-
-    const ccTransferResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
-      .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.to_account_id = a.id`)
-      .where(sql`t.type = 'Transfer' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
-
-    const ccExpenseResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
-      .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
-      .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`);
-
-    const allExpenseResult = await db
-      .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-      .from(transactionsTable)
-      .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
+    const [
+      incomeResult,
+      bankExpenseResult,
+      ccTransferResult,
+      ccExpenseResult,
+      allExpenseResult,
+      allAccounts,
+      expenseCategories,
+      allBudgetGoals,
+    ] = await Promise.all([
+      db
+        .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
+        .from(transactionsTable)
+        .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`),
+      db
+        .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
+        .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
+        .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'bank' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`),
+      db
+        .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
+        .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.to_account_id = a.id`)
+        .where(sql`t.type = 'Transfer' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`),
+      db
+        .select({ total: sql<string>`COALESCE(SUM(t.amount::numeric), 0)` })
+        .from(sql`${transactionsTable} t JOIN ${accountsTable} a ON t.account_id = a.id`)
+        .where(sql`t.type = 'Expense' AND t.category != 'Adjustment' AND a.type = 'credit_card' AND t.date::date >= ${startDate}::date AND t.date::date <= ${endDate}::date`),
+      db
+        .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
+        .from(transactionsTable)
+        .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`),
+      db.select().from(accountsTable),
+      db
+        .select()
+        .from(categoriesTable)
+        .where(eq(categoriesTable.type, "Expense")),
+      db
+        .select({
+          categoryId: budgetGoalsTable.categoryId,
+          plannedAmount: budgetGoalsTable.plannedAmount,
+        })
+        .from(budgetGoalsTable)
+        .innerJoin(categoriesTable, eq(budgetGoalsTable.categoryId, categoriesTable.id)),
+    ]);
 
     const totalIncome = Number(incomeResult[0]?.total ?? 0);
     const bankExpenses = Number(bankExpenseResult[0]?.total ?? 0);
@@ -60,7 +79,6 @@ router.get("/dashboard/summary", async (req, res) => {
     const totalExpenses = bankExpenses + ccTransfers;
     const endBalance = startingBalance + totalIncome - totalExpenses;
 
-    const allAccounts = await db.select().from(accountsTable);
     const grossSurplusBalance = allAccounts
       .filter(a => a.useInSurplus)
       .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
@@ -76,19 +94,6 @@ router.get("/dashboard/summary", async (req, res) => {
     const { totalEmiDue } = await calculateTotalEmiDue(allAccounts, startDate, endDate);
     const monthlySurplus = grossSurplusBalance - totalEmiDue - totalCcOutstanding;
     const netLiquidity = totalBankBalance - totalCcOutstanding - totalEmiDue;
-
-    const expenseCategories = await db
-      .select()
-      .from(categoriesTable)
-      .where(eq(categoriesTable.type, "Expense"));
-
-    const allBudgetGoals = await db
-      .select({
-        categoryId: budgetGoalsTable.categoryId,
-        plannedAmount: budgetGoalsTable.plannedAmount,
-      })
-      .from(budgetGoalsTable)
-      .innerJoin(categoriesTable, eq(budgetGoalsTable.categoryId, categoriesTable.id));
     const expenseCatIds = new Set(expenseCategories.map(c => c.id));
     const plannedExpenses = allBudgetGoals
       .filter(g => expenseCatIds.has(g.categoryId))
@@ -125,29 +130,49 @@ router.get("/dashboard/monthly-trend", async (req, res) => {
   try {
     const settings = await getAppSettings();
     const now = new Date();
-    const trendData = [];
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const cycles = buildLast6Cycles(currentMonth, settings.billingCycleDay);
 
+    const months: string[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const month = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
-
-      const incomeResult = await db
-        .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-        .from(transactionsTable)
-        .where(sql`${transactionsTable.type} = 'Income' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
-
-      const expenseResult = await db
-        .select({ total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)` })
-        .from(transactionsTable)
-        .where(sql`${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment' AND ${transactionsTable.date}::date >= ${startDate}::date AND ${transactionsTable.date}::date <= ${endDate}::date`);
-
-      trendData.push({
-        month,
-        income: Number(incomeResult[0]?.total ?? 0).toFixed(2),
-        expenses: Number(expenseResult[0]?.total ?? 0).toFixed(2),
-      });
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
+
+    const dateRangeConditions = cycles.map((cycle, idx) =>
+      sql`WHEN ${transactionsTable.date}::date >= ${cycle.startDate}::date AND ${transactionsTable.date}::date <= ${cycle.endDate}::date THEN ${idx.toString()}`
+    );
+
+    const globalStart = cycles[0].startDate;
+    const globalEnd = cycles[cycles.length - 1].endDate;
+
+    const rows = await db
+      .select({
+        cycleIdx: sql<string>`CASE ${sql.join(dateRangeConditions, sql` `)} END`,
+        type: transactionsTable.type,
+        total: sql<string>`COALESCE(SUM(${transactionsTable.amount}::numeric), 0)`,
+      })
+      .from(transactionsTable)
+      .where(
+        sql`(${transactionsTable.type} = 'Income' OR (${transactionsTable.type} = 'Expense' AND ${transactionsTable.category} != 'Adjustment'))
+            AND ${transactionsTable.date}::date >= ${globalStart}::date
+            AND ${transactionsTable.date}::date <= ${globalEnd}::date`
+      )
+      .groupBy(sql`1`, sql`2`);
+
+    const incomeMap: Record<string, number> = {};
+    const expenseMap: Record<string, number> = {};
+    for (const row of rows) {
+      if (row.cycleIdx == null) continue;
+      if (row.type === "Income") incomeMap[row.cycleIdx] = Number(row.total);
+      else expenseMap[row.cycleIdx] = Number(row.total);
+    }
+
+    const trendData = months.map((month, idx) => ({
+      month,
+      income: (incomeMap[idx.toString()] ?? 0).toFixed(2),
+      expenses: (expenseMap[idx.toString()] ?? 0).toFixed(2),
+    }));
 
     res.json(trendData);
   } catch (e) {

@@ -86,14 +86,12 @@ router.post("/surplus/distribute", async (req, res) => {
 
     const { startDate, endDate } = getCycleDates(month, settings.billingCycleDay);
 
-    const surplusAccounts = await db
-      .select({ id: accountsTable.id, currentBalance: accountsTable.currentBalance })
-      .from(accountsTable)
-      .where(sql`${accountsTable.useInSurplus} = true`);
-
-    const grossBalance = surplusAccounts.reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
-
     const allAccountsForSurplus = await db.select().from(accountsTable);
+
+    const grossBalance = allAccountsForSurplus
+      .filter(a => a.useInSurplus)
+      .reduce((sum, a) => sum + Number(a.currentBalance ?? 0), 0);
+
     const totalCcOutstandingForSurplus = allAccountsForSurplus
       .filter(a => a.type === "credit_card")
       .reduce((sum, a) => sum + Math.abs(Number(a.currentBalance ?? 0)), 0);

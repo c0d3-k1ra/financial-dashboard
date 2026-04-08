@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { db, accountsTable, transactionsTable, goalsTable, surplusAllocationsTable } from "@workspace/db";
 import { CreateAccountBody, ReconcileAccountBody, ProcessEmisBody } from "@workspace/api-zod";
 import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
+import { validateAccountData } from "../lib/account-validation";
 
 const router: IRouter = Router();
 
@@ -19,39 +20,10 @@ router.get("/accounts", async (req, res) => {
 router.post("/accounts", async (req, res) => {
   try {
     const data = CreateAccountBody.parse(req.body);
-    if (data.billingDueDay != null && (data.billingDueDay < 1 || data.billingDueDay > 31)) {
-      res.status(400).json({ error: "billingDueDay must be between 1 and 31" });
+    const validationError = validateAccountData(data);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
       return;
-    }
-    if (data.creditLimit != null && Number(data.creditLimit) < 0) {
-      res.status(400).json({ error: "creditLimit must be non-negative." });
-      return;
-    }
-    if (data.emiDay != null && (data.emiDay < 1 || data.emiDay > 31)) {
-      res.status(400).json({ error: "emiDay must be between 1 and 31" });
-      return;
-    }
-    if (data.type === "loan") {
-      if (!data.originalLoanAmount || Number(data.originalLoanAmount) <= 0) {
-        res.status(400).json({ error: "Original loan amount is required and must be greater than zero." });
-        return;
-      }
-      if (data.emiAmount != null && Number(data.emiAmount) <= 0) {
-        res.status(400).json({ error: "EMI amount must be greater than zero." });
-        return;
-      }
-      if (data.interestRate != null && Number(data.interestRate) < 0) {
-        res.status(400).json({ error: "Interest rate must be non-negative." });
-        return;
-      }
-      if (data.loanTenure != null && data.loanTenure < 1) {
-        res.status(400).json({ error: "Loan tenure must be at least 1 month." });
-        return;
-      }
-      if (data.emisPaid != null && data.emisPaid < 0) {
-        res.status(400).json({ error: "EMIs paid must be non-negative." });
-        return;
-      }
     }
     const sharedLimitGroup = data.type === "credit_card" ? (data.sharedLimitGroup || null) : null;
 
@@ -106,39 +78,10 @@ router.put("/accounts/:id", async (req, res) => {
   try {
     const id = Number(req.params.id);
     const data = CreateAccountBody.parse(req.body);
-    if (data.billingDueDay != null && (data.billingDueDay < 1 || data.billingDueDay > 31)) {
-      res.status(400).json({ error: "billingDueDay must be between 1 and 31" });
+    const validationError = validateAccountData(data);
+    if (validationError) {
+      res.status(400).json({ error: validationError });
       return;
-    }
-    if (data.creditLimit != null && Number(data.creditLimit) < 0) {
-      res.status(400).json({ error: "creditLimit must be non-negative." });
-      return;
-    }
-    if (data.emiDay != null && (data.emiDay < 1 || data.emiDay > 31)) {
-      res.status(400).json({ error: "emiDay must be between 1 and 31" });
-      return;
-    }
-    if (data.type === "loan") {
-      if (!data.originalLoanAmount || Number(data.originalLoanAmount) <= 0) {
-        res.status(400).json({ error: "Original loan amount is required and must be greater than zero." });
-        return;
-      }
-      if (data.emiAmount != null && Number(data.emiAmount) <= 0) {
-        res.status(400).json({ error: "EMI amount must be greater than zero." });
-        return;
-      }
-      if (data.interestRate != null && Number(data.interestRate) < 0) {
-        res.status(400).json({ error: "Interest rate must be non-negative." });
-        return;
-      }
-      if (data.loanTenure != null && data.loanTenure < 1) {
-        res.status(400).json({ error: "Loan tenure must be at least 1 month." });
-        return;
-      }
-      if (data.emisPaid != null && data.emisPaid < 0) {
-        res.status(400).json({ error: "EMIs paid must be non-negative." });
-        return;
-      }
     }
     const sharedLimitGroup = data.type === "credit_card" ? (data.sharedLimitGroup || null) : null;
 

@@ -25,6 +25,30 @@ export function getCycleDates(month: string, cycleDay: number = 25): { startDate
   return { startDate, endDate };
 }
 
+export function buildLast6Cycles(month: string, cycleDay: number = 25): { label: string; startDate: string; endDate: string }[] {
+  const [yearStr, monthStr] = month.split("-");
+  const year = parseInt(yearStr);
+  const mo = parseInt(monthStr);
+  const cycles: { label: string; startDate: string; endDate: string }[] = [];
+
+  for (let i = 5; i >= 0; i--) {
+    let cYear = year;
+    let cMonth = mo - i;
+    while (cMonth <= 0) {
+      cMonth += 12;
+      cYear--;
+    }
+    const cMonthStr = `${cYear}-${String(cMonth).padStart(2, "0")}`;
+    const { startDate, endDate } = getCycleDates(cMonthStr, cycleDay);
+
+    const startLabel = new Date(startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const endLabel = new Date(endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    cycles.push({ label: `${startLabel} – ${endLabel}`, startDate, endDate });
+  }
+
+  return cycles;
+}
+
 export function generateCycleOptions(count: number = 12, cycleDay: number = 25): { label: string; startDate: string; endDate: string; month: string }[] {
   const now = new Date();
   const results = [];
