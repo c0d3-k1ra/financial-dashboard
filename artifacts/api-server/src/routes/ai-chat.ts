@@ -10,6 +10,7 @@ import {
   accountsTable,
 } from "@workspace/db";
 import { z } from "zod";
+import { escapeLike, likeContains } from "../lib/escape-like";
 
 const AiChatBody = z.object({
   messages: z.array(
@@ -70,7 +71,7 @@ async function getMerchantMapping(description: string): Promise<MerchantMapping 
   const rows = await db
     .select()
     .from(merchantMappingsTable)
-    .where(ilike(merchantMappingsTable.keyword, keyword))
+    .where(ilike(merchantMappingsTable.keyword, escapeLike(keyword)))
     .orderBy(desc(merchantMappingsTable.useCount))
     .limit(1);
 
@@ -95,7 +96,7 @@ async function getMerchantMappingCategories(description: string): Promise<{ cate
       useCount: merchantMappingsTable.useCount,
     })
     .from(merchantMappingsTable)
-    .where(ilike(merchantMappingsTable.keyword, keyword))
+    .where(ilike(merchantMappingsTable.keyword, escapeLike(keyword)))
     .orderBy(desc(merchantMappingsTable.useCount));
 
   return rows.map(r => ({ category: r.category, count: r.useCount }));
@@ -110,7 +111,7 @@ async function upsertMerchantMapping(description: string, category: string, acco
     .select()
     .from(merchantMappingsTable)
     .where(and(
-      ilike(merchantMappingsTable.keyword, keyword),
+      ilike(merchantMappingsTable.keyword, escapeLike(keyword)),
       eq(merchantMappingsTable.category, category),
     ))
     .limit(1);
@@ -145,7 +146,7 @@ async function getMerchantDefaults(description: string): Promise<MerchantDefault
       category: transactionsTable.category,
     })
     .from(transactionsTable)
-    .where(ilike(transactionsTable.description, `%${description}%`))
+    .where(ilike(transactionsTable.description, likeContains(description)))
     .orderBy(desc(transactionsTable.createdAt))
     .limit(20);
 
@@ -262,7 +263,7 @@ async function detectSpendingAnomaly(
       .select({ amount: transactionsTable.amount })
       .from(transactionsTable)
       .where(and(
-        ilike(transactionsTable.description, `%${description}%`),
+        ilike(transactionsTable.description, likeContains(description)),
         sql`${transactionsTable.type} != 'Transfer'`,
       ))
       .orderBy(desc(transactionsTable.createdAt))
@@ -428,7 +429,7 @@ async function detectDuplicate(
   ];
 
   if (description) {
-    conditions.push(ilike(transactionsTable.description, `%${description}%`));
+    conditions.push(ilike(transactionsTable.description, likeContains(description)));
   } else if (category) {
     conditions.push(eq(transactionsTable.category, category));
   } else {
@@ -469,7 +470,7 @@ async function checkAmbiguousMerchant(
       })
       .from(transactionsTable)
       .where(and(
-        ilike(transactionsTable.description, `%${description}%`),
+        ilike(transactionsTable.description, likeContains(description)),
         sql`${transactionsTable.type} != 'Transfer'`,
       ))
       .groupBy(transactionsTable.category)
@@ -518,7 +519,7 @@ async function detectRecurringPattern(
     .select()
     .from(transactionsTable)
     .where(and(
-      ilike(transactionsTable.description, `%${description}%`),
+      ilike(transactionsTable.description, likeContains(description)),
       sql`${transactionsTable.type} != 'Transfer'`,
     ))
     .orderBy(desc(transactionsTable.date))
@@ -780,7 +781,7 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
       const [catRow] = await db
         .select({ name: categoriesTable.name })
         .from(categoriesTable)
-        .where(ilike(categoriesTable.name, `%${searchCat}%`))
+        .where(ilike(categoriesTable.name, likeContains(searchCat)))
         .limit(1);
 
       const catName = catRow?.name || searchCat;
@@ -794,7 +795,7 @@ async function handleQuery(intent: QueryIntent, userAccounts: { id: number; name
         })
         .from(transactionsTable)
         .where(and(
-          ilike(transactionsTable.category, catName),
+          ilike(transactionsTable.category, escapeLike(catName)),
           gte(transactionsTable.date, startDate),
           lte(transactionsTable.date, endDate),
           sql`${transactionsTable.type} = 'Expense'`,

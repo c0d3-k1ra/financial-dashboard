@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, desc, ilike, and, sql } from "drizzle-orm";
 import { db, transactionsTable, accountsTable } from "@workspace/db";
+import { likeContains } from "../lib/escape-like";
 import {
   ListTransactionsQueryParams,
   CreateTransactionBody,
@@ -41,7 +42,7 @@ router.get("/transactions", async (req, res) => {
       conditions.push(eq(transactionsTable.category, params.category));
     }
     if (params.search) {
-      conditions.push(ilike(transactionsTable.description, `%${params.search}%`));
+      conditions.push(ilike(transactionsTable.description, likeContains(params.search)));
     }
     if (params.accountId) {
       conditions.push(eq(transactionsTable.accountId, Number(params.accountId)));
