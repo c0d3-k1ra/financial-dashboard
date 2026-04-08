@@ -5,8 +5,7 @@ import { usePrivacy } from "@/lib/privacy-context";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-error-state";
-import { CreditCard } from "lucide-react";
-import { ChevronDown } from "lucide-react";
+import { CreditCard, ChevronDown } from "lucide-react";
 import {
   PieChart, Pie, Cell,
   Tooltip as RechartsTooltip, ResponsiveContainer,

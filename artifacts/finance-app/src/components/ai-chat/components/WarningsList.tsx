@@ -77,7 +77,7 @@ export function WarningsList({ warnings }: WarningsListProps) {
                     Possible Duplicate
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    ₹{Number(warning.existingAmount).toLocaleString()} — "{warning.existingDescription}" on {warning.existingDate}
+                    ₹{Number(warning.existingAmount).toLocaleString()} — &ldquo;{warning.existingDescription}&rdquo; on {warning.existingDate}
                   </p>
                 </div>
               </div>

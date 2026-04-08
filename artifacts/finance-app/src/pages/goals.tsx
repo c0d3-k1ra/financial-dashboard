@@ -425,7 +425,7 @@ export default function Goals() {
         ) : (
           <Card className="glass-card rounded-xl">
             <CardContent className="py-12 text-center text-muted-foreground font-mono text-sm">
-              No goals created yet. Click "Create Goal" to get started.
+              No goals created yet. Click &ldquo;Create Goal&rdquo; to get started.
             </CardContent>
           </Card>
         )}

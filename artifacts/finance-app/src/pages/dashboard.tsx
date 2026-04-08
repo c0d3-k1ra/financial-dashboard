@@ -30,7 +30,7 @@ import {
   getCanUndoSurplusQueryKey,
   useUndoSurplusDistribution,
 } from "@workspace/api-client-react";
-import { formatCurrency } from "@/lib/constants";
+import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { SensitiveValue } from "@/components/sensitive-value";
 
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,6 @@ import TransferModal from "@/components/transfer-modal";
 import SurplusDistributeModal from "@/components/surplus-distribute-modal";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { getApiErrorMessage } from "@/lib/constants";
 import { useLocation } from "wouter";
 
 import { CHART_COLORS, formatDateGroup, DashboardModal, computeCategoryTrendData } from "@/components/dashboard/chart-helpers";
@@ -424,7 +423,7 @@ export default function Dashboard() {
             </div>
           )}
           <div className="text-xs font-mono p-2 rounded-md bg-secondary/30 text-muted-foreground">
-            The next month's starting balance entry will also be removed.
+            The next month&apos;s starting balance entry will also be removed.
           </div>
         </div>
         <DialogFooter className="gap-2 sm:gap-0">

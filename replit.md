@@ -127,4 +127,4 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **AI Integration:** Anthropic Claude (via `integrations-anthropic-ai` library)
 *   **Rate Limiting:** express-rate-limit (in-memory, 20 req/min for AI endpoints, 200 req/min global)
 *   **Package Manager:** pnpm
-*   **Linting:** ESLint 9 (flat config) with typescript-eslint, eslint-plugin-react-hooks, eslint-config-prettier
+*   **Linting:** ESLint 9 (flat config) with typescript-eslint, eslint-plugin-react, eslint-plugin-react-hooks, eslint-plugin-jsx-a11y, eslint-plugin-import-x, eslint-config-prettier. Rules: no-explicit-any (error), no-console (warn, allow warn/error), eqeqeq, no-eval, consistent-type-imports, import ordering. React compiler rules (purity, static-components, set-state-in-effect, no-nested-components) disabled due to existing codebase patterns. A11y rules are warn-level for label association, autofocus, and static element interactions.

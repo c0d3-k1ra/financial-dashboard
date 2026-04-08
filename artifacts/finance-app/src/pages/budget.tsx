@@ -793,7 +793,7 @@ export default function Budget() {
       </div>
 
       {budgetedRows.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">No budget categories configured. Use the "Add category" buttons above to get started.</div>
+        <div className="text-center py-12 text-muted-foreground">No budget categories configured. Use the &ldquo;Add category&rdquo; buttons above to get started.</div>
       )}
 
     </div>
