@@ -18,7 +18,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **Frontend:** React, Vite, Tailwind CSS, shadcn/ui, Recharts
 *   **Build Tools:** esbuild (API server), Vite (frontend)
 *   **API Generation:** Orval from OpenAPI spec
-*   **Testing:** Vitest, Supertest
+*   **Testing:** Vitest, Supertest (backend), Vitest + React Testing Library + MSW (frontend)
 
 **Monorepo Structure:**
 *   `artifacts/`: Contains deployable applications (`api-server`, `finance-app`).
