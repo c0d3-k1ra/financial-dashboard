@@ -206,4 +206,25 @@ export async function runStartupMigrations() {
   await db.execute(sql`
     ALTER TABLE "accounts" ALTER COLUMN "created_at" SET DEFAULT now()
   `);
+
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "transactions_date_idx"
+    ON "transactions" ("date")
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "transactions_type_idx"
+    ON "transactions" ("type")
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "transactions_category_idx"
+    ON "transactions" ("category")
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "transactions_account_id_idx"
+    ON "transactions" ("account_id")
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS "transactions_to_account_id_idx"
+    ON "transactions" ("to_account_id")
+  `);
 }
