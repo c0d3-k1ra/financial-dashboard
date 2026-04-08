@@ -7,8 +7,6 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import { SettingsProvider } from "@/lib/settings-provider";
 import { AiParseProvider } from "@/lib/ai-parse-context";
 import { ThemeProvider } from "@/lib/theme-context";
-import { useAuth } from "@workspace/replit-auth-web";
-import { LoginScreen } from "@/components/login-screen";
 import Dashboard from "@/pages/dashboard";
 import Transactions from "@/pages/transactions";
 import Budget from "@/pages/budget";
@@ -44,38 +42,18 @@ function Router() {
   );
 }
 
-function AuthGate() {
-  const { isLoading, isAuthenticated, login } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return <LoginScreen onLogin={login} />;
-  }
-
-  return (
-    <SettingsProvider>
-      <AiParseProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-      </AiParseProvider>
-    </SettingsProvider>
-  );
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
-          <AuthGate />
+          <SettingsProvider>
+            <AiParseProvider>
+              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+                <Router />
+              </WouterRouter>
+            </AiParseProvider>
+          </SettingsProvider>
           <Toaster />
         </TooltipProvider>
       </ThemeProvider>

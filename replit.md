@@ -23,7 +23,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 
 **Monorepo Structure:**
 *   `artifacts/`: Contains deployable applications (`api-server`, `finance-app`).
-*   `lib/`: Houses shared libraries (`api-spec`, `api-client-react`, `api-zod`, `db`, `integrations-anthropic-ai`, `replit-auth-web`).
+*   `lib/`: Houses shared libraries (`api-spec`, `api-client-react`, `api-zod`, `db`, `integrations-anthropic-ai`).
 *   `scripts/`: Utility scripts.
 
 **Frontend (`artifacts/finance-app`):**
@@ -55,12 +55,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
     *   Custom billing cycle: 25th of previous month to 24th of current month.
 
 **Authentication:**
-*   Replit Auth (OpenID Connect with PKCE) provides user identity and session management.
-*   `lib/replit-auth-web`: Browser auth package with `useAuth()` hook for login/logout/user state.
-*   Backend: `authMiddleware` loads user from session on every request; `requireAuth` middleware in routes/index.ts protects all `/api` routes except `/api/healthz` and `/api/auth/*`.
-*   Sessions stored in PostgreSQL `sessions` table; users in `users` table.
-*   Frontend shows a login screen for unauthenticated users; API returns 401 for unauthenticated requests.
-*   `credentials: "include"` in customFetch ensures session cookies are sent with every API request.
+*   Authentication has been removed. The deployment is private (owner-only access), so no login gate or session management is needed. The app loads directly without any auth check. All API endpoints are open (no session/auth required).
 
 **Database (`lib/db`):**
 *   PostgreSQL database managed with Drizzle ORM.

@@ -1,8 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
-import { authMiddleware } from "./middlewares/authMiddleware";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { globalRateLimiter } from "./lib/rate-limit";
@@ -46,11 +44,9 @@ app.use(
   }),
 );
 app.use(cors(corsOptions));
-app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(globalRateLimiter);
-app.use(authMiddleware);
 
 app.use("/api", router);
 
