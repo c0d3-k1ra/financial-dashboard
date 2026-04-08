@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   useListAccounts,
   getListAccountsQueryKey,
@@ -56,6 +56,31 @@ const formSchema = z.object({
 }, { message: "Original loan amount is required for loan accounts", path: ["originalLoanAmount"] });
 
 type FormValues = z.infer<typeof formSchema>;
+
+function calculateEmi(principal: number, annualRate: number, tenureMonths: number): number {
+  if (principal <= 0 || tenureMonths <= 0) return 0;
+  if (annualRate <= 0) return principal / tenureMonths;
+  const r = annualRate / 100 / 12;
+  const emi = principal * r * Math.pow(1 + r, tenureMonths) / (Math.pow(1 + r, tenureMonths) - 1);
+  return Math.round(emi * 100) / 100;
+}
+
+function calculateEmisPaid(loanStartDate: string): number {
+  if (!loanStartDate) return 0;
+  const start = new Date(loanStartDate);
+  const now = new Date();
+  const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  return Math.max(0, months);
+}
+
+function calculateOutstandingPrincipal(principal: number, annualRate: number, tenureMonths: number, emisPaid: number): number {
+  if (principal <= 0 || tenureMonths <= 0 || emisPaid <= 0) return principal;
+  if (emisPaid >= tenureMonths) return 0;
+  if (annualRate <= 0) return Math.max(0, principal - (principal / tenureMonths) * emisPaid);
+  const r = annualRate / 100 / 12;
+  const outstanding = principal * Math.pow(1 + r, emisPaid) - (principal * r * Math.pow(1 + r, tenureMonths) / (Math.pow(1 + r, tenureMonths) - 1)) * (Math.pow(1 + r, emisPaid) - 1) / r;
+  return Math.max(0, Math.round(outstanding * 100) / 100);
+}
 
 export default function Accounts() {
   const { toast } = useToast();
@@ -186,6 +211,30 @@ export default function Accounts() {
   });
 
   const watchType = form.watch("type");
+  const watchOriginalAmount = form.watch("originalLoanAmount");
+  const watchInterestRate = form.watch("interestRate");
+  const watchTenure = form.watch("loanTenure");
+  const watchLoanStartDate = form.watch("loanStartDate");
+
+  useEffect(() => {
+    if (watchType !== "loan") return;
+    const principal = Number(watchOriginalAmount) || 0;
+    const rate = Number(watchInterestRate) || 0;
+    const tenure = Number(watchTenure) || 0;
+    const startDate = watchLoanStartDate || "";
+
+    if (principal > 0 && tenure > 0) {
+      const emi = calculateEmi(principal, rate, tenure);
+      form.setValue("emiAmount", String(emi));
+
+      if (startDate) {
+        const paid = calculateEmisPaid(startDate);
+        form.setValue("emisPaid", String(paid));
+        const outstanding = calculateOutstandingPrincipal(principal, rate, tenure, paid);
+        form.setValue("currentBalance", String(outstanding));
+      }
+    }
+  }, [watchType, watchOriginalAmount, watchInterestRate, watchTenure, watchLoanStartDate]);
 
   const bankAccounts = accounts?.filter((a) => a.type === "bank") ?? [];
   const ccAccounts = accounts?.filter((a) => a.type === "credit_card") ?? [];
@@ -354,12 +403,13 @@ export default function Accounts() {
                       </FormItem>
                     )}
                   />
+                  {watchType !== "loan" && (
                   <FormField
                     control={form.control}
                     name="currentBalance"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{watchType === "loan" ? "Outstanding Principal" : "Current Balance"}</FormLabel>
+                        <FormLabel>Current Balance</FormLabel>
                         <FormControl>
                           <div className="relative">
                             <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
@@ -370,6 +420,7 @@ export default function Accounts() {
                       </FormItem>
                     )}
                   />
+                  )}
                   {watchType === "bank" && (
                     <FormField
                       control={form.control}
@@ -467,35 +518,6 @@ export default function Accounts() {
                       />
                       <FormField
                         control={form.control}
-                        name="emiAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Monthly EMI</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                                <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="emiDay"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>EMI Debit Day (1-31)</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
                         name="interestRate"
                         render={({ field }) => (
                           <FormItem>
@@ -535,12 +557,12 @@ export default function Accounts() {
                       />
                       <FormField
                         control={form.control}
-                        name="emisPaid"
+                        name="emiDay"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>EMIs Already Paid</FormLabel>
+                            <FormLabel>EMI Debit Day (1-31)</FormLabel>
                             <FormControl>
-                              <Input type="number" min="0" step="1" className="font-mono" placeholder="0" {...field} />
+                              <Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -570,6 +592,25 @@ export default function Accounts() {
                           </FormItem>
                         )}
                       />
+                      {Number(watchOriginalAmount) > 0 && Number(watchTenure) > 0 && (
+                        <div className="rounded-lg border border-[var(--divider-color)] bg-[var(--glass-bg)] p-4 space-y-3">
+                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Auto-Calculated</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-[11px] text-muted-foreground/60">Monthly EMI</p>
+                              <p className="text-sm font-bold font-mono text-primary">{formatCurrency(Number(form.getValues("emiAmount")) || 0)}</p>
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted-foreground/60">EMIs Paid</p>
+                              <p className="text-sm font-bold font-mono">{form.getValues("emisPaid") || "0"} / {watchTenure}</p>
+                            </div>
+                            <div className="col-span-2">
+                              <p className="text-[11px] text-muted-foreground/60">Outstanding Principal</p>
+                              <p className="text-sm font-bold font-mono text-amber-500">{formatCurrency(Number(form.getValues("currentBalance")) || 0)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                   <DialogFooter className="pt-4">
@@ -1219,7 +1260,7 @@ export default function Accounts() {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
               <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g. HDFC Savings" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="bank">Bank Account</SelectItem><SelectItem value="credit_card">Credit Card</SelectItem><SelectItem value="loan">Loan</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="currentBalance" render={({ field }) => (<FormItem><FormLabel>{watchType === "loan" ? "Outstanding Principal" : "Current Balance"}</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
+              {watchType !== "loan" && <FormField control={form.control} name="currentBalance" render={({ field }) => (<FormItem><FormLabel>Current Balance</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />}
               {watchType === "bank" && (
                 <FormField control={form.control} name="useInSurplus" render={({ field }) => (
                   <FormItem className="flex items-center gap-2 space-y-0">
@@ -1238,13 +1279,30 @@ export default function Accounts() {
               {watchType === "loan" && (
                 <>
                   <FormField control={form.control} name="originalLoanAmount" render={({ field }) => (<FormItem><FormLabel>Original Loan Amount</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="e.g. 2000000" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="emiAmount" render={({ field }) => (<FormItem><FormLabel>Monthly EMI</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="emiDay" render={({ field }) => (<FormItem><FormLabel>EMI Debit Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (% p.a.)</FormLabel><FormControl><Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="loanTenure" render={({ field }) => (<FormItem><FormLabel>Tenure (months)</FormLabel><FormControl><Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="loanStartDate" render={({ field }) => (<FormItem><FormLabel>Loan Start Date</FormLabel><FormControl><Input type="date" className="font-mono" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="emisPaid" render={({ field }) => (<FormItem><FormLabel>EMIs Already Paid</FormLabel><FormControl><Input type="number" min="0" step="1" className="font-mono" placeholder="0" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="emiDay" render={({ field }) => (<FormItem><FormLabel>EMI Debit Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
                   <FormField control={form.control} name="linkedAccountId" render={({ field }) => (<FormItem><FormLabel>EMI Debit Account</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl><SelectContent>{bankAccounts.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
+                  {Number(watchOriginalAmount) > 0 && Number(watchTenure) > 0 && (
+                    <div className="rounded-lg border border-[var(--divider-color)] bg-[var(--glass-bg)] p-4 space-y-3">
+                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Auto-Calculated</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[11px] text-muted-foreground/60">Monthly EMI</p>
+                          <p className="text-sm font-bold font-mono text-primary">{formatCurrency(Number(form.getValues("emiAmount")) || 0)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] text-muted-foreground/60">EMIs Paid</p>
+                          <p className="text-sm font-bold font-mono">{form.getValues("emisPaid") || "0"} / {watchTenure}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-[11px] text-muted-foreground/60">Outstanding Principal</p>
+                          <p className="text-sm font-bold font-mono text-amber-500">{formatCurrency(Number(form.getValues("currentBalance")) || 0)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
               <DialogFooter className="pt-4">
