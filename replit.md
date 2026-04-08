@@ -74,7 +74,8 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **Typography:** Inter for headings, JetBrains Mono for monetary values.
 *   **Charts:** Monotone curves with linear gradient fills, matte tooltips (light) / glass-3 tooltips (dark), and subtle gridlines.
 *   **Accessibility:** Fallback for `backdrop-filter` and `prefers-reduced-motion` support.
-*   **Mobile-First Experience:**
+*   **Privacy Shield:** Global eye toggle in header hides/reveals all sensitive monetary values app-wide using frosted glass blur (`filter: blur(10px)`). State persisted in localStorage (key: `surplusengine-privacy-shield`), defaults to hidden on load. Implemented via `PrivacyProvider` context wrapping the app, `SensitiveValue` wrapper component (supports `as="span"|"div"`), and `PrivacyToggle` button. Applied across Dashboard, Transactions, Budget, Goals, and Accounts pages. Respects `prefers-reduced-motion`.
+    *   **Mobile-First Experience:**
     *   Fixed bottom tab bar (5 tabs: Dashboard, Transactions, Budget, Goals, Accounts) with glass styling and safe-area padding. Settings gear moved to header on mobile.
     *   AI Assistant renders as full-screen bottom sheet (~95dvh) with swipe-down-to-dismiss on mobile; floating panel on desktop.
     *   Transaction filters collapse behind a single "Filters" button on mobile with active filter count badge; full filter bar on desktop.

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
   useGetDashboardSummary,
@@ -32,6 +32,8 @@ import {
 } from "@workspace/api-client-react";
 import { formatCurrency, formatDate } from "@/lib/constants";
 import { getCategoryIcon } from "@/lib/category-icons";
+import { SensitiveValue } from "@/components/sensitive-value";
+import { usePrivacy } from "@/lib/privacy-context";
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -98,9 +100,9 @@ function GoalProgressRing({ goals }: { goals: Array<{ targetAmount: string | num
           <span className="text-[10px] text-muted-foreground font-mono">GOALS</span>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground tabular-nums mt-2">
+      <SensitiveValue as="div" className="text-xs text-muted-foreground tabular-nums mt-2">
         {formatCurrency(totalCurrent)} / {formatCurrency(totalTarget)}
-      </p>
+      </SensitiveValue>
     </div>
   );
 }
@@ -192,6 +194,37 @@ export default function Dashboard() {
   const { toast } = useToast();
   const chartTheme = useChartTheme();
   const isMobile = useIsMobile();
+  const { isHidden: privacyHidden } = usePrivacy();
+
+  const PrivacyYAxisTick = useCallback(({ x, y, payload }: { x: number; y: number; payload: { value: number } }) => (
+    <text
+      x={x}
+      y={y}
+      textAnchor="end"
+      fill={chartTheme.tickFill}
+      fontSize={12}
+      fontFamily="var(--font-mono)"
+      style={privacyHidden ? { filter: "blur(8px)", userSelect: "none" } : undefined}
+    >
+      {formatAxisValue(payload.value)}
+    </text>
+  ), [privacyHidden, chartTheme.tickFill]);
+
+  const PrivacyYAxisTick11 = useCallback(({ x, y, payload }: { x: number; y: number; payload: { value: number } }) => (
+    <text
+      x={x}
+      y={y}
+      textAnchor="end"
+      fill={chartTheme.tickFill}
+      fontSize={11}
+      fontFamily="var(--font-mono)"
+      style={privacyHidden ? { filter: "blur(8px)", userSelect: "none" } : undefined}
+    >
+      {formatAxisValue(payload.value)}
+    </text>
+  ), [privacyHidden, chartTheme.tickFill]);
+
+  const privacyTooltipFormatter = (value: number) => formatCurrency(value);
   const [currentMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -496,17 +529,17 @@ export default function Dashboard() {
             ) : (
               <>
                 <div>
-                  <div className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground dark-text-primary dark-heading-shadow">
+                  <SensitiveValue as="div" className="text-4xl font-extrabold tabular-nums tracking-tight text-foreground dark-text-primary dark-heading-shadow">
                     {formatCurrency(summary?.netLiquidity || 0)}
-                  </div>
-                  <div className={`flex items-center gap-1.5 mt-2 text-sm tabular-nums ${liquidityHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
+                  </SensitiveValue>
+                  <SensitiveValue as="div" className={`flex items-center gap-1.5 mt-2 text-sm tabular-nums ${liquidityHealthy ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}`}>
                     <Droplets className="w-3.5 h-3.5" />
                     Covers {liquidityRatio.toFixed(1)}x monthly expenses
-                  </div>
+                  </SensitiveValue>
                 </div>
               </>
             )}
-            <div className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
+            <SensitiveValue as="div" className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Wallet className="w-3.5 h-3.5 text-emerald-500" />
                 {formatCurrency(summary?.bankBalance || 0)}
@@ -521,7 +554,7 @@ export default function Dashboard() {
                   -{formatCurrency(summary?.totalEmiDue || 0)}
                 </span>
               )}
-            </div>
+            </SensitiveValue>
           </CardContent>
         </Card>
 
@@ -535,17 +568,17 @@ export default function Dashboard() {
               <Skeleton className="h-10 w-40" />
             ) : (
               <div>
-                <div className={`text-4xl font-bold tabular-nums tracking-tight dark-heading-shadow ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+                <SensitiveValue as="div" className={`text-4xl font-bold tabular-nums tracking-tight dark-heading-shadow ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                   {formatCurrency(Math.abs(netWorth))}
-                </div>
-                <div className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
+                </SensitiveValue>
+                <SensitiveValue as="div" className="text-sm text-muted-foreground mt-2 flex items-center gap-1.5">
                   <span className={`tabular-nums font-medium ${debtToAssetRatio > 80 ? "text-destructive" : debtToAssetRatio > 50 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                     Debt-to-asset ratio: {debtToAssetRatio.toFixed(1)}%
                   </span>
-                </div>
+                </SensitiveValue>
               </div>
             )}
-            <div className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
+            <SensitiveValue as="div" className="flex flex-wrap gap-4 mt-3 text-sm tabular-nums text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <Wallet className="w-3.5 h-3.5 text-emerald-500" />
                 {formatCurrency(totalBank)}
@@ -560,7 +593,7 @@ export default function Dashboard() {
                   -{formatCurrency(totalLoanOutstanding)}
                 </span>
               )}
-            </div>
+            </SensitiveValue>
           </CardContent>
         </Card>
 
@@ -594,8 +627,8 @@ export default function Dashboard() {
               <BarChart data={waterfallData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
-                <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
+                <YAxis axisLine={false} tickLine={false} tick={PrivacyYAxisTick} />
+                <RechartsTooltip contentStyle={{ ...chartTheme.tooltip, ...(privacyHidden ? { filter: "blur(8px)" } : {}) }} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={privacyTooltipFormatter} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                   {waterfallData.map((entry, index) => (
                     <Cell key={index} fill={entry.fill} />
@@ -624,10 +657,10 @@ export default function Dashboard() {
             ) : (
               <>
                 <div className="flex justify-between items-end mb-2">
-                  <div className="tabular-nums text-2xl font-bold">{summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%</div>
-                  <div className="text-sm tabular-nums text-muted-foreground">
+                  <SensitiveValue as="div" className="tabular-nums text-2xl font-bold">{summary?.burnRate ? summary.burnRate.toFixed(1) : 0}%</SensitiveValue>
+                  <SensitiveValue as="div" className="text-sm tabular-nums text-muted-foreground">
                     {formatCurrency(summary?.actualExpenses || 0)} / {formatCurrency(summary?.plannedExpenses || 1)}
-                  </div>
+                  </SensitiveValue>
                 </div>
                 <Progress
                   value={Math.min(summary?.burnRate || 0, 100)}
@@ -689,10 +722,10 @@ export default function Dashboard() {
                         ))}
                       </Pie>
                       <RechartsTooltip
-                        contentStyle={chartTheme.tooltip}
+                        contentStyle={{ ...chartTheme.tooltip, ...(privacyHidden ? { filter: "blur(8px)" } : {}) }}
                         labelStyle={chartTheme.label}
                         itemStyle={chartTheme.item}
-                        formatter={(value: number) => formatCurrency(value)}
+                        formatter={privacyTooltipFormatter}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -729,7 +762,7 @@ export default function Dashboard() {
                                 </div>
                               </td>
                               <td className="text-right py-2 px-2 tabular-nums text-xs whitespace-nowrap">
-                                {formatCurrency(entry.value)}
+                                <SensitiveValue>{formatCurrency(entry.value)}</SensitiveValue>
                               </td>
                               <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground whitespace-nowrap">
                                 {pct}%
@@ -742,7 +775,7 @@ export default function Dashboard() {
                         <tr className="border-t border-border/50">
                           <td className="py-2 pr-2 font-medium">Total</td>
                           <td className="text-right py-2 px-2 tabular-nums text-xs font-bold whitespace-nowrap">
-                            {formatCurrency(pieTotal)}
+                            <SensitiveValue>{formatCurrency(pieTotal)}</SensitiveValue>
                           </td>
                           <td className="text-right py-2 pl-2 tabular-nums text-xs text-muted-foreground">100%</td>
                         </tr>
@@ -798,11 +831,11 @@ export default function Dashboard() {
                                 <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-info">{cc.sharedLimitGroup}</span>
                               )}
                             </p>
-                            <p className="text-lg font-bold tabular-nums mt-0.5">
+                            <SensitiveValue as="div" className="text-lg font-bold tabular-nums mt-0.5">
                               {formatCurrency(cc.outstanding)}
-                            </p>
+                            </SensitiveValue>
                             {cc.remainingLimit != null && (
-                              <p className={`text-xs tabular-nums mt-0.5 ${
+                              <SensitiveValue as="div" className={`text-xs tabular-nums mt-0.5 ${
                                 cc.creditLimit ? (
                                   Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.5 ? "text-emerald-500" :
                                   Number(cc.remainingLimit) / Number(cc.creditLimit) > 0.2 ? "text-yellow-500" :
@@ -810,7 +843,7 @@ export default function Dashboard() {
                                 ) : "text-muted-foreground"
                               }`}>
                                 Available: {formatCurrency(cc.remainingLimit)}
-                              </p>
+                              </SensitiveValue>
                             )}
                           </div>
                         </div>
@@ -842,13 +875,13 @@ export default function Dashboard() {
               <CardDescription>Total loan principal remaining</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold tabular-nums text-amber-500">
+              <SensitiveValue as="div" className="text-3xl font-bold tabular-nums text-amber-500">
                 {formatCurrency(summary?.totalLoanOutstanding || 0)}
-              </div>
+              </SensitiveValue>
               {Number(summary?.totalEmiDue || 0) > 0 && (
-                <p className="text-sm tabular-nums text-muted-foreground mt-2">
+                <SensitiveValue as="div" className="text-sm tabular-nums text-muted-foreground mt-2">
                   Monthly EMI burden: {formatCurrency(summary?.totalEmiDue || 0)}
-                </p>
+                </SensitiveValue>
               )}
               {loanAccounts.length > 0 && (
                 <div className="mt-4 space-y-3">
@@ -867,9 +900,9 @@ export default function Dashboard() {
                       <div key={loan.id} className="p-3 rounded-md bg-secondary/30 border border-border/50">
                         <div className="flex justify-between items-center mb-1.5">
                           <span className="text-sm font-medium">{loan.name}</span>
-                          <span className="text-xs tabular-nums text-muted-foreground">
+                          <SensitiveValue className="text-xs tabular-nums text-muted-foreground">
                             {emi > 0 ? `${formatCurrency(emi)}/mo` : "—"}
-                          </span>
+                          </SensitiveValue>
                         </div>
                         {emi > 0 && isAmortizing && (
                           <>
@@ -917,9 +950,9 @@ export default function Dashboard() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="text-sm font-medium">{loan.name}</p>
-                          <p className="text-lg font-bold tabular-nums mt-0.5">
+                          <SensitiveValue as="div" className="text-lg font-bold tabular-nums mt-0.5">
                             {loan.emiAmount ? formatCurrency(loan.emiAmount) : "—"}/mo
-                          </p>
+                          </SensitiveValue>
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {loan.emiDay && (
@@ -932,9 +965,9 @@ export default function Dashboard() {
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground tabular-nums mt-1">
+                      <SensitiveValue as="div" className="text-xs text-muted-foreground tabular-nums mt-1">
                         Outstanding: {formatCurrency(loan.currentBalance)}
-                      </p>
+                      </SensitiveValue>
                     </div>
                   ))}
                 </div>
@@ -993,13 +1026,12 @@ export default function Dashboard() {
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }}
-                    tickFormatter={formatAxisValue}
+                    tick={PrivacyYAxisTick}
                     ticks={niceYAxisTicks(catTrendYMax)}
                     domain={[0, "auto"]}
                     allowDecimals={false}
                   />
-                  <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={{ ...chartTheme.tooltip, ...(privacyHidden ? { filter: "blur(8px)" } : {}) }} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={privacyTooltipFormatter} />
                   <Legend content={renderCategoryLegend} />
                   {visibleCategories.map((cat, i) => {
                     const colorIdx = cat === "Others" ? CHART_COLORS.length - 1 : allCategoryNames.indexOf(cat);
@@ -1048,8 +1080,8 @@ export default function Dashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chartTheme.gridStroke} />
                   <XAxis dataKey="cycle" axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 9, fontFamily: "var(--font-mono)" }} angle={-20} textAnchor="end" height={50} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: chartTheme.tickFill, fontSize: 11, fontFamily: "var(--font-mono)" }} tickFormatter={formatAxisValue} />
-                  <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
+                  <YAxis axisLine={false} tickLine={false} tick={PrivacyYAxisTick11} />
+                  <RechartsTooltip contentStyle={{ ...chartTheme.tooltip, ...(privacyHidden ? { filter: "blur(8px)" } : {}) }} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={privacyTooltipFormatter} />
                   <Area type="monotone" dataKey="total" name="CC Spend" stroke="hsl(var(--chart-4))" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 5 }} fillOpacity={1} fill="url(#gradCcSpend)" />
                 </AreaChart>
               </ResponsiveContainer>
@@ -1090,13 +1122,12 @@ export default function Dashboard() {
                   <YAxis
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fill: chartTheme.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }}
-                    tickFormatter={formatAxisValue}
+                    tick={PrivacyYAxisTick}
                     ticks={niceYAxisTicks(incExpYMax)}
                     domain={[0, "auto"]}
                     allowDecimals={false}
                   />
-                  <RechartsTooltip contentStyle={chartTheme.tooltip} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={(value: number) => formatCurrency(value)} />
+                  <RechartsTooltip contentStyle={{ ...chartTheme.tooltip, ...(privacyHidden ? { filter: "blur(8px)" } : {}) }} labelStyle={chartTheme.label} itemStyle={chartTheme.item} formatter={privacyTooltipFormatter} />
                   <Legend wrapperStyle={{ fontFamily: "var(--font-mono)", fontSize: "12px", paddingTop: "10px" }} />
                   {crossoverMonths.map((month, i) => (
                     <ReferenceLine
@@ -1196,10 +1227,10 @@ export default function Dashboard() {
                               <span className="text-xs text-muted-foreground font-mono truncate max-w-[100px]">{tx.category}</span>
                             </div>
                           </div>
-                          <span className={`tabular-nums text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
+                          <SensitiveValue className={`tabular-nums text-sm font-bold ${tx.type === "Income" ? "text-emerald-500" : "text-foreground"}`}>
                             {tx.type === "Income" ? "+" : "-"}
                             {formatCurrency(tx.amount)}
-                          </span>
+                          </SensitiveValue>
                         </div>
                       );
                     })}
@@ -1264,7 +1295,7 @@ export default function Dashboard() {
               {canUndoData.allocations.map((a, i) => (
                 <div key={i} className="flex justify-between items-center p-2 rounded-md bg-secondary/30 text-sm tabular-nums">
                   <span>{a.goalName}</span>
-                  <span className="text-destructive">-{formatCurrency(a.amount)}</span>
+                  <SensitiveValue className="text-destructive">-{formatCurrency(a.amount)}</SensitiveValue>
                 </div>
               ))}
             </div>

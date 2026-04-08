@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { IndianRupee, LayoutDashboard, List, PieChart, ShieldCheck, Landmark, Settings } from "lucide-react";
 import { AiParseBubble } from "@/components/ai-parse-bubble";
 import { useTheme } from "@/lib/theme-context";
+import { PrivacyToggle } from "@/components/privacy-toggle";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -69,13 +70,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <Link
-            href="/settings"
-            className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            data-testid="nav-mobile-settings"
-          >
-            <Settings className="w-5 h-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <PrivacyToggle />
+            <Link
+              href="/settings"
+              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              data-testid="nav-mobile-settings"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
+          </div>
         </div>
       </header>
 

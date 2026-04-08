@@ -11,6 +11,7 @@ import {
 } from "@workspace/api-client-react";
 import type { BudgetAnalysisRow } from "@workspace/api-client-react";
 import { formatCurrency } from "@/lib/constants";
+import { SensitiveValue } from "@/components/sensitive-value";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -233,7 +234,7 @@ function CategoryRow({
       <div className="grid grid-cols-3 gap-2 text-xs mt-2">
         <div>
           <span className="text-muted-foreground block mb-0.5">Planned</span>
-          <div className="flex items-center gap-1">
+          <SensitiveValue as="div" className="flex items-center gap-1">
             <div className="relative flex-1">
               <span className="absolute left-1.5 top-1.5 text-muted-foreground text-xs font-mono">₹</span>
               <Input
@@ -262,18 +263,18 @@ function CategoryRow({
                 <Save className="w-3 h-3" />
               </Button>
             )}
-          </div>
+          </SensitiveValue>
         </div>
         <div>
           <span className="text-muted-foreground block mb-0.5">Actual</span>
-          <span className="font-mono font-medium">{formatCurrency(row.actual)}</span>
+          <SensitiveValue className="font-mono font-medium">{formatCurrency(row.actual)}</SensitiveValue>
         </div>
         <div>
           <span className="text-muted-foreground block mb-0.5">Difference</span>
-          <span className={`font-mono font-medium ${diffColorClass}`}>
+          <SensitiveValue className={`font-mono font-medium ${diffColorClass}`}>
             {row.overBudget && <AlertCircle className="w-3 h-3 inline mr-0.5" />}
             {formatCurrency(row.difference)}
-          </span>
+          </SensitiveValue>
         </div>
       </div>
     </div>
@@ -361,9 +362,9 @@ function TopOverspendCallout({ rows }: { rows: BudgetAnalysisRow[] }) {
         {overspentRows.map(row => (
           <div key={row.category} className="flex items-center justify-between text-xs">
             <span className="text-muted-foreground">{row.category}</span>
-            <span className="font-mono text-destructive font-medium">
+            <SensitiveValue className="font-mono text-destructive font-medium">
               {formatCurrency(Math.abs(Number(row.difference)))} over
-            </span>
+            </SensitiveValue>
           </div>
         ))}
       </div>
@@ -642,10 +643,10 @@ export default function Budget() {
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Overall</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-lg font-bold font-mono tracking-tight ${isOverTotal ? 'text-destructive' : 'text-foreground'}`}>
+            <SensitiveValue as="div" className={`text-lg font-bold font-mono tracking-tight ${isOverTotal ? 'text-destructive' : 'text-foreground'}`}>
               {formatCurrency(totalActual)}
-            </div>
-            <div className="text-xs text-muted-foreground font-mono">of {formatCurrency(totalPlanned)}</div>
+            </SensitiveValue>
+            <SensitiveValue as="div" className="text-xs text-muted-foreground font-mono">of {formatCurrency(totalPlanned)}</SensitiveValue>
             <MiniProgressBar actual={totalActual} planned={totalPlanned} />
           </CardContent>
         </Card>
@@ -655,9 +656,9 @@ export default function Budget() {
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Net Difference</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-lg font-bold font-mono tracking-tight ${isOverTotal ? 'text-destructive' : 'text-emerald-500'}`}>
+            <SensitiveValue as="div" className={`text-lg font-bold font-mono tracking-tight ${isOverTotal ? 'text-destructive' : 'text-emerald-500'}`}>
               {isOverTotal ? "-" : "+"}{formatCurrency(Math.abs(totalPlanned - totalActual))}
-            </div>
+            </SensitiveValue>
             <div className={`text-xs font-medium mt-1 ${isOverTotal ? 'text-destructive/80' : 'text-emerald-500/80'}`}>
               {isOverTotal ? "Over budget" : "Under budget"}
             </div>
@@ -669,10 +670,10 @@ export default function Budget() {
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Fixed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-lg font-bold font-mono tracking-tight ${fixedActual > fixedPlanned ? 'text-destructive' : 'text-foreground'}`}>
+            <SensitiveValue as="div" className={`text-lg font-bold font-mono tracking-tight ${fixedActual > fixedPlanned ? 'text-destructive' : 'text-foreground'}`}>
               {formatCurrency(fixedActual)}
-            </div>
-            <div className="text-xs text-muted-foreground font-mono">of {formatCurrency(fixedPlanned)}</div>
+            </SensitiveValue>
+            <SensitiveValue as="div" className="text-xs text-muted-foreground font-mono">of {formatCurrency(fixedPlanned)}</SensitiveValue>
             <MiniProgressBar actual={fixedActual} planned={fixedPlanned} />
           </CardContent>
         </Card>
@@ -682,10 +683,10 @@ export default function Budget() {
             <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider font-mono">Discretionary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-lg font-bold font-mono tracking-tight ${isDiscOver ? 'text-destructive' : 'text-foreground'}`}>
+            <SensitiveValue as="div" className={`text-lg font-bold font-mono tracking-tight ${isDiscOver ? 'text-destructive' : 'text-foreground'}`}>
               {formatCurrency(discActual)}
-            </div>
-            <div className="text-xs text-muted-foreground font-mono">of {formatCurrency(discPlanned)}</div>
+            </SensitiveValue>
+            <SensitiveValue as="div" className="text-xs text-muted-foreground font-mono">of {formatCurrency(discPlanned)}</SensitiveValue>
             <MiniProgressBar actual={discActual} planned={discPlanned} />
           </CardContent>
         </Card>
@@ -697,9 +698,9 @@ export default function Budget() {
             <h2 className="text-lg font-semibold tracking-tight">Fixed Commitments</h2>
             <p className="text-xs text-muted-foreground mt-0.5">EMIs, SIPs, insurance & recurring obligations</p>
           </div>
-          <div className="text-sm font-mono text-muted-foreground">
+          <SensitiveValue as="div" className="text-sm font-mono text-muted-foreground">
             {formatCurrency(fixedActual)} / {formatCurrency(fixedPlanned)}
-          </div>
+          </SensitiveValue>
         </div>
         {fixedRows.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -743,9 +744,9 @@ export default function Budget() {
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">Variable spending you can control</p>
           </div>
-          <div className={`text-sm font-mono ${isDiscOver ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+          <SensitiveValue as="div" className={`text-sm font-mono ${isDiscOver ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
             {formatCurrency(discActual)} / {formatCurrency(discPlanned)}
-          </div>
+          </SensitiveValue>
         </div>
         {discretionaryRows.length > 0 ? (
           <>

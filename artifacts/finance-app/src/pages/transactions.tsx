@@ -16,6 +16,7 @@ import {
 import type { Transaction } from "@workspace/api-client-react";
 
 import { formatCurrency, formatDate, getApiErrorMessage } from "@/lib/constants";
+import { SensitiveValue } from "@/components/sensitive-value";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format, subMonths } from "date-fns";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -514,7 +515,7 @@ export default function Transactions() {
             }`}>
               {isIncome && <ArrowDownRight className="w-3.5 h-3.5" />}
               {isTransfer && <ArrowLeftRight className="w-3.5 h-3.5" />}
-              {isIncome ? "+" : ""}{formatCurrency(tx.amount)}
+              {isIncome ? "+" : ""}<SensitiveValue>{formatCurrency(tx.amount)}</SensitiveValue>
             </span>
           </div>
           <div className="flex items-center justify-between gap-2 mt-1.5">
@@ -609,14 +610,14 @@ export default function Transactions() {
         <div className="flex items-center justify-end gap-1 font-mono font-bold">
           {tx.type === "Income" ? (
             <span className="text-emerald-500 flex items-center gap-1">
-              <ArrowDownRight className="w-3 h-3" /> +{formatCurrency(tx.amount)}
+              <ArrowDownRight className="w-3 h-3" /> +<SensitiveValue>{formatCurrency(tx.amount)}</SensitiveValue>
             </span>
           ) : tx.type === "Transfer" ? (
             <span className="text-blue-600 dark:text-blue-400 flex items-center gap-1">
-              <ArrowLeftRight className="w-3 h-3" /> {formatCurrency(tx.amount)}
+              <ArrowLeftRight className="w-3 h-3" /> <SensitiveValue>{formatCurrency(tx.amount)}</SensitiveValue>
             </span>
           ) : (
-            <span className="text-foreground flex items-center gap-1">{formatCurrency(tx.amount)}</span>
+            <span className="text-foreground flex items-center gap-1"><SensitiveValue>{formatCurrency(tx.amount)}</SensitiveValue></span>
           )}
         </div>
       ),
@@ -910,9 +911,9 @@ export default function Transactions() {
                                         {group.formattedDate}
                                       </span>
                                       {group.dailySpend > 0 && (
-                                        <span className="text-xs font-mono text-muted-foreground">
+                                        <SensitiveValue className="text-xs font-mono text-muted-foreground">
                                           — {formatCurrency(group.dailySpend)}
-                                        </span>
+                                        </SensitiveValue>
                                       )}
                                     </div>
                                   </TableCell>
@@ -940,7 +941,7 @@ export default function Transactions() {
                                           <div className="flex items-center gap-2 text-xs font-mono text-muted-foreground italic">
                                             <ChevronDown className="w-3.5 h-3.5" />
                                             <span>{adjustments.length} Balance Adjustments</span>
-                                            <span className="ml-auto">{formatCurrency(adjTotal)}</span>
+                                            <SensitiveValue className="ml-auto">{formatCurrency(adjTotal)}</SensitiveValue>
                                           </div>
                                         </TableCell>
                                       </TableRow>
@@ -996,7 +997,7 @@ export default function Transactions() {
                         <div className="sticky top-0 z-10 flex items-center justify-between py-2 px-1 mb-1 glass-2 border-b border-[var(--divider-color)]">
                           <span className="text-xs font-semibold font-mono text-foreground/80">{group.formattedDate}</span>
                           {group.dailySpend > 0 && (
-                            <span className="text-xs font-mono text-muted-foreground">— {formatCurrency(group.dailySpend)}</span>
+                            <SensitiveValue className="text-xs font-mono text-muted-foreground">— {formatCurrency(group.dailySpend)}</SensitiveValue>
                           )}
                         </div>
                         <div className="flex flex-col gap-2 mb-3">

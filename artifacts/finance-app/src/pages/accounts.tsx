@@ -11,6 +11,7 @@ import {
   getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, getApiErrorMessage, getOrdinalSuffix } from "@/lib/constants";
+import { SensitiveValue } from "@/components/sensitive-value";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -536,9 +537,9 @@ export default function Accounts() {
             </div>
           ) : (
             <>
-              <div className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
+              <SensitiveValue as="div" className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
                 {formatCurrency(netWorth)}
-              </div>
+              </SensitiveValue>
 
               {(totalBank > 0 || totalCcOutstanding > 0 || totalLoanOutstanding > 0) && (() => {
                 const totalAbs = totalBank + totalCcOutstanding + totalLoanOutstanding;
@@ -562,18 +563,18 @@ export default function Accounts() {
                       <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
                         <span className="text-muted-foreground">Assets</span>
-                        <span className="text-emerald-500 font-semibold">{formatCurrency(totalBank)}</span>
+                        <SensitiveValue className="text-emerald-500 font-semibold">{formatCurrency(totalBank)}</SensitiveValue>
                       </span>
                       <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />
                         <span className="text-muted-foreground">CC Debt</span>
-                        <span className="text-red-500 font-semibold">{formatCurrency(totalCcOutstanding)}</span>
+                        <SensitiveValue className="text-red-500 font-semibold">{formatCurrency(totalCcOutstanding)}</SensitiveValue>
                       </span>
                       {totalLoanOutstanding > 0 && (
                         <span className="flex items-center gap-1.5">
                           <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
                           <span className="text-muted-foreground">Loans</span>
-                          <span className="text-amber-500 font-semibold">{formatCurrency(totalLoanOutstanding)}</span>
+                          <SensitiveValue className="text-amber-500 font-semibold">{formatCurrency(totalLoanOutstanding)}</SensitiveValue>
                         </span>
                       )}
                     </div>
@@ -638,9 +639,9 @@ export default function Accounts() {
                     <span className="text-xs text-muted-foreground/60 font-mono">{bankAccounts.length}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold font-mono text-emerald-500">
+                    <SensitiveValue className="text-sm font-bold font-mono text-emerald-500">
                       {formatCurrency(bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
-                    </span>
+                    </SensitiveValue>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${bankOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
@@ -658,7 +659,7 @@ export default function Accounts() {
                                   <span className="text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-success">Surplus</span>
                                 )}
                               </div>
-                              <p className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</p>
+                              <SensitiveValue as="div" className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</SensitiveValue>
                             </div>
                             <div className="flex items-center gap-1 md:gap-4 ml-2">
                               <Tooltip>
@@ -708,9 +709,9 @@ export default function Accounts() {
                     <span className="text-xs text-muted-foreground/60 font-mono">{ccAccounts.length}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold font-mono text-red-500">
+                    <SensitiveValue className="text-sm font-bold font-mono text-red-500">
                       {formatCurrency(Math.abs(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
-                    </span>
+                    </SensitiveValue>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${ccOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
@@ -792,16 +793,16 @@ export default function Accounts() {
                               )}
                               <div className="flex-1 min-w-0">
                                 <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-medium">Outstanding</p>
-                                <p className="text-lg font-bold font-mono">{formatCurrency(Math.abs(Number(account.currentBalance)))}</p>
+                                <SensitiveValue as="div" className="text-lg font-bold font-mono">{formatCurrency(Math.abs(Number(account.currentBalance)))}</SensitiveValue>
                                 {limit != null && (
                                   <div className="mt-1.5 space-y-0.5">
                                     <div className="flex justify-between text-[11px] font-mono">
                                       <span className="text-muted-foreground/60">Available</span>
-                                      <span className={usedPct <= 30 ? "text-emerald-500" : usedPct <= 50 ? "text-yellow-500" : "text-destructive"}>{formatCurrency(availableLimit ?? 0)}</span>
+                                      <SensitiveValue className={usedPct <= 30 ? "text-emerald-500" : usedPct <= 50 ? "text-yellow-500" : "text-destructive"}>{formatCurrency(availableLimit ?? 0)}</SensitiveValue>
                                     </div>
                                     <div className="flex justify-between text-[11px] font-mono">
                                       <span className="text-muted-foreground/60">Limit</span>
-                                      <span className="text-muted-foreground">{formatCurrency(limit)}</span>
+                                      <SensitiveValue className="text-muted-foreground">{formatCurrency(limit)}</SensitiveValue>
                                     </div>
                                   </div>
                                 )}
@@ -829,9 +830,9 @@ export default function Accounts() {
                     <span className="text-xs text-muted-foreground/60 font-mono">{loanAccounts.length}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-bold font-mono text-red-500">
+                    <SensitiveValue className="text-sm font-bold font-mono text-red-500">
                       {formatCurrency(Math.abs(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
-                    </span>
+                    </SensitiveValue>
                     <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${loanOpen ? "rotate-180" : ""}`} />
                   </div>
                 </button>
@@ -911,12 +912,12 @@ export default function Accounts() {
                                 </Tooltip>
                               </div>
                             </div>
-                            <p className="text-lg font-bold font-mono text-red-500">{formatCurrency(Math.abs(principal))}</p>
+                            <SensitiveValue as="div" className="text-lg font-bold font-mono text-red-500">{formatCurrency(Math.abs(principal))}</SensitiveValue>
                             <div className="mt-2 space-y-1">
                               {emi && (
                                 <div className="flex justify-between text-[11px] font-mono">
                                   <span className="text-muted-foreground/60">EMI</span>
-                                  <span className="text-muted-foreground">{formatCurrency(emi)}/mo</span>
+                                  <SensitiveValue className="text-muted-foreground">{formatCurrency(emi)}/mo</SensitiveValue>
                                 </div>
                               )}
                               {rate != null && rate > 0 && (

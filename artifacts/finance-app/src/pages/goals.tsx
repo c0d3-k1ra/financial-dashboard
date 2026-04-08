@@ -12,6 +12,8 @@ import {
   getGetGoalProjectionByIdQueryKey,
 } from "@workspace/api-client-react";
 import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
+import { SensitiveValue } from "@/components/sensitive-value";
+import { usePrivacy } from "@/lib/privacy-context";
 import { DatePicker } from "@/components/ui/date-picker";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -72,6 +74,7 @@ export default function Goals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
+  const { isHidden: privacyHidden } = usePrivacy();
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedGoalId, setSelectedGoalId] = useState<number | null>(null);
   const [chartExpanded, setChartExpanded] = useState(false);
@@ -254,8 +257,8 @@ export default function Goals() {
           <AlertTriangle className="w-5 h-5 flex-shrink-0" />
           <div className="text-sm font-mono">
             <span className="font-bold">Goal Rich but Cash Poor</span> — your unallocated cash (
-            {formatCurrency(waterfall.remainingLiquidCash)}) is below your monthly living expenses (
-            {formatCurrency(waterfall.avgMonthlyLivingExpenses)}).
+            <SensitiveValue>{formatCurrency(waterfall.remainingLiquidCash)}</SensitiveValue>) is below your monthly living expenses (
+            <SensitiveValue>{formatCurrency(waterfall.avgMonthlyLivingExpenses)}</SensitiveValue>).
           </div>
         </div>
       )}
@@ -385,10 +388,10 @@ export default function Goals() {
 
                     <div>
                       <div className="flex justify-between items-end mb-1">
-                        <span className="font-mono text-lg font-bold">{formatCurrency(current)}</span>
+                        <SensitiveValue className="font-mono text-lg font-bold">{formatCurrency(current)}</SensitiveValue>
                         <span className="font-mono text-xs text-muted-foreground">
                           <Target className="w-3 h-3 inline mr-0.5" />
-                          {formatCurrency(target)}
+                          <SensitiveValue>{formatCurrency(target)}</SensitiveValue>
                         </span>
                       </div>
                       <Progress
@@ -408,7 +411,7 @@ export default function Goals() {
 
                     {goal.velocity > 0 && (
                       <div className="text-[10px] font-mono text-muted-foreground border-t border-border/30 pt-2">
-                        Velocity: {formatCurrency(goal.velocity)}/mo
+                        Velocity: <SensitiveValue>{formatCurrency(goal.velocity)}/mo</SensitiveValue>
                       </div>
                     )}
                   </CardContent>
@@ -509,6 +512,7 @@ function GoalFormModal({ open, onOpenChange, title, isMobile, children }: {
 
 function GoalProjectionChart({ goalId }: { goalId: number }) {
   const ct = useChartTheme();
+  const { isHidden: privacyHidden } = usePrivacy();
   const { data: projection, isLoading } = useGetGoalProjectionById(
     goalId,
     { query: { queryKey: getGetGoalProjectionByIdQueryKey(goalId) } }
@@ -555,14 +559,23 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                tick={{ fill: ct.tickFill, fontSize: 12, fontFamily: "var(--font-mono)" }}
-                tickFormatter={(val) =>
-                  val >= 100000 ? `₹${(val / 100000).toFixed(1)}L` : `₹${(val / 1000).toFixed(0)}k`
-                }
+                tick={({ x, y, payload }: { x: number; y: number; payload: { value: number } }) => (
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor="end"
+                    fill={ct.tickFill}
+                    fontSize={12}
+                    fontFamily="var(--font-mono)"
+                    style={privacyHidden ? { filter: "blur(8px)", userSelect: "none" } : undefined}
+                  >
+                    {payload.value >= 100000 ? `₹${(payload.value / 100000).toFixed(1)}L` : `₹${(payload.value / 1000).toFixed(0)}k`}
+                  </text>
+                )}
                 domain={[0, "auto"]}
               />
               <RechartsTooltip
-                contentStyle={ct.tooltip}
+                contentStyle={{ ...ct.tooltip, ...(privacyHidden ? { filter: "blur(8px)" } : {}) }}
                 formatter={(value: number, name: string) => [
                   formatCurrency(value),
                   name === "actual" ? "Actual" : name === "currentPace" ? "Current Pace" : "Needed Pace",
@@ -573,13 +586,18 @@ function GoalProjectionChart({ goalId }: { goalId: number }) {
                 y={chartData[0]?.targetAmount || 0}
                 stroke="hsl(var(--muted-foreground))"
                 strokeDasharray="3 3"
-                label={{
-                  position: "top",
-                  value: `Target: ${formatCurrency(chartData[0]?.targetAmount || 0)}`,
-                  fill: "hsl(var(--muted-foreground))",
-                  fontSize: 10,
-                  fontFamily: "var(--font-mono)",
-                }}
+                label={({ viewBox }: { viewBox: { x: number; y: number } }) => (
+                  <text
+                    x={viewBox.x + 5}
+                    y={viewBox.y - 5}
+                    fill="hsl(var(--muted-foreground))"
+                    fontSize={10}
+                    fontFamily="var(--font-mono)"
+                    style={privacyHidden ? { filter: "blur(8px)", userSelect: "none" } : undefined}
+                  >
+                    Target: {formatCurrency(chartData[0]?.targetAmount || 0)}
+                  </text>
+                )}
               />
               {hasActual && (
                 <Line
