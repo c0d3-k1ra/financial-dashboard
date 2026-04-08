@@ -28,11 +28,11 @@ args = "lint"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "test"
+args = "tests with coverage - Frontend"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "coverage"
+args = "tests with coverage - backend"
 
 [[workflows.workflow]]
 name = "lint"
@@ -46,23 +46,23 @@ args = "pnpm lint"
 isValidation = true
 
 [[workflows.workflow]]
-name = "test"
+name = "tests with coverage - Frontend"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm --filter @workspace/finance-app test"
+args = "pnpm --filter @workspace/finance-app test:coverage"
 
 [workflows.workflow.metadata]
 isValidation = true
 
 [[workflows.workflow]]
-name = "coverage"
+name = "tests with coverage - backend"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm --filter @workspace/api-server test:coverage && pnpm --filter @workspace/finance-app test:coverage"
+args = "pnpm --filter @workspace/api-server test:coverage"
 
 [workflows.workflow.metadata]
 isValidation = true
