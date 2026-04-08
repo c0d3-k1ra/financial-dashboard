@@ -4,7 +4,7 @@ import { db, categoriesTable, transactionsTable, budgetGoalsTable } from "@works
 import { CreateCategoryBody, ListCategoriesQueryParams, RenameCategoryBody } from "@workspace/api-zod";
 import { ZodError } from "zod";
 import { BUDGET_DEFAULTS, DEFAULT_PLANNED } from "../lib/budget-defaults";
-import { validateIdParam } from "../lib/validate-id";
+import { parseIntParam, isZodError, isParamError } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -17,7 +17,11 @@ router.get("/categories", async (req, res) => {
     res.json(results);
   } catch (e) {
     req.log.error({ err: e }, "Failed to list categories");
-    res.status(500).json({ error: "Internal error" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -46,8 +50,8 @@ router.post("/categories", async (req, res) => {
     res.status(201).json(created);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create category");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -56,8 +60,7 @@ router.post("/categories", async (req, res) => {
 
 router.patch("/categories/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
 
     const { name } = RenameCategoryBody.parse(req.body);
     const trimmedName = name.trim();
@@ -102,8 +105,8 @@ router.patch("/categories/:id", async (req, res) => {
     res.json(updated);
   } catch (e: unknown) {
     req.log.error({ err: e }, "Failed to rename category");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request body" });
+    if (isZodError(e) || isParamError(e)) {
+      res.status(400).json({ error: isParamError(e) ? (e as Error).message : "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -112,8 +115,7 @@ router.patch("/categories/:id", async (req, res) => {
 
 router.delete("/categories/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
 
     const [cat] = await db.select().from(categoriesTable).where(eq(categoriesTable.id, id));
     if (!cat) {
@@ -138,7 +140,11 @@ router.delete("/categories/:id", async (req, res) => {
     res.status(204).send();
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete category");
-    res.status(500).json({ error: "Internal error" });
+    if (isParamError(e)) {
+      res.status(400).json({ error: (e as Error).message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

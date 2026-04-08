@@ -2,8 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, monthlyConfigTable } from "@workspace/db";
 import { UpsertMonthlyConfigBody } from "@workspace/api-zod";
-import { ZodError } from "zod";
-import { validateIdParam } from "../lib/validate-id";
+import { parseIntParam, isZodError, isParamError } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -38,8 +37,8 @@ router.post("/monthly-config", async (req, res) => {
     res.json(result);
   } catch (e) {
     req.log.error({ err: e }, "Failed to upsert monthly config");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -48,13 +47,16 @@ router.post("/monthly-config", async (req, res) => {
 
 router.delete("/monthly-config/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
     await db.delete(monthlyConfigTable).where(eq(monthlyConfigTable.id, id));
     res.status(204).send();
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete monthly config");
-    res.status(500).json({ error: "Internal error" });
+    if (isParamError(e)) {
+      res.status(400).json({ error: (e as Error).message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

@@ -5,6 +5,7 @@ import { GetDashboardSummaryQueryParams } from "@workspace/api-zod";
 import { getCycleDates, generateCycleOptions, buildLast6Cycles } from "../lib/billing-cycle";
 import { getAppSettings } from "../lib/settings-helper";
 import { calculateTotalEmiDue } from "../lib/emi-due";
+import { isZodError } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -108,7 +109,11 @@ router.get("/dashboard/summary", async (req, res) => {
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to get dashboard summary");
-    res.status(500).json({ error: "Internal error" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

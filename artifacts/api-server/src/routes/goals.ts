@@ -2,10 +2,9 @@ import { Router, type IRouter } from "express";
 import { eq, sql, and, ne } from "drizzle-orm";
 import { db, goalsTable, accountsTable, surplusAllocationsTable, transactionsTable } from "@workspace/db";
 import { CreateGoalBody, UpdateGoalBody } from "@workspace/api-zod";
-import { ZodError } from "zod";
 import { computeGoalIntelligence } from "../lib/goal-intelligence";
 import { getAppSettings, getCurrencySymbol } from "../lib/settings-helper";
-import { validateIdParam } from "../lib/validate-id";
+import { parseIntParam, isZodError, isParamError } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -123,8 +122,8 @@ router.post("/goals", async (req, res) => {
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to create goal");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -133,8 +132,7 @@ router.post("/goals", async (req, res) => {
 
 router.put("/goals/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
     const data = UpdateGoalBody.parse(req.body);
 
     const existing = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
@@ -195,8 +193,8 @@ router.put("/goals/:id", async (req, res) => {
     });
   } catch (e) {
     req.log.error({ err: e }, "Failed to update goal");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e) || isParamError(e)) {
+      res.status(400).json({ error: isParamError(e) ? (e as Error).message : "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -205,8 +203,7 @@ router.put("/goals/:id", async (req, res) => {
 
 router.delete("/goals/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
 
     const [linkedAllocations] = await db
       .select({ count: sql<number>`count(*)` })
@@ -224,7 +221,11 @@ router.delete("/goals/:id", async (req, res) => {
     res.status(204).send();
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete goal");
-    res.status(500).json({ error: "Internal error" });
+    if (isParamError(e)) {
+      res.status(400).json({ error: (e as Error).message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
@@ -274,8 +275,7 @@ router.get("/goals/waterfall", async (req, res) => {
 
 router.get("/goals/:id/projection", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
     const goal = await db.select().from(goalsTable).where(eq(goalsTable.id, id));
 
     if (!goal.length) {
@@ -369,7 +369,11 @@ router.get("/goals/:id/projection", async (req, res) => {
     res.json(combined);
   } catch (e) {
     req.log.error({ err: e }, "Failed to get goal projection");
-    res.status(500).json({ error: "Internal error" });
+    if (isParamError(e)) {
+      res.status(400).json({ error: (e as Error).message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

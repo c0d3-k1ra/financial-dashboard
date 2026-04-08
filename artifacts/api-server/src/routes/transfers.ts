@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, sql } from "drizzle-orm";
 import { db, accountsTable, transactionsTable } from "@workspace/db";
 import { CreateTransferBody } from "@workspace/api-zod";
-import { ZodError } from "zod";
+import { isZodError, isParamError, parseIntParam } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -59,8 +59,10 @@ router.post("/transfers", async (req, res) => {
     res.status(201).json(transfer);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create transfer");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
+    } else if (isParamError(e)) {
+      res.status(400).json({ error: "Invalid id parameter" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }

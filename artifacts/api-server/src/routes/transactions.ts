@@ -5,12 +5,10 @@ import { likeContains } from "../lib/escape-like";
 import {
   ListTransactionsQueryParams,
   CreateTransactionBody,
-  UpdateTransactionParams,
   ParseNaturalTransactionBody,
 } from "@workspace/api-zod";
 import { getAnthropicClient } from "../lib/ai-client";
-import { ZodError } from "zod";
-import { validateIdParam } from "../lib/validate-id";
+import { parseIntParam, isZodError, isParamError } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -54,8 +52,8 @@ router.get("/transactions", async (req, res) => {
     res.json(results);
   } catch (e) {
     req.log.error({ err: e }, "Failed to list transactions");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -123,8 +121,8 @@ router.post("/transactions", async (req, res) => {
     res.status(201).json(result);
   } catch (e) {
     req.log.error({ err: e }, "Failed to create transaction");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -133,7 +131,7 @@ router.post("/transactions", async (req, res) => {
 
 router.put("/transactions/:id", async (req, res) => {
   try {
-    const { id } = UpdateTransactionParams.parse({ id: req.params.id });
+    const id = parseIntParam(req.params.id, "id");
     const data = CreateTransactionBody.parse(req.body);
 
     if (data.type === "Transfer") {
@@ -203,8 +201,8 @@ router.put("/transactions/:id", async (req, res) => {
     res.json(updated);
   } catch (e) {
     req.log.error({ err: e }, "Failed to update transaction");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e) || isParamError(e)) {
+      res.status(400).json({ error: isParamError(e) ? (e as Error).message : "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -213,8 +211,7 @@ router.put("/transactions/:id", async (req, res) => {
 
 router.delete("/transactions/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
 
     const [existing] = await db.select().from(transactionsTable).where(eq(transactionsTable.id, id));
 
@@ -272,7 +269,11 @@ router.delete("/transactions/:id", async (req, res) => {
     res.status(204).send();
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete transaction");
-    res.status(500).json({ error: "Internal error" });
+    if (isParamError(e)) {
+      res.status(400).json({ error: (e as Error).message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 

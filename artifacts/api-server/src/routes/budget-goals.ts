@@ -2,8 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
 import { db, budgetGoalsTable, categoriesTable } from "@workspace/db";
 import { UpsertBudgetGoalBody } from "@workspace/api-zod";
-import { ZodError } from "zod";
-import { validateIdParam } from "../lib/validate-id";
+import { parseIntParam, isZodError, isParamError } from "../lib/parse-params";
 
 const router: IRouter = Router();
 
@@ -61,8 +60,8 @@ router.post("/budget-goals", async (req, res) => {
     res.json(withCategory);
   } catch (e) {
     req.log.error({ err: e }, "Failed to upsert budget goal");
-    if (e instanceof ZodError) {
-      res.status(400).json({ error: "Invalid request" });
+    if (isZodError(e)) {
+      res.status(400).json({ error: "Invalid request body" });
     } else {
       res.status(500).json({ error: "Internal error" });
     }
@@ -71,13 +70,16 @@ router.post("/budget-goals", async (req, res) => {
 
 router.delete("/budget-goals/:id", async (req, res) => {
   try {
-    const id = validateIdParam(req, res);
-    if (id === null) return;
+    const id = parseIntParam(req.params.id, "id");
     await db.delete(budgetGoalsTable).where(eq(budgetGoalsTable.id, id));
     res.status(204).send();
   } catch (e) {
     req.log.error({ err: e }, "Failed to delete budget goal");
-    res.status(500).json({ error: "Internal error" });
+    if (isParamError(e)) {
+      res.status(400).json({ error: (e as Error).message });
+    } else {
+      res.status(500).json({ error: "Internal error" });
+    }
   }
 });
 
