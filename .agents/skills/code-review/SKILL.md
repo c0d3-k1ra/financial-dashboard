@@ -255,84 +255,37 @@ State the correction factually and move on.
 
 ### How to Request
 
-**1. Get git SHAs:**
+Use `architect()` from the code_review skill with these parameters:
 
-```bash
-BASE_SHA=$(git rev-parse HEAD~1)  # or origin/main
-HEAD_SHA=$(git rev-parse HEAD)
+```javascript
+await architect({
+  task: "[WHAT_WAS_IMPLEMENTED] against [PLAN_OR_REQUIREMENTS]",
+  relevantFiles: ["file1.ts", "file2.tsx"],
+  includeGitDiff: true
+});
 ```
 
-**2. Dispatch code-reviewer subagent:**
+**Required context in the task description:**
 
-Use Task tool with `code-reviewer` type, filling these placeholders:
+- What was built or changed
+- What it should do (requirements/plan)
+- Any constraints or edge cases to verify
 
-- `{WHAT_WAS_IMPLEMENTED}` - What you just built
-- `{PLAN_OR_REQUIREMENTS}` - What it should do
-- `{BASE_SHA}` - Starting commit
-- `{HEAD_SHA}` - Ending commit
-- `{DESCRIPTION}` - Brief summary
+### Acting on Review Feedback
 
-**3. Act on feedback:**
-
-- Fix Critical issues immediately
-- Fix Important issues before proceeding
-- Note Minor issues for later
-- Push back if reviewer is wrong (with reasoning)
-
-### Example
-
-```
-[Just completed Task 2: Add verification function]
-
-You: Let me request code review before proceeding.
-
-BASE_SHA=$(git log --oneline | grep "Task 1" | head -1 | awk '{print $1}')
-HEAD_SHA=$(git rev-parse HEAD)
-
-[Dispatch code-reviewer subagent]
-  WHAT_WAS_IMPLEMENTED: Verification and repair functions for conversation index
-  PLAN_OR_REQUIREMENTS: Task 2 from docs/plans/deployment-plan.md
-  BASE_SHA: a7981ec
-  HEAD_SHA: 3df7661
-  DESCRIPTION: Added verifyIndex() and repairIndex() with 4 issue types
-
-[Subagent returns]:
-  Strengths: Clean architecture, real tests
-  Issues:
-    Important: Missing progress indicators
-    Minor: Magic number (100) for reporting interval
-  Assessment: Ready to proceed
-
-You: [Fix progress indicators]
-[Continue to Task 3]
-```
-
-### Integration with Workflows
-
-**Subagent-Driven Development:**
-
-- Review after EACH task
-- Catch issues before they compound
-- Fix before moving to next task
-
-**Executing Plans:**
-
-- Review after each batch (~3 tasks)
-- Get feedback, apply, continue
-
-**Ad-Hoc Development:**
-
-- Review before merge
-- Review when stuck
-
-### Red Flags
+| Severity | Action |
+|----------|--------|
+| Critical | Fix immediately, re-run verification |
+| Important | Fix before marking complete |
+| Minor | Fix if quick, otherwise note for later |
+| Suggestion | Evaluate against YAGNI, implement if valuable |
 
 **Never:**
 
 - Skip review because "it's simple"
 - Ignore Critical issues
 - Proceed with unfixed Important issues
-- Argue with valid technical feedback
+- Argue with valid technical feedback without evidence
 
 **If reviewer is wrong:**
 
@@ -352,6 +305,20 @@ NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
 
 If you haven't run the verification command in this message, you cannot claim it passes.
 
+### Mandatory Pre-Completion Checklist
+
+Before calling `mark_task_complete` or telling the user work is done, you MUST:
+
+```
+1. RUN: pnpm lint                                    → must exit 0
+2. RUN: pnpm --filter @workspace/finance-app test    → must show all tests pass
+3. RUN: architect() with includeGitDiff: true         → fix Critical/Important issues
+4. VERIFY: App loads without errors (screenshot or curl)
+5. ONLY THEN: Mark complete with evidence
+```
+
+Skipping ANY step = incomplete work.
+
 ### The Gate Function
 
 ```
@@ -368,28 +335,21 @@ BEFORE claiming any status or expressing satisfaction:
 Skip any step = lying, not verifying
 ```
 
-### Verification Commands (Vite + TypeScript + React on Replit)
+### Verification Commands (pnpm monorepo)
 
 ```bash
-# Type check
-npx tsc --noEmit
+# Lint (ESLint across all source)
+pnpm lint
 
-# Lint
-npm run lint
+# Tests (Vitest frontend tests)
+pnpm --filter @workspace/finance-app test
 
-# Build
-npm run build
+# API server tests (if applicable)
+pnpm --filter @workspace/api-server test
 
-# Dev server (confirm it starts without errors)
-npm run dev
-
-# Tests (if configured)
-npm test
-# or if using Vitest:
-npx vitest run
+# Build check
+pnpm --filter @workspace/api-server build
 ```
-
-> **Replit note:** Prefer `npm` over `bun` unless the project explicitly uses bun. Always read the full terminal output — Replit's shell may suppress exit codes visually but errors will appear in the log.
 
 ### Common Failures
 
@@ -397,12 +357,12 @@ npx vitest run
 |-----------------------------|----------------------------------------|--------------------------------|
 | Types correct               | `tsc --noEmit` output: 0 errors        | "Looks typed correctly"        |
 | Linter clean                | Lint output: 0 errors/warnings         | Partial check, extrapolation   |
-| Build succeeds              | `npm run build` exit 0, dist produced  | Linter passing, logs look good |
+| Build succeeds              | Build exit 0, dist produced            | Linter passing, logs look good |
 | Bug fixed                   | Test/reproduce original symptom: passes| Code changed, assumed fixed    |
-| Regression test works       | Red-green cycle verified               | Test passes once               |
+| Tests pass                  | Full test run, all green               | "Should pass"                  |
 | Agent completed             | VCS diff shows changes                 | Agent reports "success"        |
 | Requirements met            | Line-by-line checklist                 | Tests passing                  |
-| Component renders correctly | Manual check or test output            | "Should render fine"           |
+| Component renders correctly | Screenshot or test output              | "Should render fine"           |
 
 ### Red Flags — STOP
 
@@ -430,25 +390,32 @@ npx vitest run
 
 ### Key Patterns
 
-**Type check:**
+**Lint:**
 
 ```
-✅ [Run tsc --noEmit] [See: no output / exit 0] "No type errors"
-❌ "The types look right"
+✅ [Run pnpm lint] [See: no output / exit 0] "Lint clean"
+❌ "The code looks clean"
+```
+
+**Tests:**
+
+```
+✅ [Run pnpm --filter @workspace/finance-app test] [See: 41 passed] "All tests pass"
+❌ "Tests should pass"
 ```
 
 **Build:**
 
 ```
-✅ [Run npm run build] [See: dist/ produced, exit 0] "Build passes"
+✅ [Run pnpm --filter @workspace/api-server build] [See: dist/ produced, exit 0] "Build passes"
 ❌ "Linter passed so build should be fine"
 ```
 
-**Regression tests (TDD Red-Green):**
+**Code review:**
 
 ```
-✅ Write test → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
-❌ "I've written a regression test" (without red-green verification)
+✅ [Run architect()] [See: no Critical/Important issues] "Review clean"
+❌ "I looked at the code and it's fine"
 ```
 
 **Requirements:**
@@ -488,7 +455,8 @@ npx vitest run
 ## Bottom Line
 
 1. **Technical rigor over social performance** — No performative agreement
-1. **Systematic review processes** — Use code-reviewer subagent
+1. **Systematic review processes** — Use architect() subagent
 1. **Evidence before claims** — Verification gates always
+1. **Run lint + test + review before every completion** — No exceptions
 
 Verify. Question. Then implement. Evidence. Then claim.
