@@ -43,6 +43,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   Routes are organized by domain (e.g., `transactions.ts`, `goals.ts`, `accounts.ts`).
 *   Utilizes `@workspace/api-zod` for request and response validation.
 *   Integrates with `@workspace/db` for persistence.
+*   **API Hardening:** Global error-handling middleware (preserves HTTP status codes for client errors like 413/400, returns generic 500 for server errors), body size limit (1MB on JSON and URL-encoded), CORS restricted to `CORS_ORIGIN` env var in production (open in development), and process-level `unhandledRejection`/`uncaughtException` handlers for graceful shutdown.
 *   Key features include:
     *   CRUD operations for transactions, accounts, categories, and goals.
     *   Monthly configuration and budget goal management.
