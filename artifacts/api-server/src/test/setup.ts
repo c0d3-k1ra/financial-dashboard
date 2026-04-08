@@ -1,7 +1,15 @@
-import { beforeAll, beforeEach, afterAll } from "vitest";
+import { beforeAll, beforeEach, afterAll, vi } from "vitest";
 import { sql } from "drizzle-orm";
 import { db, pool } from "@workspace/db";
 import { runStartupMigrations } from "@workspace/db/migrate";
+
+vi.mock("../middlewares/authMiddleware", () => ({
+  authMiddleware: (_req: any, _res: any, next: any) => {
+    _req.user = { id: "test-user", name: "Test User" };
+    _req.isAuthenticated = () => true;
+    next();
+  },
+}));
 
 beforeAll(async () => {
   const dbUrl = process.env.DATABASE_URL ?? "";

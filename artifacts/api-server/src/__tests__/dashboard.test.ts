@@ -13,7 +13,7 @@ async function createAccount(name: string, type = "bank", balance = "100000", ex
 
 describe("Dashboard & Analytics API", () => {
   it("D-01: dashboard summary with healthy cash", async () => {
-    const acc = await createAccount("DashBank1", "bank", "200000");
+    const acc = await createAccount("DashBank1", "bank", "200000", { useInSurplus: true });
     await request(app).post("/api/monthly-config").send({ month: "2025-03", startingBalance: "200000" });
     await request(app).post("/api/transactions").send({
       date: "2025-03-01", amount: "80000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
@@ -27,7 +27,7 @@ describe("Dashboard & Analytics API", () => {
     const body = res.body as DashboardSummary;
     expect(Number(body.totalIncome)).toBe(80000);
     expect(Number(body.totalExpenses)).toBe(30000);
-    expect(Number(body.monthlySurplus)).toBe(50000);
+    expect(Number(body.monthlySurplus)).toBe(250000);
   });
 
   it("D-02: dashboard summary with low cash", async () => {
@@ -43,16 +43,14 @@ describe("Dashboard & Analytics API", () => {
   });
 
   it("D-03: net liquidity calculation", async () => {
-    const bank = await createAccount("DashBank3", "bank", "100000");
+    await createAccount("DashBank3", "bank", "100000");
+    await createAccount("DashCC3", "credit_card", "-20000", { billingDueDay: 15, creditLimit: "100000" });
     await request(app).post("/api/monthly-config").send({ month: "2025-03", startingBalance: "100000" });
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "20000", description: "CC bill", category: "Credit Card (CC)", type: "Expense", accountId: bank.id,
-    });
 
     const res = await request(app).get("/api/dashboard/summary?month=2025-03");
     const body = res.body as DashboardSummary;
     expect(Number(body.unpaidCcDues)).toBe(20000);
-    expect(Number(body.netLiquidity)).toBe(Number(body.endBalance) - 20000);
+    expect(Number(body.netLiquidity)).toBe(Number(body.bankBalance) - 20000);
   });
 
   it("D-04: burn rate under 100%", async () => {

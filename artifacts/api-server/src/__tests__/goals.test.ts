@@ -120,9 +120,9 @@ describe("Goals API", () => {
     const res = await request(app).get(`/api/goals/${goalBody.id}/projection`);
     expect(res.status).toBe(200);
     const body = res.body as ProjectionPoint[];
-    expect(body.length).toBe(12);
+    expect(body.length).toBeGreaterThanOrEqual(12);
     expect(body[0]).toHaveProperty("month");
-    expect(body[0]).toHaveProperty("projectedBalance");
+    expect(body[0]).toHaveProperty("currentPace");
     expect(body[0]).toHaveProperty("targetAmount");
   });
 

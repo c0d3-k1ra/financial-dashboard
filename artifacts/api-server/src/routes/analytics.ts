@@ -141,22 +141,35 @@ router.get("/analytics/cc-dues", asyncHandler(async (req, res) => {
     }
   }
 
-  const lastPaymentDates = new Map<number, Date | null>();
-  for (const account of ccAccounts) {
-    if (!account.billingDueDay) continue;
+  const ccAccountIds = ccAccounts
+    .filter((a) => a.billingDueDay)
+    .map((a) => a.id);
 
-    const lastPayment = await db
-      .select({ date: transactionsTable.date })
+  const lastPaymentDates = new Map<number, Date | null>();
+
+  if (ccAccountIds.length > 0) {
+    const lastPayments = await db
+      .select({
+        toAccountId: transactionsTable.toAccountId,
+        maxDate: sql<string>`max(${transactionsTable.date})`.as("max_date"),
+      })
       .from(transactionsTable)
       .where(
-        sql`${transactionsTable.type} = 'Transfer' AND ${transactionsTable.toAccountId} = ${account.id}`
+        sql`${transactionsTable.type} = 'Transfer' AND ${transactionsTable.toAccountId} IN (${sql.join(ccAccountIds.map((id) => sql`${id}`), sql`, `)})`
       )
-      .orderBy(sql`${transactionsTable.date} DESC`)
-      .limit(1);
-    if (lastPayment.length > 0) {
-      const parts = String(lastPayment[0].date).split("-");
-      lastPaymentDates.set(account.id, new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
-    } else {
+      .groupBy(transactionsTable.toAccountId);
+
+    for (const row of lastPayments) {
+      if (row.toAccountId != null && row.maxDate) {
+        const parts = String(row.maxDate).split("-");
+        lastPaymentDates.set(row.toAccountId, new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+      }
+    }
+  }
+
+  for (const account of ccAccounts) {
+    if (!account.billingDueDay) continue;
+    if (!lastPaymentDates.has(account.id)) {
       lastPaymentDates.set(account.id, null);
     }
   }

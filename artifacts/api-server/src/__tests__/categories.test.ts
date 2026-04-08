@@ -50,7 +50,7 @@ describe("Categories API", () => {
     expect(body.length).toBe(0);
   });
 
-  it("C-05b: delete category even when transactions reference it (no FK)", async () => {
+  it("C-05b: delete category with linked transactions returns conflict", async () => {
     const acc = await request(app).post("/api/accounts").send({ name: "CatBank", type: "bank", currentBalance: "50000" });
     const cat = await request(app).post("/api/categories").send({ name: "InUse", type: "Expense" });
     const catBody = cat.body as CategoryResponse;
@@ -60,6 +60,7 @@ describe("Categories API", () => {
     });
 
     const res = await request(app).delete(`/api/categories/${catBody.id}`);
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain("transaction");
   });
 });

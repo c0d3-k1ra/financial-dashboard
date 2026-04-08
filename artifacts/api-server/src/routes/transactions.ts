@@ -76,6 +76,12 @@ router.post("/transactions", asyncHandler(async (req, res) => {
     return;
   }
 
+  const [account] = await db.select({ id: accountsTable.id }).from(accountsTable).where(eq(accountsTable.id, data.accountId));
+  if (!account) {
+    res.status(400).json({ error: "Account not found." });
+    return;
+  }
+
   const result = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(transactionsTable)

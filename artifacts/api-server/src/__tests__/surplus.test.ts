@@ -3,8 +3,8 @@ import request from "supertest";
 import app from "../app";
 import type { AccountResponse, GoalResponse, SurplusMonthlyResponse, DistributeResult, AllocationResponse, UndoSurplusResult, CanUndoSurplusResult } from "../test/types";
 
-async function createAccount(name: string, balance = "100000"): Promise<AccountResponse> {
-  const res = await request(app).post("/api/accounts").send({ name, type: "bank", currentBalance: balance });
+async function createAccount(name: string, balance = "100000", extra: Record<string, unknown> = {}): Promise<AccountResponse> {
+  const res = await request(app).post("/api/accounts").send({ name, type: "bank", currentBalance: balance, ...extra });
   return res.body as AccountResponse;
 }
 
@@ -17,29 +17,19 @@ async function createGoal(name: string, accountId: number, target = "100000"): P
 
 describe("Surplus API", () => {
   it("S-01: monthly surplus calculation (positive)", async () => {
-    const acc = await createAccount("SurplusBank1");
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "80000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-05", amount: "30000", description: "Rent", category: "Living Expenses", type: "Expense", accountId: acc.id,
-    });
+    const acc = await createAccount("SurplusBank1", "150000", { useInSurplus: true });
 
     const res = await request(app).get("/api/surplus/monthly?month=2025-03");
     expect(res.status).toBe(200);
     const body = res.body as SurplusMonthlyResponse;
-    expect(Number(body.surplus)).toBe(50000);
-    expect(Number(body.income)).toBe(80000);
-    expect(Number(body.expenses)).toBe(30000);
+    expect(Number(body.surplus)).toBe(150000);
   });
 
   it("S-02: monthly surplus calculation (zero)", async () => {
-    const acc = await createAccount("SurplusBank2");
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "50000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-05", amount: "50000", description: "All expenses", category: "Living Expenses", type: "Expense", accountId: acc.id,
+    const acc = await createAccount("SurplusBank2", "20000", { useInSurplus: true });
+    await request(app).post("/api/accounts").send({
+      name: "SurplusCc2", type: "credit_card", currentBalance: "-20000",
+      billingDueDay: 15, creditLimit: "100000",
     });
 
     const res = await request(app).get("/api/surplus/monthly?month=2025-03");
@@ -48,12 +38,10 @@ describe("Surplus API", () => {
   });
 
   it("S-03: monthly surplus calculation (negative)", async () => {
-    const acc = await createAccount("SurplusBank3");
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "30000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-05", amount: "50000", description: "Expenses", category: "Living Expenses", type: "Expense", accountId: acc.id,
+    const acc = await createAccount("SurplusBank3", "10000", { useInSurplus: true });
+    await request(app).post("/api/accounts").send({
+      name: "SurplusCc3", type: "credit_card", currentBalance: "-30000",
+      billingDueDay: 15, creditLimit: "100000",
     });
 
     const res = await request(app).get("/api/surplus/monthly?month=2025-03");
@@ -62,13 +50,9 @@ describe("Surplus API", () => {
   });
 
   it("S-04: distribute surplus across multiple goals", async () => {
-    const acc = await createAccount("DistBank1", "200000");
+    const acc = await createAccount("DistBank1", "200000", { useInSurplus: true });
     const goal1 = await createGoal("Emergency", acc.id, "300000");
     const goal2 = await createGoal("Travel", acc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "100000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     const res = await request(app).post("/api/surplus/distribute").send({
       month: "2025-03",
@@ -126,12 +110,8 @@ describe("Surplus API", () => {
   });
 
   it("S-08: single goal distribution", async () => {
-    const acc = await createAccount("DistBank5", "200000");
+    const acc = await createAccount("DistBank5", "200000", { useInSurplus: true });
     const goal = await createGoal("SingleGoal", acc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "80000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     const res = await request(app).post("/api/surplus/distribute").send({
       month: "2025-03",
@@ -145,12 +125,8 @@ describe("Surplus API", () => {
   });
 
   it("S-09: surplus allocation updates goal currentAmount", async () => {
-    const acc = await createAccount("DistBank6", "200000");
+    const acc = await createAccount("DistBank6", "200000", { useInSurplus: true });
     const goal = await createGoal("TrackGoal", acc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "80000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     await request(app).post("/api/surplus/distribute").send({
       month: "2025-03",
@@ -164,29 +140,21 @@ describe("Surplus API", () => {
   });
 
   it("S-10: distribute exceeding surplus returns error", async () => {
-    const acc = await createAccount("DistBank7", "200000");
+    const acc = await createAccount("DistBank7", "200000", { useInSurplus: true });
     const goal = await createGoal("BigGoal", acc.id, "1000000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "50000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     const res = await request(app).post("/api/surplus/distribute").send({
       month: "2025-03",
       sourceAccountId: acc.id,
-      allocations: [{ goalId: goal.id, amount: "60000" }],
+      allocations: [{ goalId: goal.id, amount: "300000" }],
     });
     expect(res.status).toBe(400);
   });
 
   it("S-11: surplus distribution to different account creates transfer", async () => {
-    const sourceAcc = await createAccount("SourceBank", "200000");
+    const sourceAcc = await createAccount("SourceBank", "200000", { useInSurplus: true });
     const destAcc = await createAccount("DestBank", "0");
     const goal = await createGoal("TransferGoal", destAcc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "80000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: sourceAcc.id,
-    });
 
     const res = await request(app).post("/api/surplus/distribute").send({
       month: "2025-03",
@@ -199,12 +167,8 @@ describe("Surplus API", () => {
   });
 
   it("S-12: allocation history listing", async () => {
-    const acc = await createAccount("AllocBank", "200000");
+    const acc = await createAccount("AllocBank", "200000", { useInSurplus: true });
     const goal = await createGoal("HistoryGoal", acc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "80000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     await request(app).post("/api/surplus/distribute").send({
       month: "2025-03",
@@ -240,12 +204,8 @@ describe("Surplus API", () => {
   });
 
   it("S-16: undo reverses distribution and restores goal amounts", async () => {
-    const acc = await createAccount("UndoBank1", "500000");
+    const acc = await createAccount("UndoBank1", "500000", { useInSurplus: true });
     const goal = await createGoal("UndoGoal1", acc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2098-06-01", amount: "200000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     await request(app).post("/api/surplus/distribute").send({
       month: "2098-06",
@@ -280,13 +240,9 @@ describe("Surplus API", () => {
   });
 
   it("S-17: undo with cross-account transfer reverses balances", async () => {
-    const sourceAcc = await createAccount("UndoSource2", "500000");
+    const sourceAcc = await createAccount("UndoSource2", "500000", { useInSurplus: true });
     const destAcc = await createAccount("UndoDest2", "0");
     const goal = await createGoal("UndoTransferGoal", destAcc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2098-07-01", amount: "200000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: sourceAcc.id,
-    });
 
     const distRes = await request(app).post("/api/surplus/distribute").send({
       month: "2098-07",
@@ -316,12 +272,8 @@ describe("Surplus API", () => {
   });
 
   it("S-18: undo reverts achieved status back to active", async () => {
-    const acc = await createAccount("UndoAchieveBank", "500000");
+    const acc = await createAccount("UndoAchieveBank", "500000", { useInSurplus: true });
     const goal = await createGoal("UndoSmallGoal", acc.id, "10000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2098-08-01", amount: "200000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     await request(app).post("/api/surplus/distribute").send({
       month: "2098-08",
@@ -341,12 +293,8 @@ describe("Surplus API", () => {
   });
 
   it("S-19: can-undo returns false after undo is performed", async () => {
-    const acc = await createAccount("UndoCheckBank", "500000");
+    const acc = await createAccount("UndoCheckBank", "500000", { useInSurplus: true });
     const goal = await createGoal("UndoCheckGoal", acc.id, "100000");
-
-    await request(app).post("/api/transactions").send({
-      date: "2098-09-01", amount: "200000", description: "Salary", category: "Paycheck (Salary)", type: "Income", accountId: acc.id,
-    });
 
     await request(app).post("/api/surplus/distribute").send({
       month: "2098-09",

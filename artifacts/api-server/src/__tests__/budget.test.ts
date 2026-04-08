@@ -128,6 +128,7 @@ describe("Budget API", () => {
       type: "loan",
       currentBalance: "500000",
       emiAmount: "12500",
+      originalLoanAmount: "1000000",
     });
     expect(acc.status).toBe(201);
 
