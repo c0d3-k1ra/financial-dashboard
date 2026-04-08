@@ -33,6 +33,10 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   Responsive design, adapting tables to card views on mobile.
 *   Supports configurable currency formatting (INR/USD/EUR/GBP) via `app_settings` table.
 *   All API interactions use generated hooks from `@workspace/api-client-react`.
+*   Page components are split into focused modules under `src/components/<page>/`:
+    *   `components/dashboard/`: chart-helpers, summary-cards, spend-by-category, recent-ledger, loan-section, category-trend, income-expense-trend, monthly-flow-burn
+    *   `components/transactions/`: transaction-form, mobile-filter-bar, desktop-filter-bar, transaction-table, transaction-mobile-list, pagination-bar, delete-dialog, use-transaction-filters
+    *   `components/accounts/`: loan-calculations, responsive-modal, account-modals, account-cards, account-form, net-worth-card
 
 **Backend (`artifacts/api-server`):**
 *   Express 5 server exposing RESTful APIs.
@@ -45,7 +49,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
     *   Dashboard summaries, monthly trends, and budget analysis.
     *   Waterfall surplus distribution logic.
     *   Account reconciliation and EMI processing with proper amortization (principal/interest split).
-    *   AI-powered transaction parsing and intent routing.
+    *   AI-powered transaction parsing and intent routing. AI chat helpers are split into `routes/helpers/`: merchant-mapping, anomaly-detection, recurring-patterns, query-handler.
     *   Custom billing cycle: 25th of previous month to 24th of current month.
 
 **Database (`lib/db`):**

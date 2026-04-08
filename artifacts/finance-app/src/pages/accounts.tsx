@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import {
   useListAccounts,
   getListAccountsQueryKey,
@@ -10,117 +10,27 @@ import {
   getGetDashboardSummaryQueryKey,
   getGetMonthlySurplusQueryKey,
 } from "@workspace/api-client-react";
-import { formatCurrency, getApiErrorMessage, getOrdinalSuffix } from "@/lib/constants";
-import { SensitiveValue } from "@/components/sensitive-value";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency, getApiErrorMessage } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryErrorState } from "@/components/query-error-state";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, Trash2, Wallet, CreditCard, TrendingUp, TrendingDown, ArrowLeftRight, RefreshCw, Pencil, Landmark, ChevronDown } from "lucide-react";
-import { DatePicker } from "@/components/ui/date-picker";
+import { Plus, Wallet, ArrowLeftRight, Landmark } from "lucide-react";
 import TransferModal from "@/components/transfer-modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  type: z.enum(["bank", "credit_card", "loan"]),
-  currentBalance: z.string().optional(),
-  creditLimit: z.string().optional(),
-  billingDueDay: z.string().optional(),
-  emiAmount: z.string().optional(),
-  emiDay: z.string().optional(),
-  loanTenure: z.string().optional(),
-  interestRate: z.string().optional(),
-  linkedAccountId: z.string().optional(),
-  useInSurplus: z.boolean().optional(),
-  sharedLimitGroup: z.string().optional(),
-  originalLoanAmount: z.string().optional(),
-  loanStartDate: z.string().optional(),
-  emisPaid: z.string().optional(),
-}).refine((data) => {
-  if (data.type === "loan") {
-    return !!data.originalLoanAmount && Number(data.originalLoanAmount) > 0;
-  }
-  return true;
-}, { message: "Original loan amount is required for loan accounts", path: ["originalLoanAmount"] });
-
-type FormValues = z.infer<typeof formSchema>;
-
-function calculateEmi(principal: number, annualRate: number, tenureMonths: number): number {
-  if (principal <= 0 || tenureMonths <= 0) return 0;
-  if (annualRate <= 0) return Math.ceil(principal / tenureMonths);
-  const r = annualRate / 100 / 12;
-  const emi = principal * r * Math.pow(1 + r, tenureMonths) / (Math.pow(1 + r, tenureMonths) - 1);
-  return Math.ceil(emi);
-}
-
-function calculateEmisPaid(loanStartDate: string, emiDay: number): number {
-  if (!loanStartDate || !emiDay) return 0;
-  const start = new Date(loanStartDate);
-  const now = new Date();
-  let firstEmiYear = start.getFullYear();
-  let firstEmiMonth = start.getMonth() + 1;
-  if (firstEmiMonth > 11) {
-    firstEmiYear += Math.floor(firstEmiMonth / 12);
-    firstEmiMonth = firstEmiMonth % 12;
-  }
-  const firstEmi = new Date(firstEmiYear, firstEmiMonth, emiDay);
-  if (now < firstEmi) return 0;
-  let months = (now.getFullYear() - firstEmi.getFullYear()) * 12 + (now.getMonth() - firstEmi.getMonth());
-  if (now.getDate() >= emiDay) {
-    months += 1;
-  }
-  return Math.max(0, months);
-}
-
-function calculateOutstandingPrincipal(principal: number, annualRate: number, tenureMonths: number, emisPaid: number): number {
-  if (principal <= 0 || tenureMonths <= 0 || emisPaid <= 0) return principal;
-  if (emisPaid >= tenureMonths) return 0;
-  if (annualRate <= 0) return Math.max(0, principal - (principal / tenureMonths) * emisPaid);
-  const r = annualRate / 100 / 12;
-  const outstanding = principal * Math.pow(1 + r, emisPaid) - (principal * r * Math.pow(1 + r, tenureMonths) / (Math.pow(1 + r, tenureMonths) - 1)) * (Math.pow(1 + r, emisPaid) - 1) / r;
-  return Math.max(0, Math.round(outstanding * 100) / 100);
-}
+import { AccountCardSections } from "@/components/accounts/account-cards";
+import { ReconcileModal, EditModal, DeleteModal } from "@/components/accounts/account-modals";
+import { NetWorthCard } from "@/components/accounts/net-worth-card";
+import { AccountCreateFormFields, useAccountForm, type AccountFormValues } from "@/components/accounts/account-form";
 
 export default function Accounts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isTransferOpen, setIsTransferOpen] = useState(false);
-  const [reconcileId, setReconcileId] = useState<number | null>(null);
-  const [reconcileBalance, setReconcileBalance] = useState("");
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editCreditLimit, setEditCreditLimit] = useState("");
-  const [editBillingDueDay, setEditBillingDueDay] = useState("");
-  const [editEmiAmount, setEditEmiAmount] = useState("");
-  const [editEmiDay, setEditEmiDay] = useState("");
-  const [editLoanTenure, setEditLoanTenure] = useState("");
-  const [editInterestRate, setEditInterestRate] = useState("");
-  const [editLinkedAccountId, setEditLinkedAccountId] = useState("");
-  const [editUseInSurplus, setEditUseInSurplus] = useState(false);
-  const [editSharedLimitGroup, setEditSharedLimitGroup] = useState("");
-  const [editOriginalLoanAmount, setEditOriginalLoanAmount] = useState("");
-  const [editLoanStartDate, setEditLoanStartDate] = useState("");
-  const [editEmisPaid, setEditEmisPaid] = useState("");
-  const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
-  const [bankOpen, setBankOpen] = useState(true);
-  const [ccOpen, setCcOpen] = useState(false);
-  const [loanOpen, setLoanOpen] = useState(false);
 
   const { data: accounts, isLoading, isError, refetch } = useListAccounts({
     query: { queryKey: getListAccountsQueryKey() },
@@ -132,61 +42,86 @@ export default function Accounts() {
   const updateAccount = useUpdateAccount();
   const processEmis = useProcessEmis();
 
-  const reconcileTarget = accounts?.find((a) => a.id === reconcileId);
-  const reconcileCurrentBalance = reconcileTarget ? Number(reconcileTarget.currentBalance) : 0;
-  const reconcileAdjustment = reconcileBalance ? Number(reconcileBalance) - reconcileCurrentBalance : 0;
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [reconcileId, setReconcileId] = useState<number | null>(null);
+  const [reconcileBalance, setReconcileBalance] = useState("");
+  const [deleteAccountId, setDeleteAccountId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCreditLimit, setEditCreditLimit] = useState("");
+  const [editBillingDueDay, setEditBillingDueDay] = useState("");
+  const [editSharedLimitGroup, setEditSharedLimitGroup] = useState("");
+  const [editUseInSurplus, setEditUseInSurplus] = useState(false);
+  const [editEmiAmount, setEditEmiAmount] = useState("");
+  const [editEmiDay, setEditEmiDay] = useState("");
+  const [editInterestRate, setEditInterestRate] = useState("");
+  const [editLoanTenure, setEditLoanTenure] = useState("");
+  const [editOriginalLoanAmount, setEditOriginalLoanAmount] = useState("");
+  const [editLoanStartDate, setEditLoanStartDate] = useState("");
+  const [editEmisPaid, setEditEmisPaid] = useState("");
+  const [editLinkedAccountId, setEditLinkedAccountId] = useState("");
+  const [bankOpen, setBankOpen] = useState(true);
+  const [ccOpen, setCcOpen] = useState(true);
+  const [loanOpen, setLoanOpen] = useState(true);
 
+  const reconcileTarget = accounts?.find((a) => a.id === reconcileId);
+  const reconcileCurrentBalance = Number(reconcileTarget?.currentBalance ?? 0);
+  const reconcileAdjustment = Number(reconcileBalance || 0) - reconcileCurrentBalance;
   const editTarget = accounts?.find((a) => a.id === editId);
 
-  const openEdit = (id: number) => {
-    const acct = accounts?.find((a) => a.id === id);
-    if (!acct) return;
+  const openEdit = useCallback((id: number) => {
+    const account = accounts?.find((a) => a.id === id);
+    if (!account) return;
     setEditId(id);
-    setEditName(acct.name);
-    setEditCreditLimit(acct.creditLimit ? String(acct.creditLimit) : "");
-    setEditBillingDueDay(acct.billingDueDay ? String(acct.billingDueDay) : "");
-    setEditEmiAmount(acct.emiAmount ? String(acct.emiAmount) : "");
-    setEditEmiDay(acct.emiDay ? String(acct.emiDay) : "");
-    setEditLoanTenure(acct.loanTenure ? String(acct.loanTenure) : "");
-    setEditInterestRate(acct.interestRate ? String(acct.interestRate) : "");
-    setEditLinkedAccountId(acct.linkedAccountId ? String(acct.linkedAccountId) : "");
-    setEditUseInSurplus(acct.useInSurplus ?? false);
-    setEditSharedLimitGroup(acct.sharedLimitGroup ?? "");
-    setEditOriginalLoanAmount(acct.originalLoanAmount ? String(acct.originalLoanAmount) : "");
-    setEditLoanStartDate(acct.loanStartDate ? String(acct.loanStartDate) : "");
-    setEditEmisPaid(acct.emisPaid != null ? String(acct.emisPaid) : "");
+    setEditName(account.name);
+    setEditCreditLimit(account.creditLimit ? String(account.creditLimit) : "");
+    setEditBillingDueDay(account.billingDueDay ? String(account.billingDueDay) : "");
+    setEditSharedLimitGroup(account.sharedLimitGroup ?? "");
+    setEditUseInSurplus(account.useInSurplus ?? false);
+    setEditEmiAmount(account.emiAmount ? String(account.emiAmount) : "");
+    setEditEmiDay(account.emiDay ? String(account.emiDay) : "");
+    setEditInterestRate(account.interestRate ? String(account.interestRate) : "");
+    setEditLoanTenure(account.loanTenure ? String(account.loanTenure) : "");
+    setEditOriginalLoanAmount(account.originalLoanAmount ? String(account.originalLoanAmount) : "");
+    setEditLoanStartDate(account.loanStartDate ?? "");
+    setEditEmisPaid(account.emisPaid != null ? String(account.emisPaid) : "0");
+    setEditLinkedAccountId(account.linkedAccountId ? String(account.linkedAccountId) : "");
+  }, [accounts]);
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+    queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
   };
 
   const handleEdit = () => {
-    if (!editId || !editTarget) return;
+    if (editId === null || !editName.trim()) return;
     updateAccount.mutate(
       {
         id: editId,
         data: {
           name: editName,
-          type: editTarget.type,
-          currentBalance: String(editTarget.currentBalance),
-          creditLimit: editTarget.type === "credit_card" ? editCreditLimit || null : null,
-          billingDueDay: editTarget.type === "credit_card" && editBillingDueDay ? Number(editBillingDueDay) : null,
-          emiAmount: editTarget.type === "loan" ? editEmiAmount || null : null,
-          emiDay: editTarget.type === "loan" && editEmiDay ? Number(editEmiDay) : null,
-          loanTenure: editTarget.type === "loan" && editLoanTenure ? Number(editLoanTenure) : null,
-          interestRate: editTarget.type === "loan" ? editInterestRate || null : null,
-          linkedAccountId: editTarget.type === "loan" && editLinkedAccountId ? Number(editLinkedAccountId) : null,
-          useInSurplus: editTarget.type === "bank" ? editUseInSurplus : false,
-          sharedLimitGroup: editTarget.type === "credit_card" ? editSharedLimitGroup || null : null,
-          originalLoanAmount: editTarget.type === "loan" ? editOriginalLoanAmount || null : null,
-          loanStartDate: editTarget.type === "loan" ? editLoanStartDate || null : null,
-          emisPaid: editTarget.type === "loan" && editEmisPaid ? Number(editEmisPaid) : null,
+          type: editTarget!.type,
+          creditLimit: editTarget?.type === "credit_card" ? editCreditLimit || null : undefined,
+          billingDueDay: editTarget?.type === "credit_card" && editBillingDueDay ? Number(editBillingDueDay) : undefined,
+          sharedLimitGroup: editTarget?.type === "credit_card" ? editSharedLimitGroup || null : undefined,
+          useInSurplus: editTarget?.type === "bank" ? editUseInSurplus : undefined,
+          emiAmount: editTarget?.type === "loan" ? editEmiAmount || null : undefined,
+          emiDay: editTarget?.type === "loan" && editEmiDay ? Number(editEmiDay) : undefined,
+          interestRate: editTarget?.type === "loan" ? editInterestRate || null : undefined,
+          loanTenure: editTarget?.type === "loan" && editLoanTenure ? Number(editLoanTenure) : undefined,
+          originalLoanAmount: editTarget?.type === "loan" ? editOriginalLoanAmount || null : undefined,
+          loanStartDate: editTarget?.type === "loan" ? editLoanStartDate || null : undefined,
+          emisPaid: editTarget?.type === "loan" && editEmisPaid ? Number(editEmisPaid) : undefined,
+          linkedAccountId: editTarget?.type === "loan" && editLinkedAccountId ? Number(editLinkedAccountId) : undefined,
         },
       },
       {
         onSuccess: () => {
           toast({ title: "Account updated" });
           setEditId(null);
-          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
+          invalidateAll();
         },
         onError: (err) => {
           toast({ title: "Failed to update account", description: getApiErrorMessage(err), variant: "destructive" });
@@ -196,7 +131,7 @@ export default function Accounts() {
   };
 
   const handleReconcile = () => {
-    if (!reconcileId || !reconcileBalance) return;
+    if (reconcileId === null || !reconcileBalance) return;
     reconcileAccount.mutate(
       { id: reconcileId, data: { actualBalance: reconcileBalance } },
       {
@@ -207,9 +142,7 @@ export default function Accounts() {
           });
           setReconcileId(null);
           setReconcileBalance("");
-          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
+          invalidateAll();
         },
         onError: (err) => {
           toast({ title: "Reconciliation Failed", description: getApiErrorMessage(err), variant: "destructive" });
@@ -218,49 +151,18 @@ export default function Accounts() {
     );
   };
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { name: "", type: "bank", currentBalance: "0", creditLimit: "", billingDueDay: "", emiAmount: "", emiDay: "", loanTenure: "", interestRate: "", linkedAccountId: "", useInSurplus: false, sharedLimitGroup: "", originalLoanAmount: "", loanStartDate: "", emisPaid: "0" },
-  });
-
-  const watchType = form.watch("type");
-  const watchOriginalAmount = form.watch("originalLoanAmount");
-  const watchInterestRate = form.watch("interestRate");
-  const watchTenure = form.watch("loanTenure");
-  const watchLoanStartDate = form.watch("loanStartDate");
-  const watchEmiDay = form.watch("emiDay");
-
-  useEffect(() => {
-    if (watchType !== "loan") return;
-    const principal = Number(watchOriginalAmount) || 0;
-    const rate = Number(watchInterestRate) || 0;
-    const tenure = Number(watchTenure) || 0;
-    const startDate = watchLoanStartDate || "";
-    const emiDay = Number(watchEmiDay) || 0;
-
-    if (principal > 0 && tenure > 0) {
-      const emi = calculateEmi(principal, rate, tenure);
-      form.setValue("emiAmount", String(emi));
-
-      if (startDate && emiDay > 0) {
-        const paid = calculateEmisPaid(startDate, emiDay);
-        form.setValue("emisPaid", String(paid));
-        const outstanding = calculateOutstandingPrincipal(principal, rate, tenure, paid);
-        form.setValue("currentBalance", String(outstanding));
-      }
-    }
-  }, [watchType, watchOriginalAmount, watchInterestRate, watchTenure, watchLoanStartDate, watchEmiDay]);
+  const form = useAccountForm();
 
   const bankAccounts = accounts?.filter((a) => a.type === "bank") ?? [];
   const ccAccounts = accounts?.filter((a) => a.type === "credit_card") ?? [];
   const loanAccounts = accounts?.filter((a) => a.type === "loan") ?? [];
-  const existingGroups = [...new Set(ccAccounts.map((a) => a.sharedLimitGroup).filter(Boolean))] as string[];
+  const existingGroups = [...new Set(ccAccounts.map((a) => a.sharedLimitGroup).filter((g): g is string => Boolean(g)))];
   const totalBank = bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0);
   const totalCcOutstanding = ccAccounts.reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
   const totalLoanOutstanding = loanAccounts.reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
   const netWorth = totalBank - totalCcOutstanding - totalLoanOutstanding;
 
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = (data: AccountFormValues) => {
     createAccount.mutate(
       {
         data: {
@@ -286,9 +188,7 @@ export default function Accounts() {
           toast({ title: "Account created" });
           setIsDialogOpen(false);
           form.reset();
-          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
+          invalidateAll();
         },
         onError: (err) => {
           toast({ title: "Failed to create account", description: getApiErrorMessage(err), variant: "destructive" });
@@ -305,9 +205,7 @@ export default function Accounts() {
         onSuccess: () => {
           toast({ title: "Account deleted" });
           setDeleteAccountId(null);
-          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
+          invalidateAll();
         },
         onError: (err) => {
           toast({ title: "Failed to delete account", description: getApiErrorMessage(err), variant: "destructive" });
@@ -331,9 +229,7 @@ export default function Accounts() {
               description: res.results?.map((r) => `${r.accountName}: ${formatCurrency(r.emiAmount)}`).join(", "),
             });
           }
-          queryClient.invalidateQueries({ queryKey: getListAccountsQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-          queryClient.invalidateQueries({ queryKey: getGetMonthlySurplusQueryKey() });
+          invalidateAll();
         },
         onError: (err) => {
           toast({ title: "Failed to process EMIs", description: getApiErrorMessage(err), variant: "destructive" });
@@ -343,19 +239,6 @@ export default function Accounts() {
   };
 
   const allAccounts = [...bankAccounts, ...ccAccounts, ...loanAccounts];
-  const nonCcAccounts = [...bankAccounts, ...loanAccounts];
-
-  const getAccountIcon = (type: string) => {
-    if (type === "bank") return <Wallet className="w-4 h-4 text-emerald-500" />;
-    if (type === "credit_card") return <CreditCard className="w-4 h-4 text-destructive" />;
-    return <Landmark className="w-4 h-4 text-amber-500" />;
-  };
-
-  const getAccountLabel = (type: string) => {
-    if (type === "bank") return "Bank";
-    if (type === "credit_card") return "Credit Card";
-    return "Loan";
-  };
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -381,344 +264,27 @@ export default function Accounts() {
               <DialogHeader>
                 <DialogTitle>New Account</DialogTitle>
               </DialogHeader>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Account Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. HDFC Savings" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="type"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Type</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select type" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="bank">Bank Account</SelectItem>
-                            <SelectItem value="credit_card">Credit Card</SelectItem>
-                            <SelectItem value="loan">Loan</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  {watchType !== "loan" && (
-                  <FormField
-                    control={form.control}
-                    name="currentBalance"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Balance</FormLabel>
-                        <FormControl>
-                          <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                            <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  )}
-                  {watchType === "bank" && (
-                    <FormField
-                      control={form.control}
-                      name="useInSurplus"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-2 space-y-0">
-                          <FormControl>
-                            <input
-                              type="checkbox"
-                              checked={field.value ?? false}
-                              onChange={field.onChange}
-                              className="h-4 w-4 rounded border-border accent-primary"
-                            />
-                          </FormControl>
-                          <FormLabel className="text-sm font-normal cursor-pointer">Use in surplus calculation</FormLabel>
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                  {watchType === "credit_card" && (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="creditLimit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Credit Limit</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                                <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="billingDueDay"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Billing Due Day (1-31)</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 15" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="sharedLimitGroup"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Shared Limit Group</FormLabel>
-                            <FormControl>
-                              <div>
-                                <Input
-                                  className="font-mono"
-                                  placeholder="Type group name or leave empty"
-                                  list="shared-limit-groups"
-                                  {...field}
-                                />
-                                <datalist id="shared-limit-groups">
-                                  {existingGroups.map((g) => (
-                                    <option key={g} value={g} />
-                                  ))}
-                                </datalist>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </>
-                  )}
-                  {watchType === "loan" && (
-                    <>
-                      <FormField
-                        control={form.control}
-                        name="originalLoanAmount"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Original Loan Amount</FormLabel>
-                            <FormControl>
-                              <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                                <Input type="number" step="0.01" className="pl-7 font-mono" placeholder="e.g. 2000000" {...field} />
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="interestRate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Interest Rate (% p.a.)</FormLabel>
-                            <FormControl>
-                              <Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="loanTenure"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tenure (months)</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="loanStartDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Loan Start Date</FormLabel>
-                            <FormControl>
-                              <DatePicker
-                                date={field.value ? new Date(field.value + "T00:00:00") : undefined}
-                                onSelect={(date) => {
-                                  if (date) {
-                                    const y = date.getFullYear();
-                                    const m = String(date.getMonth() + 1).padStart(2, "0");
-                                    const d = String(date.getDate()).padStart(2, "0");
-                                    field.onChange(`${y}-${m}-${d}`);
-                                  } else {
-                                    field.onChange("");
-                                  }
-                                }}
-                                placeholder="Select start date"
-                                className="w-full font-mono"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="emiDay"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>EMI Debit Day (1-31)</FormLabel>
-                            <FormControl>
-                              <Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="linkedAccountId"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>EMI Debit Account</FormLabel>
-                            <Select onValueChange={field.onChange} value={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select bank account" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {bankAccounts.map((a) => (
-                                  <SelectItem key={a.id} value={String(a.id)}>
-                                    {a.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      {Number(watchOriginalAmount) > 0 && Number(watchTenure) > 0 && (
-                        <div className="rounded-lg border border-[var(--divider-color)] bg-[var(--glass-bg)] p-4 space-y-3">
-                          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Auto-Calculated</p>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <p className="text-[11px] text-muted-foreground/60">Monthly EMI</p>
-                              <p className="text-sm font-bold font-mono text-primary">{formatCurrency(Number(form.getValues("emiAmount")) || 0)}</p>
-                            </div>
-                            <div>
-                              <p className="text-[11px] text-muted-foreground/60">EMIs Paid</p>
-                              <p className="text-sm font-bold font-mono">{form.getValues("emisPaid") || "0"} / {watchTenure}</p>
-                            </div>
-                            <div className="col-span-2">
-                              <p className="text-[11px] text-muted-foreground/60">Outstanding Principal</p>
-                              <p className="text-sm font-bold font-mono text-amber-500">{formatCurrency(Number(form.getValues("currentBalance")) || 0)}</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  <DialogFooter className="pt-4">
-                    <Button type="submit" disabled={createAccount.isPending} className="w-full">
-                      {createAccount.isPending ? "Creating..." : "Create Account"}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
+              <AccountCreateFormFields
+                form={form}
+                onSubmit={onSubmit}
+                isPending={createAccount.isPending}
+                bankAccounts={bankAccounts}
+                existingGroups={existingGroups}
+              />
             </DialogContent>
           </Dialog>
         </div>
       </div>
 
-      <Card className="glass-card glass-animate-in glass-stagger-1 rounded-xl">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-2">
-            {netWorth >= 0 ? <TrendingUp className="w-4 h-4 text-emerald-500" /> : <TrendingDown className="w-4 h-4 text-destructive" />} Net Worth
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-10 w-40" />
-              <Skeleton className="h-4 w-full" />
-              <Skeleton className="h-3 w-60" />
-            </div>
-          ) : isError ? (
-            <QueryErrorState onRetry={() => refetch()} message="Failed to load accounts" />
-          ) : (
-            <>
-              <SensitiveValue as="div" className={`text-4xl font-bold font-mono tracking-tight ${netWorth >= 0 ? "text-emerald-500" : "text-destructive"}`}>
-                {formatCurrency(netWorth)}
-              </SensitiveValue>
-
-              {(totalBank > 0 || totalCcOutstanding > 0 || totalLoanOutstanding > 0) && (() => {
-                const totalAbs = totalBank + totalCcOutstanding + totalLoanOutstanding;
-                const bankPct = totalAbs > 0 ? (totalBank / totalAbs) * 100 : 0;
-                const ccPct = totalAbs > 0 ? (totalCcOutstanding / totalAbs) * 100 : 0;
-                const loanPct = totalAbs > 0 ? (totalLoanOutstanding / totalAbs) * 100 : 0;
-                return (
-                  <div className="mt-3 space-y-2">
-                    <div className="w-full h-3 rounded-full overflow-hidden flex bg-secondary/50">
-                      {bankPct > 0 && (
-                        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${bankPct}%` }} />
-                      )}
-                      {ccPct > 0 && (
-                        <div className="h-full bg-red-500 transition-all duration-500" style={{ width: `${ccPct}%` }} />
-                      )}
-                      {loanPct > 0 && (
-                        <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${loanPct}%` }} />
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-mono">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
-                        <span className="text-muted-foreground">Assets</span>
-                        <SensitiveValue className="text-emerald-500 font-semibold">{formatCurrency(totalBank)}</SensitiveValue>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-red-500 inline-block" />
-                        <span className="text-muted-foreground">CC Debt</span>
-                        <SensitiveValue className="text-red-500 font-semibold">{formatCurrency(totalCcOutstanding)}</SensitiveValue>
-                      </span>
-                      {totalLoanOutstanding > 0 && (
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block" />
-                          <span className="text-muted-foreground">Loans</span>
-                          <SensitiveValue className="text-amber-500 font-semibold">{formatCurrency(totalLoanOutstanding)}</SensitiveValue>
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })()}
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <NetWorthCard
+        netWorth={netWorth}
+        totalBank={totalBank}
+        totalCcOutstanding={totalCcOutstanding}
+        totalLoanOutstanding={totalLoanOutstanding}
+        isLoading={isLoading}
+        isError={isError}
+        refetch={refetch}
+      />
 
       {isLoading ? (
         <div className="space-y-4">
@@ -761,638 +327,98 @@ export default function Accounts() {
           <p className="text-muted-foreground/60 text-xs mt-1">Track balances, credit limits, and loan progress all in one place.</p>
         </div>
       ) : (
-        <>
-          <div className="space-y-4">
-            {bankAccounts.length > 0 && (
-              <div className="glass-1 overflow-hidden">
-                <button
-                  onClick={() => setBankOpen(!bankOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--glass-hover)] transition-colors border-b border-[var(--divider-color)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Wallet className="w-5 h-5 text-emerald-500" />
-                    <span className="font-semibold text-sm">Bank Accounts</span>
-                    <span className="text-xs text-muted-foreground/60 font-mono">{bankAccounts.length}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <SensitiveValue className="text-sm font-bold font-mono text-emerald-500">
-                      {formatCurrency(bankAccounts.reduce((s, a) => s + Number(a.currentBalance), 0))}
-                    </SensitiveValue>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${bankOpen ? "rotate-180" : ""}`} />
-                  </div>
-                </button>
-                {bankOpen && (
-                  <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <TooltipProvider delayDuration={300}>
-                    {bankAccounts.map((account) => (
-                      <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-emerald-500/5 transition-all duration-300">
-                        <CardContent className="pt-4 pb-3 px-4">
-                          <div className="flex justify-between items-start">
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="font-semibold text-sm truncate">{account.name}</p>
-                                {account.useInSurplus && (
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-success">Surplus</span>
-                                )}
-                              </div>
-                              <SensitiveValue as="div" className="text-xl font-bold font-mono mt-1 text-emerald-500">{formatCurrency(account.currentBalance)}</SensitiveValue>
-                            </div>
-                            <div className="flex items-center gap-1 md:gap-4 ml-2">
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                    <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Sync Balance</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                    <Pencil className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Edit Account</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                    <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Delete Account</TooltipContent>
-                              </Tooltip>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    </TooltipProvider>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {ccAccounts.length > 0 && (
-              <div className="glass-1 overflow-hidden">
-                <button
-                  onClick={() => setCcOpen(!ccOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--glass-hover)] transition-colors border-b border-[var(--divider-color)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-5 h-5 text-destructive" />
-                    <span className="font-semibold text-sm">Credit Cards</span>
-                    <span className="text-xs text-muted-foreground/60 font-mono">{ccAccounts.length}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <SensitiveValue className="text-sm font-bold font-mono text-red-500">
-                      {formatCurrency(Math.abs(ccAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
-                    </SensitiveValue>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${ccOpen ? "rotate-180" : ""}`} />
-                  </div>
-                </button>
-                {ccOpen && (
-                  <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <TooltipProvider delayDuration={300}>
-                    {ccAccounts.map((account) => {
-                      const outstanding = Math.abs(Number(account.currentBalance));
-                      const limit = account.creditLimit ? Number(account.creditLimit) : null;
-                      let availableLimit: number | null = null;
-                      if (account.sharedLimitGroup && limit != null) {
-                        const groupTotal = ccAccounts
-                          .filter((a) => a.sharedLimitGroup === account.sharedLimitGroup)
-                          .reduce((s, a) => s + Math.abs(Number(a.currentBalance)), 0);
-                        availableLimit = Math.max(0, limit - groupTotal);
-                      } else if (limit != null) {
-                        availableLimit = Math.max(0, limit - outstanding);
-                      }
-                      const usedPct = limit && limit > 0 ? (outstanding / limit) * 100 : 0;
-                      const strokeColor = usedPct <= 30 ? "hsl(var(--chart-1))" : usedPct <= 50 ? "hsl(var(--chart-4))" : "hsl(var(--chart-3))";
-                      const radius = 22;
-                      const circumference = 2 * Math.PI * radius;
-                      const strokeDash = (Math.min(usedPct, 100) / 100) * circumference;
-
-                      return (
-                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-red-500/5 transition-all duration-300">
-                          <CardContent className="pt-4 pb-3 px-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-sm truncate">{account.name}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                  {account.sharedLimitGroup && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded font-medium status-badge-info">{account.sharedLimitGroup}</span>
-                                  )}
-                                  {account.billingDueDay && (
-                                    <span className="text-[10px] text-muted-foreground/60 font-mono">Due {getOrdinalSuffix(account.billingDueDay)}</span>
-                                  )}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1 md:gap-4 ml-2">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                      <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Sync Balance</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                      <Pencil className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Edit Account</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                      <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Delete Account</TooltipContent>
-                                </Tooltip>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-4">
-                              {limit != null && (
-                                <div className="relative flex-shrink-0" style={{ width: 56, height: 56 }}>
-                                  <svg width="56" height="56" viewBox="0 0 56 56">
-                                    <circle cx="28" cy="28" r={radius} fill="none" stroke="currentColor" strokeWidth="5" className="text-secondary" />
-                                    <circle cx="28" cy="28" r={radius} fill="none" stroke={strokeColor} strokeWidth="5" strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 28 28)" className="transition-all duration-500" />
-                                  </svg>
-                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <span className="text-[10px] font-bold font-mono" style={{ color: strokeColor }}>{Math.round(usedPct)}%</span>
-                                  </div>
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-medium">Outstanding</p>
-                                <SensitiveValue as="div" className="text-lg font-bold font-mono">{formatCurrency(Math.abs(Number(account.currentBalance)))}</SensitiveValue>
-                                {limit != null && (
-                                  <div className="mt-1.5 space-y-0.5">
-                                    <div className="flex justify-between text-[11px] font-mono">
-                                      <span className="text-muted-foreground/60">Available</span>
-                                      <SensitiveValue className={usedPct <= 30 ? "text-emerald-500" : usedPct <= 50 ? "text-yellow-500" : "text-destructive"}>{formatCurrency(availableLimit ?? 0)}</SensitiveValue>
-                                    </div>
-                                    <div className="flex justify-between text-[11px] font-mono">
-                                      <span className="text-muted-foreground/60">Limit</span>
-                                      <SensitiveValue className="text-muted-foreground">{formatCurrency(limit)}</SensitiveValue>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                    </TooltipProvider>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {loanAccounts.length > 0 && (
-              <div className="glass-1 overflow-hidden">
-                <button
-                  onClick={() => setLoanOpen(!loanOpen)}
-                  className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-[var(--glass-hover)] transition-colors border-b border-[var(--divider-color)]"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Landmark className="w-5 h-5 text-amber-500" />
-                    <span className="font-semibold text-sm">Loans</span>
-                    <span className="text-xs text-muted-foreground/60 font-mono">{loanAccounts.length}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <SensitiveValue className="text-sm font-bold font-mono text-red-500">
-                      {formatCurrency(Math.abs(loanAccounts.reduce((s, a) => s + Number(a.currentBalance), 0)))}
-                    </SensitiveValue>
-                    <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${loanOpen ? "rotate-180" : ""}`} />
-                  </div>
-                </button>
-                {loanOpen && (
-                  <div className="px-4 pb-4 pt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    <TooltipProvider delayDuration={300}>
-                    {loanAccounts.map((account) => {
-                      const outstanding = Number(account.currentBalance);
-                      const emi = account.emiAmount ? Number(account.emiAmount) : null;
-                      const tenure = account.loanTenure ? Number(account.loanTenure) : null;
-                      const rate = account.interestRate ? Number(account.interestRate) : null;
-                      const originalAmount = account.originalLoanAmount ? Number(account.originalLoanAmount) : null;
-                      const emisPaidCount = Number(account.emisPaid ?? 0);
-
-                      const principalPaid = originalAmount ? originalAmount - outstanding : 0;
-                      const paidPct = originalAmount && originalAmount > 0
-                        ? Math.max(0, Math.min(100, (principalPaid / originalAmount) * 100))
-                        : 0;
-
-                      const totalPayable = emi && tenure ? emi * tenure : null;
-                      const totalInterest = totalPayable && originalAmount ? totalPayable - originalAmount : null;
-                      const interestPaidSoFar = emi && originalAmount
-                        ? Math.max(0, (emi * emisPaidCount) - principalPaid)
-                        : 0;
-
-                      const emisRemaining = tenure ? tenure - emisPaidCount : null;
-
-                      let estimatedPayoff: string | null = null;
-                      if (account.loanStartDate && tenure) {
-                        const startDate = new Date(account.loanStartDate);
-                        startDate.setMonth(startDate.getMonth() + tenure);
-                        estimatedPayoff = startDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-                      } else if (emisRemaining && emisRemaining > 0) {
-                        const payoffDate = new Date();
-                        payoffDate.setMonth(payoffDate.getMonth() + emisRemaining);
-                        estimatedPayoff = payoffDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
-                      }
-
-                      return (
-                        <Card key={account.id} className="glass-2 hover:bg-[var(--glass-hover)] hover:shadow-md hover:shadow-amber-500/5 transition-all duration-300">
-                          <CardContent className="pt-4 pb-3 px-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-sm truncate">{account.name}</p>
-                                {account.emiDay && (
-                                  <span className="text-[10px] text-muted-foreground/60 font-mono">EMI on {getOrdinalSuffix(account.emiDay)}</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-1 md:gap-4 ml-2">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => { setReconcileId(account.id); setReconcileBalance(String(account.currentBalance)); }}>
-                                      <RefreshCw className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Sync Balance</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-primary" onClick={() => openEdit(account.id)}>
-                                      <Pencil className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Edit Account</TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteAccountId(account.id)}>
-                                      <Trash2 className="w-4 h-4 md:w-3.5 md:h-3.5" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>Delete Account</TooltipContent>
-                                </Tooltip>
-                              </div>
-                            </div>
-                            {originalAmount && (
-                              <p className="text-[10px] text-muted-foreground/60 font-mono mb-0.5">Loan: {formatCurrency(originalAmount)}</p>
-                            )}
-                            <p className="text-lg font-bold font-mono text-red-500">{formatCurrency(Math.abs(outstanding))}</p>
-                            <div className="mt-2 space-y-1">
-                              {emi && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">EMI</span>
-                                  <SensitiveValue className="text-muted-foreground">{formatCurrency(emi)}/mo</SensitiveValue>
-                                </div>
-                              )}
-                              {rate != null && rate > 0 && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">Rate</span>
-                                  <span className="text-muted-foreground">{rate}% p.a.</span>
-                                </div>
-                              )}
-                              {originalAmount && principalPaid > 0 && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">Principal Paid</span>
-                                  <span className="text-emerald-500">{formatCurrency(principalPaid)}</span>
-                                </div>
-                              )}
-                              {interestPaidSoFar > 0 && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">Interest Paid</span>
-                                  <span className="text-orange-400">{formatCurrency(interestPaidSoFar)}</span>
-                                </div>
-                              )}
-                              {tenure && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">EMIs</span>
-                                  <span className="text-muted-foreground">{emisPaidCount}/{tenure} paid{emisRemaining != null && emisRemaining > 0 ? `, ${emisRemaining} left` : ""}</span>
-                                </div>
-                              )}
-                              {account.linkedAccountId && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">From</span>
-                                  <span className="text-muted-foreground truncate ml-2">{accounts?.find((a) => a.id === account.linkedAccountId)?.name ?? "—"}</span>
-                                </div>
-                              )}
-                              {estimatedPayoff && (
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span className="text-muted-foreground/60">Payoff</span>
-                                  <span className="text-muted-foreground">{estimatedPayoff}</span>
-                                </div>
-                              )}
-                            </div>
-                            {originalAmount && originalAmount > 0 && (
-                              <div className="mt-3">
-                                <div className="flex justify-between text-[10px] font-mono mb-1.5">
-                                  <span className="text-muted-foreground/50">{Math.round(paidPct)}% principal repaid</span>
-                                  <span className="font-semibold" style={{ color: paidPct > 60 ? "hsl(var(--chart-1))" : "hsl(var(--chart-4))" }}>{Math.round(paidPct)}%</span>
-                                </div>
-                                <div className="w-full h-3 bg-secondary rounded-full overflow-hidden flex">
-                                  {principalPaid > 0 && (
-                                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${paidPct}%` }} />
-                                  )}
-                                </div>
-                                <div className="flex gap-3 mt-1.5 text-[9px] font-mono text-muted-foreground/60">
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />
-                                    Principal Paid {formatCurrency(principalPaid)}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 rounded-sm bg-secondary inline-block" />
-                                    Outstanding {formatCurrency(outstanding)}
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                    </TooltipProvider>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </>
+        <AccountCardSections
+          bankAccounts={bankAccounts}
+          ccAccounts={ccAccounts}
+          loanAccounts={loanAccounts}
+          accounts={accounts}
+          bankOpen={bankOpen}
+          setBankOpen={setBankOpen}
+          ccOpen={ccOpen}
+          setCcOpen={setCcOpen}
+          loanOpen={loanOpen}
+          setLoanOpen={setLoanOpen}
+          openEdit={openEdit}
+          setReconcileId={setReconcileId}
+          setReconcileBalance={setReconcileBalance}
+          setDeleteAccountId={setDeleteAccountId}
+        />
       )}
 
       <TransferModal open={isTransferOpen} onOpenChange={setIsTransferOpen} />
 
-      <ResponsiveModal open={reconcileId !== null} onOpenChange={(open) => { if (!open) { setReconcileId(null); setReconcileBalance(""); } }} title={`Reconcile: ${reconcileTarget?.name ?? ""}`} isMobile={isMobile}>
-        <div className="space-y-4 py-2">
-          <div className="text-sm font-mono text-muted-foreground">
-            Current balance: {formatCurrency(reconcileCurrentBalance)}
-          </div>
-          <div>
-            <Label>Actual Balance (from bank statement)</Label>
-            <div className="relative mt-1">
-              <span className="absolute left-3 top-2.5 text-muted-foreground">₹</span>
-              <Input
-                type="number"
-                step="0.01"
-                className="pl-7 font-mono"
-                value={reconcileBalance}
-                onChange={(e) => setReconcileBalance(e.target.value)}
-              />
-            </div>
-          </div>
-          {reconcileBalance && Math.abs(reconcileAdjustment) > 0.01 && (
-            <div className={`text-sm font-mono p-2 rounded-md ${reconcileAdjustment >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-red-500/10 text-red-600 dark:text-red-400"}`}>
-              Adjustment: {reconcileAdjustment >= 0 ? "+" : ""}{formatCurrency(reconcileAdjustment)}
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => { setReconcileId(null); setReconcileBalance(""); }}>Cancel</Button>
-          <Button onClick={handleReconcile} disabled={reconcileAccount.isPending || !reconcileBalance}>
-            {reconcileAccount.isPending ? "Reconciling..." : "Reconcile"}
-          </Button>
-        </DialogFooter>
-      </ResponsiveModal>
+      <ReconcileModal
+        reconcileId={reconcileId}
+        reconcileTarget={reconcileTarget}
+        reconcileCurrentBalance={reconcileCurrentBalance}
+        reconcileBalance={reconcileBalance}
+        setReconcileBalance={setReconcileBalance}
+        reconcileAdjustment={reconcileAdjustment}
+        handleReconcile={handleReconcile}
+        reconcileAccount={reconcileAccount}
+        setReconcileId={setReconcileId}
+        isMobile={isMobile}
+      />
 
-      <ResponsiveModal open={editId !== null} onOpenChange={(open) => { if (!open) setEditId(null); }} title={`Edit: ${editTarget?.name ?? ""}`} isMobile={isMobile}>
-        <div className="space-y-4 py-2">
-          <div>
-            <Label>Name</Label>
-            <Input className="mt-1 font-mono" value={editName} onChange={(e) => setEditName(e.target.value)} />
-          </div>
-          {editTarget?.type === "credit_card" && (
-            <>
-              <div>
-                <Label>Credit Limit</Label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                  <Input type="number" step="0.01" className="pl-7 font-mono" value={editCreditLimit} onChange={(e) => setEditCreditLimit(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label>Billing Due Day (1-31)</Label>
-                <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 15" value={editBillingDueDay} onChange={(e) => setEditBillingDueDay(e.target.value)} />
-              </div>
-              <div>
-                <Label>Shared Limit Group</Label>
-                <Input
-                  className="mt-1 font-mono"
-                  placeholder="Type group name or leave empty"
-                  list="edit-shared-limit-groups"
-                  value={editSharedLimitGroup}
-                  onChange={(e) => setEditSharedLimitGroup(e.target.value)}
-                />
-                <datalist id="edit-shared-limit-groups">
-                  {existingGroups.map((g) => (
-                    <option key={g} value={g} />
-                  ))}
-                </datalist>
-              </div>
-            </>
-          )}
-          {editTarget?.type === "loan" && (
-            <>
-              <div>
-                <Label>Original Loan Amount</Label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                  <Input type="number" step="0.01" className="pl-7 font-mono" value={editOriginalLoanAmount} onChange={(e) => setEditOriginalLoanAmount(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label>Monthly EMI</Label>
-                <div className="relative mt-1">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span>
-                  <Input type="number" step="0.01" className="pl-7 font-mono" value={editEmiAmount} onChange={(e) => setEditEmiAmount(e.target.value)} />
-                </div>
-              </div>
-              <div>
-                <Label>EMI Debit Day (1-31)</Label>
-                <Input type="number" min="1" max="31" step="1" className="mt-1 font-mono" placeholder="e.g. 5" value={editEmiDay} onChange={(e) => setEditEmiDay(e.target.value)} />
-              </div>
-              <div>
-                <Label>Interest Rate (% p.a.)</Label>
-                <Input type="number" step="0.01" className="mt-1 font-mono" placeholder="e.g. 10.5" value={editInterestRate} onChange={(e) => setEditInterestRate(e.target.value)} />
-              </div>
-              <div>
-                <Label>Tenure (months)</Label>
-                <Input type="number" min="1" step="1" className="mt-1 font-mono" placeholder="e.g. 36" value={editLoanTenure} onChange={(e) => setEditLoanTenure(e.target.value)} />
-              </div>
-              <div>
-                <Label>Loan Start Date</Label>
-                <DatePicker
-                  date={editLoanStartDate ? new Date(editLoanStartDate + "T00:00:00") : undefined}
-                  onSelect={(date) => {
-                    if (date) {
-                      const y = date.getFullYear();
-                      const m = String(date.getMonth() + 1).padStart(2, "0");
-                      const d = String(date.getDate()).padStart(2, "0");
-                      setEditLoanStartDate(`${y}-${m}-${d}`);
-                    } else {
-                      setEditLoanStartDate("");
-                    }
-                  }}
-                  placeholder="Select start date"
-                  className="w-full mt-1 font-mono"
-                />
-              </div>
-              <div>
-                <Label>EMIs Already Paid</Label>
-                <Input type="number" min="0" step="1" className="mt-1 font-mono" placeholder="0" value={editEmisPaid} onChange={(e) => setEditEmisPaid(e.target.value)} />
-              </div>
-              <div>
-                <Label>EMI Debit Account</Label>
-                <Select value={editLinkedAccountId} onValueChange={setEditLinkedAccountId}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select bank account" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {bankAccounts.map((a) => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </>
-          )}
-          {editTarget?.type === "bank" && (
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={editUseInSurplus}
-                onChange={(e) => setEditUseInSurplus(e.target.checked)}
-                className="h-4 w-4 rounded border-border accent-primary"
-                id="edit-use-in-surplus"
-              />
-              <Label htmlFor="edit-use-in-surplus" className="text-sm font-normal cursor-pointer">Use in surplus calculation</Label>
-            </div>
-          )}
-        </div>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setEditId(null)}>Cancel</Button>
-          <Button onClick={handleEdit} disabled={updateAccount.isPending || !editName.trim()}>
-            {updateAccount.isPending ? "Saving..." : "Save"}
-          </Button>
-        </DialogFooter>
-      </ResponsiveModal>
+      <EditModal
+        editId={editId}
+        editTarget={editTarget}
+        editName={editName}
+        setEditName={setEditName}
+        editCreditLimit={editCreditLimit}
+        setEditCreditLimit={setEditCreditLimit}
+        editBillingDueDay={editBillingDueDay}
+        setEditBillingDueDay={setEditBillingDueDay}
+        editSharedLimitGroup={editSharedLimitGroup}
+        setEditSharedLimitGroup={setEditSharedLimitGroup}
+        editEmiAmount={editEmiAmount}
+        setEditEmiAmount={setEditEmiAmount}
+        editEmiDay={editEmiDay}
+        setEditEmiDay={setEditEmiDay}
+        editInterestRate={editInterestRate}
+        setEditInterestRate={setEditInterestRate}
+        editLoanTenure={editLoanTenure}
+        setEditLoanTenure={setEditLoanTenure}
+        editOriginalLoanAmount={editOriginalLoanAmount}
+        setEditOriginalLoanAmount={setEditOriginalLoanAmount}
+        editLoanStartDate={editLoanStartDate}
+        setEditLoanStartDate={setEditLoanStartDate}
+        editEmisPaid={editEmisPaid}
+        setEditEmisPaid={setEditEmisPaid}
+        editLinkedAccountId={editLinkedAccountId}
+        setEditLinkedAccountId={setEditLinkedAccountId}
+        editUseInSurplus={editUseInSurplus}
+        setEditUseInSurplus={setEditUseInSurplus}
+        existingGroups={existingGroups}
+        bankAccounts={bankAccounts}
+        handleEdit={handleEdit}
+        updateAccount={updateAccount}
+        setEditId={setEditId}
+        isMobile={isMobile}
+      />
 
-      <ResponsiveModal open={deleteAccountId !== null} onOpenChange={(open) => { if (!open) setDeleteAccountId(null); }} title="Delete Account" isMobile={isMobile}>
-        <p className="text-sm text-muted-foreground py-2">
-          Are you sure you want to delete this account? This action cannot be undone.
-        </p>
-        <DialogFooter>
-          <Button variant="ghost" onClick={() => setDeleteAccountId(null)}>Cancel</Button>
-          <Button variant="destructive" onClick={confirmDeleteAccount} disabled={deleteAccount.isPending}>
-            {deleteAccount.isPending ? "Deleting..." : "Delete"}
-          </Button>
-        </DialogFooter>
-      </ResponsiveModal>
+      <DeleteModal
+        deleteAccountId={deleteAccountId}
+        setDeleteAccountId={setDeleteAccountId}
+        confirmDeleteAccount={confirmDeleteAccount}
+        deleteAccount={deleteAccount}
+        isMobile={isMobile}
+      />
 
       <Sheet open={isMobile && isDialogOpen} onOpenChange={setIsDialogOpen}>
         <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
           <SheetHeader>
             <SheetTitle>New Account</SheetTitle>
           </SheetHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
-              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Account Name</FormLabel><FormControl><Input placeholder="e.g. HDFC Savings" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="type" render={({ field }) => (<FormItem><FormLabel>Type</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger></FormControl><SelectContent><SelectItem value="bank">Bank Account</SelectItem><SelectItem value="credit_card">Credit Card</SelectItem><SelectItem value="loan">Loan</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-              {watchType !== "loan" && <FormField control={form.control} name="currentBalance" render={({ field }) => (<FormItem><FormLabel>Current Balance</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />}
-              {watchType === "bank" && (
-                <FormField control={form.control} name="useInSurplus" render={({ field }) => (
-                  <FormItem className="flex items-center gap-2 space-y-0">
-                    <FormControl><input type="checkbox" checked={field.value ?? false} onChange={field.onChange} className="h-4 w-4 rounded border-border accent-primary" /></FormControl>
-                    <FormLabel className="text-sm font-normal cursor-pointer">Use in surplus calculation</FormLabel>
-                  </FormItem>
-                )} />
-              )}
-              {watchType === "credit_card" && (
-                <>
-                  <FormField control={form.control} name="creditLimit" render={({ field }) => (<FormItem><FormLabel>Credit Limit</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="0.00" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="billingDueDay" render={({ field }) => (<FormItem><FormLabel>Billing Due Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 15" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="sharedLimitGroup" render={({ field }) => (<FormItem><FormLabel>Shared Limit Group</FormLabel><FormControl><div><Input className="font-mono" placeholder="Type group name or leave empty" list="shared-limit-groups-mobile" {...field} /><datalist id="shared-limit-groups-mobile">{existingGroups.map((g) => (<option key={g} value={g} />))}</datalist></div></FormControl><FormMessage /></FormItem>)} />
-                </>
-              )}
-              {watchType === "loan" && (
-                <>
-                  <FormField control={form.control} name="originalLoanAmount" render={({ field }) => (<FormItem><FormLabel>Original Loan Amount</FormLabel><FormControl><div className="relative"><span className="absolute left-3 top-2.5 text-muted-foreground">{"\u20B9"}</span><Input type="number" step="0.01" className="pl-7 font-mono" placeholder="e.g. 2000000" {...field} /></div></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="interestRate" render={({ field }) => (<FormItem><FormLabel>Interest Rate (% p.a.)</FormLabel><FormControl><Input type="number" step="0.01" className="font-mono" placeholder="e.g. 10.5" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="loanTenure" render={({ field }) => (<FormItem><FormLabel>Tenure (months)</FormLabel><FormControl><Input type="number" min="1" step="1" className="font-mono" placeholder="e.g. 36" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="loanStartDate" render={({ field }) => (<FormItem><FormLabel>Loan Start Date</FormLabel><FormControl><DatePicker date={field.value ? new Date(field.value + "T00:00:00") : undefined} onSelect={(date) => { if (date) { const y = date.getFullYear(); const m = String(date.getMonth() + 1).padStart(2, "0"); const d = String(date.getDate()).padStart(2, "0"); field.onChange(`${y}-${m}-${d}`); } else { field.onChange(""); } }} placeholder="Select start date" className="w-full font-mono" /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="emiDay" render={({ field }) => (<FormItem><FormLabel>EMI Debit Day (1-31)</FormLabel><FormControl><Input type="number" min="1" max="31" step="1" className="font-mono" placeholder="e.g. 5" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                  <FormField control={form.control} name="linkedAccountId" render={({ field }) => (<FormItem><FormLabel>EMI Debit Account</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select bank account" /></SelectTrigger></FormControl><SelectContent>{bankAccounts.map((a) => (<SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
-                  {Number(watchOriginalAmount) > 0 && Number(watchTenure) > 0 && (
-                    <div className="rounded-lg border border-[var(--divider-color)] bg-[var(--glass-bg)] p-4 space-y-3">
-                      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Auto-Calculated</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] text-muted-foreground/60">Monthly EMI</p>
-                          <p className="text-sm font-bold font-mono text-primary">{formatCurrency(Number(form.getValues("emiAmount")) || 0)}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] text-muted-foreground/60">EMIs Paid</p>
-                          <p className="text-sm font-bold font-mono">{form.getValues("emisPaid") || "0"} / {watchTenure}</p>
-                        </div>
-                        <div className="col-span-2">
-                          <p className="text-[11px] text-muted-foreground/60">Outstanding Principal</p>
-                          <p className="text-sm font-bold font-mono text-amber-500">{formatCurrency(Number(form.getValues("currentBalance")) || 0)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-              <DialogFooter className="pt-4">
-                <Button type="submit" disabled={createAccount.isPending} className="w-full">
-                  {createAccount.isPending ? "Creating..." : "Create Account"}
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
+          <AccountCreateFormFields
+            form={form}
+            onSubmit={onSubmit}
+            isPending={createAccount.isPending}
+            bankAccounts={bankAccounts}
+            existingGroups={existingGroups}
+          />
         </SheetContent>
       </Sheet>
     </div>
-  );
-}
-
-function ResponsiveModal({ open, onOpenChange, title, isMobile, children }: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  isMobile: boolean;
-  children: React.ReactNode;
-}) {
-  if (isMobile) {
-    return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="max-h-[90dvh] overflow-y-auto rounded-t-2xl">
-          <SheetHeader>
-            <SheetTitle>{title}</SheetTitle>
-          </SheetHeader>
-          {children}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-        </DialogHeader>
-        {children}
-      </DialogContent>
-    </Dialog>
   );
 }
