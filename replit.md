@@ -22,7 +22,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 
 **Monorepo Structure:**
 *   `artifacts/`: Contains deployable applications (`api-server`, `finance-app`).
-*   `lib/`: Houses shared libraries (`api-spec`, `api-client-react`, `api-zod`, `db`, `integrations-anthropic-ai`).
+*   `lib/`: Houses shared libraries (`api-spec`, `api-client-react`, `api-zod`, `db`, `integrations-anthropic-ai`, `replit-auth-web`).
 *   `scripts/`: Utility scripts.
 
 **Frontend (`artifacts/finance-app`):**
@@ -53,9 +53,17 @@ SurplusEngine is structured as a pnpm workspace monorepo.
     *   AI-powered transaction parsing and intent routing. AI chat helpers are split into `routes/helpers/`: merchant-mapping, anomaly-detection, recurring-patterns, query-handler.
     *   Custom billing cycle: 25th of previous month to 24th of current month.
 
+**Authentication:**
+*   Replit Auth (OpenID Connect with PKCE) provides user identity and session management.
+*   `lib/replit-auth-web`: Browser auth package with `useAuth()` hook for login/logout/user state.
+*   Backend: `authMiddleware` loads user from session on every request; `requireAuth` middleware in routes/index.ts protects all `/api` routes except `/api/healthz` and `/api/auth/*`.
+*   Sessions stored in PostgreSQL `sessions` table; users in `users` table.
+*   Frontend shows a login screen for unauthenticated users; API returns 401 for unauthenticated requests.
+*   `credentials: "include"` in customFetch ensures session cookies are sent with every API request.
+
 **Database (`lib/db`):**
 *   PostgreSQL database managed with Drizzle ORM.
-*   Key tables: `accounts`, `categories`, `transactions`, `monthly_config`, `budget_goals`, `goals`, `surplus_allocations`, `merchant_mappings`.
+*   Key tables: `accounts`, `categories`, `transactions`, `monthly_config`, `budget_goals`, `goals`, `surplus_allocations`, `merchant_mappings`, `sessions`, `users`.
 *   Accounts table includes loan amortization fields: `original_loan_amount`, `loan_start_date`, `emis_paid` for tracking principal/interest breakdown and EMI progress.
 *   Includes a seed script for initial data population.
 

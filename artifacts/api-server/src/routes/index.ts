@@ -1,5 +1,6 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
 import transactionsRouter from "./transactions";
 import monthlyConfigRouter from "./monthly-config";
 import budgetGoalsRouter from "./budget-goals";
@@ -20,6 +21,18 @@ import { aiRateLimiter } from "../lib/rate-limit";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
+
+function requireAuth(req: Request, res: Response, next: NextFunction) {
+  if (req.isAuthenticated()) {
+    next();
+    return;
+  }
+  res.status(401).json({ error: "Unauthorized" });
+}
+
+router.use(requireAuth);
+
 router.use("/ai", aiRateLimiter);
 router.use("/transactions/parse-natural", aiRateLimiter);
 router.use(transactionsRouter);
