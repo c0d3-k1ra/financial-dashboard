@@ -11,6 +11,7 @@ import {
 } from "../lib/auth";
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface User extends AuthUser {}
 

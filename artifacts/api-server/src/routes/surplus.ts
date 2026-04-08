@@ -17,10 +17,6 @@ function getNextMonth(month: string): string {
   return `${ny}-${String(nm).padStart(2, "0")}`;
 }
 
-function extractTotal(result: unknown): number {
-  const rows = (result as { rows: { total: string }[] }).rows;
-  return Number(rows?.[0]?.total ?? 0);
-}
 
 router.get("/surplus/monthly", asyncHandler(async (req, res) => {
   const month = req.query.month as string;
