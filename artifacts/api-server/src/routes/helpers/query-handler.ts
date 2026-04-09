@@ -42,7 +42,8 @@ export function detectQueryIntent(message: string): QueryIntent | null {
     return { type: "recent_transactions", limit: 5 };
   }
 
-  if (/\b(what\s+did\s+i\s+spend|did\s+i\s+spend|how\s+much\s+(?:did\s+i\s+)?spend|show\s+(?:my\s+)?spending|expenses?)\b/.test(lower)) {
+  const hasActionVerb = /\b(log|add|record|create|enter)\b.*\bexpenses?\b/.test(lower);
+  if (!hasActionVerb && /\b(what\s+did\s+i\s+spend|did\s+i\s+spend|how\s+much\s+(?:did\s+i\s+)?spend|show\s+(?:my\s+)?spending|(?:show|my|total|check|list|display|get)\s+expenses?|expenses?\s+(?:today|this|last|yesterday))\b/.test(lower)) {
     if (/\btoday\b/.test(lower)) return { type: "today_spending" };
     if (/\bthis\s+week\b/.test(lower)) return { type: "period_spending", period: "this_week" };
     if (/\bthis\s+month\b/.test(lower) || /\bcurrent\s+(?:month|cycle)\b/.test(lower)) return { type: "period_spending", period: "this_month" };

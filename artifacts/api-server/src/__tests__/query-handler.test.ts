@@ -312,6 +312,87 @@ describe("handleQuery", () => {
   });
 });
 
+describe("detectQueryIntent - action phrases should NOT be intercepted", () => {
+  it("returns null for 'I want to log an expense'", () => {
+    expect(detectQueryIntent("I want to log an expense")).toBeNull();
+  });
+
+  it("returns null for 'log an expense'", () => {
+    expect(detectQueryIntent("log an expense")).toBeNull();
+  });
+
+  it("returns null for 'add an expense'", () => {
+    expect(detectQueryIntent("add an expense")).toBeNull();
+  });
+
+  it("returns null for 'record an expense'", () => {
+    expect(detectQueryIntent("record an expense")).toBeNull();
+  });
+
+  it("returns null for 'create an expense'", () => {
+    expect(detectQueryIntent("create an expense")).toBeNull();
+  });
+
+  it("returns null for 'enter an expense'", () => {
+    expect(detectQueryIntent("enter an expense")).toBeNull();
+  });
+
+  it("returns null for 'add an expense today'", () => {
+    expect(detectQueryIntent("add an expense today")).toBeNull();
+  });
+
+  it("returns null for 'log expense this month'", () => {
+    expect(detectQueryIntent("log expense this month")).toBeNull();
+  });
+
+  it("returns null for 'record an expense yesterday'", () => {
+    expect(detectQueryIntent("record an expense yesterday")).toBeNull();
+  });
+});
+
+describe("detectQueryIntent - query phrases should still be intercepted", () => {
+  it("detects 'show my expenses' as spending query", () => {
+    const result = detectQueryIntent("show my expenses");
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("today_spending");
+  });
+
+  it("detects 'expenses today' as today_spending", () => {
+    const result = detectQueryIntent("expenses today");
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("today_spending");
+  });
+
+  it("detects 'expenses this month' as period_spending", () => {
+    const result = detectQueryIntent("expenses this month");
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("period_spending");
+    expect(result!.period).toBe("this_month");
+  });
+
+  it("detects 'my expenses' as spending query", () => {
+    const result = detectQueryIntent("my expenses");
+    expect(result).not.toBeNull();
+  });
+
+  it("detects 'how much did I spend' as spending query", () => {
+    const result = detectQueryIntent("how much did I spend");
+    expect(result).not.toBeNull();
+  });
+
+  it("detects 'show my expenses today' as today_spending", () => {
+    const result = detectQueryIntent("show my expenses today");
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("today_spending");
+  });
+
+  it("detects 'total expenses this week' as period_spending", () => {
+    const result = detectQueryIntent("total expenses this week");
+    expect(result).not.toBeNull();
+    expect(result!.type).toBe("period_spending");
+  });
+});
+
 describe("detectQueryIntent edge cases", () => {
   it("detects most expensive this week", () => {
     const result = detectQueryIntent("most expensive this week");
