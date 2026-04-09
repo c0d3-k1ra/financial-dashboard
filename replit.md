@@ -19,7 +19,7 @@ SurplusEngine is structured as a pnpm workspace monorepo.
 *   **Build Tools:** esbuild (API server), Vite (frontend)
 *   **API Generation:** Orval from OpenAPI spec
 *   **Testing:** Vitest, Supertest (backend), Vitest + React Testing Library + MSW (frontend), @vitest/coverage-v8 for coverage reporting
-*   **Coverage:** Both packages have `test:coverage` scripts. Current baselines: API Server (Stmts 43%, Branch 31%, Funcs 47%, Lines 45%), Finance App (Stmts 36%, Branch 28%, Funcs 28%, Lines 38%). Target: 85% across all metrics. A `coverage` validation command is registered (non-blocking).
+*   **Coverage:** Both packages have `test:coverage` scripts. Finance App thresholds enforced at 85% (Stmts 90.14%, Branch 85.76%, Funcs 86.87%, Lines 92.79% — 1279 tests, 52 test files). API Server baselines: Stmts 43%, Branch 31%, Funcs 47%, Lines 45%. A `coverage` validation command is registered (non-blocking).
 
 **Monorepo Structure:**
 *   `artifacts/`: Contains deployable applications (`api-server`, `finance-app`).

@@ -105,3 +105,13 @@ describe("App navigation", () => {
     });
   });
 });
+
+describe("App component (actual)", () => {
+  it("renders the actual App component without errors and shows Financial Cockpit", async () => {
+    const { default: App } = await import("./App");
+    render(<App />);
+    await waitFor(() => {
+      expect(screen.getByText("Financial Cockpit")).toBeInTheDocument();
+    });
+  });
+});

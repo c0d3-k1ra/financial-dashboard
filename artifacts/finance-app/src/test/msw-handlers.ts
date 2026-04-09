@@ -110,6 +110,34 @@ export const mockWaterfall: WaterfallData = {
   stressTest: false,
 };
 
+export const mockBudgetAnalysis = {
+  daysElapsed: 10,
+  totalCycleDays: 30,
+  rows: [
+    {
+      categoryId: 1, budgetGoalId: 1, category: "Food", planned: "15000", actual: "8000",
+      difference: "7000", overBudget: false, paceStatus: "on_pace" as const,
+      categoryType: "discretionary" as const, percentSpent: 53, paceMessage: "On track",
+    },
+    {
+      categoryId: 6, budgetGoalId: 2, category: "EMI (PL)", planned: "10000", actual: "10000",
+      difference: "0", overBudget: false, paceStatus: "on_pace" as const,
+      categoryType: "fixed" as const, percentSpent: 100, paceMessage: "Paid",
+    },
+    {
+      categoryId: 3, budgetGoalId: 3, category: "Utilities", planned: "5000", actual: "6000",
+      difference: "-1000", overBudget: true, paceStatus: "over_budget" as const,
+      categoryType: "discretionary" as const, percentSpent: 120, paceMessage: "Over by ₹1,000",
+    },
+  ],
+};
+
+export const mockBudgetGoals = [
+  { id: 1, categoryId: 1, plannedAmount: "15000" },
+  { id: 2, categoryId: 6, plannedAmount: "10000" },
+  { id: 3, categoryId: 3, plannedAmount: "5000" },
+];
+
 export const mockAllocations: SurplusAllocation[] = [];
 
 export const mockCanUndo: CanUndoSurplusResult = {
@@ -161,10 +189,71 @@ export const handlers = [
   http.post("/api/accounts/process-emis", () => HttpResponse.json({ processed: 0, message: "All loans are up to date." })),
   http.post("/api/surplus/distribute", () => HttpResponse.json({ success: true, allocatedTotal: "10000", transfers: 1 })),
   http.post("/api/surplus/undo", () => HttpResponse.json({ success: true, deletedAllocations: 1, deletedTransfers: 1, revertedGoals: 1 })),
-  http.get("/api/goals/:id/projection", () => HttpResponse.json([])),
+  http.get("/api/goals/:id/projection", () => HttpResponse.json([
+    { month: "Jan 2026", actual: 5000, currentPace: 5000, neededPace: 6000, targetAmount: 50000 },
+    { month: "Feb 2026", actual: 10000, currentPace: 10000, neededPace: 12000, targetAmount: 50000 },
+    { month: "Mar 2026", actual: 15000, currentPace: 15000, neededPace: 18000, targetAmount: 50000 },
+    { month: "Apr 2026", actual: null, currentPace: 20000, neededPace: 24000, targetAmount: 50000 },
+  ])),
   http.put("/api/settings", async ({ request }) => {
     const body = await request.json() as Record<string, unknown>;
     return HttpResponse.json({ ...mockSettings, ...body });
   }),
   http.get("/api/healthz", () => HttpResponse.json({ status: "ok" })),
+  http.get("/api/budget-analysis", () =>
+    HttpResponse.json(mockBudgetAnalysis),
+  ),
+  http.get("/api/budget-goals", () => HttpResponse.json(mockBudgetGoals)),
+  http.post("/api/budget-goals", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ id: 10, ...body }, { status: 201 });
+  }),
+  http.delete("/api/budget-goals/:id", () =>
+    HttpResponse.json({ success: true }),
+  ),
+  http.post("/api/goals", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: 10, ...body, currentAmount: "0", status: "Active", velocity: 0 },
+      { status: 201 },
+    );
+  }),
+  http.put("/api/goals/:id", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...body });
+  }),
+  http.delete("/api/goals/:id", () => HttpResponse.json({ success: true })),
+  http.delete("/api/categories/:id", () =>
+    HttpResponse.json({ success: true }),
+  ),
+  http.put("/api/categories/:id/rename", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({ ...body });
+  }),
+  http.post("/api/reset", () =>
+    HttpResponse.json({ success: true }),
+  ),
+  http.post("/api/transfers", async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json(
+      { id: 200, ...body, createdAt: new Date().toISOString() },
+      { status: 201 },
+    );
+  }),
+  http.post("/api/ai/chat", () =>
+    HttpResponse.json({
+      reply: "I found a transaction: ₹450 at Starbucks",
+      transaction: {
+        transactionType: "Expense",
+        amount: "450",
+        date: new Date().toISOString().split("T")[0],
+        description: "Starbucks",
+        category: "Food",
+        accountId: 1,
+        fromAccountId: null,
+        toAccountId: null,
+      },
+      warnings: [],
+    }),
+  ),
 ];
