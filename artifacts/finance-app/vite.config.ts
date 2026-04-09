@@ -65,8 +65,28 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+        globPatterns: ["**/*.{js,css,ico,png,svg,woff,woff2}"],
+        navigateFallback: null,
         runtimeCaching: [
+          {
+            urlPattern: ({ url }: { url: URL }) => {
+              const authPaths = ["/auth", "/login", "/logout", "/callback"];
+              const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
+              return authPaths.some((p) => url.pathname.startsWith(p) || url.pathname.startsWith(`${normalizedBase}${p.slice(1)}`));
+            },
+            handler: "NetworkOnly",
+          },
+          {
+            urlPattern: ({ request }: { request: Request }) => request.mode === "navigate",
+            handler: "NetworkFirst",
+            options: {
+              cacheName: "navigation-cache",
+              networkTimeoutSeconds: 3,
+              cacheableResponse: {
+                statuses: [200],
+              },
+            },
+          },
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: "CacheFirst",
