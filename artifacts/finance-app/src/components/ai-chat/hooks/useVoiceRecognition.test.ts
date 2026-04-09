@@ -16,6 +16,7 @@ class MockSpeechRecognition {
   onend: any = null;
 
   constructor() {
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     lastInstance = this;
   }
 }

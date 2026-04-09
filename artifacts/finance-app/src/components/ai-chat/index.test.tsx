@@ -204,7 +204,7 @@ describe("AiParseBubble - chat interactions", () => {
     const input = screen.getByPlaceholderText(/Spent 450 at Starbucks/i);
     await user.type(input, "   ");
     await user.keyboard("{Enter}");
-    expect(screen.queryByText(/   /)).toBeDefined();
+    expect(document.querySelector(".ai-typing-dot")).toBeNull();
   });
 
   it("receives AI response after sending message", async () => {

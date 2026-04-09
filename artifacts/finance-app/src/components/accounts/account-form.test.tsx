@@ -1,9 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, renderHook } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AccountCreateFormFields, useAccountForm, accountFormSchema } from "./account-form";
 import { TestWrapper } from "@/test/test-wrapper";
-import { renderHook } from "@testing-library/react";
 
 if (!Element.prototype.hasPointerCapture) {
   Element.prototype.hasPointerCapture = vi.fn().mockReturnValue(false);

@@ -1,9 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { SummaryCards } from "./summary-cards";
 import { TestWrapper } from "@/test/test-wrapper";
 import { mockSummary, mockGoals } from "@/test/msw-handlers";
-import { vi } from "vitest";
 
 const defaultProps = {
   summary: mockSummary,
