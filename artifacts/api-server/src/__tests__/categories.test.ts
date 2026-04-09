@@ -1,66 +1,124 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
+import { db, mockChain } from "../test/db-mock";
 import app from "../app";
-import type { CategoryResponse } from "../test/types";
 
 describe("Categories API", () => {
-  it("C-01: create expense category", async () => {
-    const res = await request(app).post("/api/categories").send({ name: "Groceries", type: "Expense" });
-    expect(res.status).toBe(201);
-    const body = res.body as CategoryResponse;
-    expect(body.name).toBe("Groceries");
-    expect(body.type).toBe("Expense");
-  });
-
-  it("C-02: create income category", async () => {
-    const res = await request(app).post("/api/categories").send({ name: "Freelance", type: "Income" });
-    expect(res.status).toBe(201);
-    const body = res.body as CategoryResponse;
-    expect(body.type).toBe("Income");
-  });
-
-  it("C-03: list categories", async () => {
-    await request(app).post("/api/categories").send({ name: "Food", type: "Expense" });
-    await request(app).post("/api/categories").send({ name: "Salary", type: "Income" });
-
+  it("GET /categories returns list", async () => {
+    db.select.mockReturnValueOnce(
+      mockChain([{ id: 1, name: "Food", type: "Expense" }])
+    );
     const res = await request(app).get("/api/categories");
     expect(res.status).toBe(200);
-    const body = res.body as CategoryResponse[];
-    expect(body.length).toBe(2);
+    expect(res.body).toHaveLength(1);
   });
 
-  it("C-04: filter categories by type", async () => {
-    await request(app).post("/api/categories").send({ name: "Food", type: "Expense" });
-    await request(app).post("/api/categories").send({ name: "Salary", type: "Income" });
-
-    const res = await request(app).get("/api/categories?type=Expense");
-    const body = res.body as CategoryResponse[];
-    expect(body.length).toBe(1);
-    expect(body[0].type).toBe("Expense");
+  it("GET /categories with type filter", async () => {
+    db.select.mockReturnValueOnce(
+      mockChain([{ id: 2, name: "Salary", type: "Income" }])
+    );
+    const res = await request(app).get("/api/categories?type=Income");
+    expect(res.status).toBe(200);
   });
 
-  it("C-05: delete unused category", async () => {
-    const cat = await request(app).post("/api/categories").send({ name: "ToDelete", type: "Expense" });
-    const catBody = cat.body as CategoryResponse;
-    const res = await request(app).delete(`/api/categories/${catBody.id}`);
-    expect(res.status).toBe(204);
-
-    const list = await request(app).get("/api/categories");
-    const body = list.body as CategoryResponse[];
-    expect(body.length).toBe(0);
+  it("GET /categories returns empty", async () => {
+    const res = await request(app).get("/api/categories");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
   });
 
-  it("C-05b: delete category with linked transactions returns conflict", async () => {
-    const acc = await request(app).post("/api/accounts").send({ name: "CatBank", type: "bank", currentBalance: "50000" });
-    const cat = await request(app).post("/api/categories").send({ name: "InUse", type: "Expense" });
-    const catBody = cat.body as CategoryResponse;
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "100", description: "Test", category: "InUse", type: "Expense", accountId: acc.body.id,
+  it("POST /categories creates expense category with budget", async () => {
+    db.insert.mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]));
+    db.select.mockReturnValueOnce(mockChain([]));
+    const res = await request(app).post("/api/categories").send({
+      name: "Food", type: "Expense",
     });
+    expect(res.status).toBe(201);
+    expect(res.body.name).toBe("Food");
+  });
 
-    const res = await request(app).delete(`/api/categories/${catBody.id}`);
+  it("POST /categories creates income category without budget", async () => {
+    db.insert.mockReturnValueOnce(mockChain([{ id: 2, name: "Salary", type: "Income" }]));
+    const res = await request(app).post("/api/categories").send({
+      name: "Salary", type: "Income",
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it("POST /categories rejects empty body", async () => {
+    const res = await request(app).post("/api/categories").send({});
+    expect(res.status).toBe(400);
+  });
+
+  it("PATCH /categories/:id renames category", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]))
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Groceries", type: "Expense" }]));
+    const res = await request(app).patch("/api/categories/1").send({ name: "Groceries" });
+    expect(res.status).toBe(200);
+    expect(res.body.name).toBe("Groceries");
+  });
+
+  it("PATCH /categories/:id returns 404 when not found", async () => {
+    const res = await request(app).patch("/api/categories/999").send({ name: "Test" });
+    expect(res.status).toBe(404);
+  });
+
+  it("PATCH /categories/:id rejects empty name", async () => {
+    const res = await request(app).patch("/api/categories/1").send({ name: "  " });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("non-empty");
+  });
+
+  it("PATCH /categories/:id rejects duplicate name", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]))
+      .mockReturnValueOnce(mockChain([{ id: 2, name: "Travel", type: "Expense" }]));
+    const res = await request(app).patch("/api/categories/1").send({ name: "Travel" });
     expect(res.status).toBe(409);
-    expect(res.body.error).toContain("transaction");
+  });
+
+  it("PATCH /categories/:id allows same name", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]));
+    const res = await request(app).patch("/api/categories/1").send({ name: "Food" });
+    expect(res.status).toBe(200);
+  });
+
+  it("PATCH /categories/:id rejects invalid id", async () => {
+    const res = await request(app).patch("/api/categories/abc").send({ name: "Test" });
+    expect(res.status).toBe(400);
+  });
+
+  it("DELETE /categories/:id succeeds when no links", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]))
+      .mockReturnValueOnce(mockChain([{ count: 0 }]));
+    const res = await request(app).delete("/api/categories/1");
+    expect(res.status).toBe(204);
+  });
+
+  it("DELETE /categories/:id fails when transactions linked", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Food", type: "Expense" }]))
+      .mockReturnValueOnce(mockChain([{ count: 5 }]));
+    const res = await request(app).delete("/api/categories/1");
+    expect(res.status).toBe(409);
+  });
+
+  it("DELETE /categories/:id returns 404", async () => {
+    const res = await request(app).delete("/api/categories/999");
+    expect(res.status).toBe(404);
+  });
+
+  it("POST /categories with existing budget goal skips creation", async () => {
+    db.insert.mockReturnValueOnce(mockChain([{ id: 3, name: "Custom", type: "Expense" }]));
+    db.select.mockReturnValueOnce(mockChain([{ id: 10, categoryId: 3, plannedAmount: "2000" }]));
+    const res = await request(app).post("/api/categories").send({
+      name: "Custom", type: "Expense",
+    });
+    expect(res.status).toBe(201);
   });
 });

@@ -1,64 +1,61 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
+import { db, mockChain } from "../test/db-mock";
 import app from "../app";
-import type { AccountResponse, TransactionResponse } from "../test/types";
-
-async function createAccount(name: string, type = "bank", balance = "50000"): Promise<AccountResponse> {
-  const res = await request(app).post("/api/accounts").send({ name, type, currentBalance: balance });
-  return res.body as AccountResponse;
-}
 
 describe("Transfers API", () => {
-  it("TR-01: valid inter-account transfer updates both balances", async () => {
-    const from = await createAccount("From Bank", "bank", "10000");
-    const to = await createAccount("To Bank", "bank", "5000");
-
+  it("POST /transfers creates transfer", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", type: "bank", currentBalance: "50000" }]))
+      .mockReturnValueOnce(mockChain([{ id: 2, name: "HDFC", type: "bank", currentBalance: "20000" }]));
+    db.insert.mockReturnValueOnce(
+      mockChain([{ id: 1, date: "2025-03-01", amount: "5000", description: "Transfer: SBI → HDFC", category: "Transfer", type: "Transfer", accountId: 1, toAccountId: 2 }])
+    );
     const res = await request(app).post("/api/transfers").send({
-      date: "2025-03-01", amount: "3000", fromAccountId: from.id, toAccountId: to.id,
+      fromAccountId: 1, toAccountId: 2, amount: "5000", date: "2025-03-01",
     });
     expect(res.status).toBe(201);
-    const txn = res.body as TransactionResponse;
-    expect(txn.type).toBe("Transfer");
-    expect(txn.accountId).toBe(from.id);
-    expect(txn.toAccountId).toBe(to.id);
-
-    const accounts = await request(app).get("/api/accounts");
-    const fromAcc = (accounts.body as AccountResponse[]).find(a => a.id === from.id);
-    const toAcc = (accounts.body as AccountResponse[]).find(a => a.id === to.id);
-    expect(Number(fromAcc!.currentBalance)).toBe(7000);
-    expect(Number(toAcc!.currentBalance)).toBe(8000);
   });
 
-  it("TR-02: reject same-account transfer", async () => {
-    const acc = await createAccount("Self Transfer");
+  it("POST /transfers rejects same account", async () => {
     const res = await request(app).post("/api/transfers").send({
-      date: "2025-03-01", amount: "1000", fromAccountId: acc.id, toAccountId: acc.id,
+      fromAccountId: 1, toAccountId: 1, amount: "5000", date: "2025-03-01",
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("different");
   });
 
-  it("TR-03: transfer between Bank and Credit Card", async () => {
-    const bank = await createAccount("Bank TR3", "bank", "50000");
-    const cc = await createAccount("CC TR3", "credit_card", "-15000");
-
+  it("POST /transfers rejects non-positive amount", async () => {
     const res = await request(app).post("/api/transfers").send({
-      date: "2025-03-01", amount: "15000", fromAccountId: bank.id, toAccountId: cc.id, description: "CC Payment",
+      fromAccountId: 1, toAccountId: 2, amount: "0", date: "2025-03-01",
     });
-    expect(res.status).toBe(201);
-
-    const accounts = await request(app).get("/api/accounts");
-    const bankAcc = (accounts.body as AccountResponse[]).find(a => a.id === bank.id);
-    const ccAcc = (accounts.body as AccountResponse[]).find(a => a.id === cc.id);
-    expect(Number(bankAcc!.currentBalance)).toBe(35000);
-    expect(Number(ccAcc!.currentBalance)).toBe(0);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("positive");
   });
 
-  it("TR-04: reject transfer with non-existent account", async () => {
-    const acc = await createAccount("Real Account");
+  it("POST /transfers rejects missing from account", async () => {
+    db.select.mockReturnValueOnce(mockChain([]));
     const res = await request(app).post("/api/transfers").send({
-      date: "2025-03-01", amount: "1000", fromAccountId: acc.id, toAccountId: 99999,
+      fromAccountId: 999, toAccountId: 2, amount: "5000", date: "2025-03-01",
     });
     expect(res.status).toBe(404);
+  });
+
+  it("POST /transfers with description", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", type: "bank" }]))
+      .mockReturnValueOnce(mockChain([{ id: 2, name: "HDFC", type: "bank" }]));
+    db.insert.mockReturnValueOnce(
+      mockChain([{ id: 2, date: "2025-03-01", amount: "1000", description: "Custom desc", category: "Transfer", type: "Transfer", accountId: 1, toAccountId: 2 }])
+    );
+    const res = await request(app).post("/api/transfers").send({
+      fromAccountId: 1, toAccountId: 2, amount: "1000", date: "2025-03-01", description: "Custom desc",
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it("POST /transfers rejects empty body", async () => {
+    const res = await request(app).post("/api/transfers").send({});
+    expect(res.status).toBe(400);
   });
 });

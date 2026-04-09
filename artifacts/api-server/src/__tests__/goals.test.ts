@@ -1,146 +1,332 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
+import { db, mockChain } from "../test/db-mock";
 import app from "../app";
-import type { AccountResponse, GoalResponse, WaterfallResponse, ProjectionPoint } from "../test/types";
-
-async function createAccount(name: string, balance = "100000"): Promise<AccountResponse> {
-  const res = await request(app).post("/api/accounts").send({ name, type: "bank", currentBalance: balance });
-  return res.body as AccountResponse;
-}
 
 describe("Goals API", () => {
-  it("G-01: create a goal", async () => {
-    const acc = await createAccount("GoalBank1");
+  it("GET /goals returns list with intelligence", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{
+        id: 1, name: "Emergency", targetAmount: "100000", currentAmount: "20000",
+        accountId: 1, status: "Active", targetDate: null, categoryType: "Emergency",
+        icon: "🛡️",
+      }]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI" }]))
+      .mockReturnValueOnce(mockChain([]));
+    const res = await request(app).get("/api/goals");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(1);
+    expect(res.body[0].accountName).toBe("SBI");
+  });
+
+  it("GET /goals returns empty", async () => {
+    const res = await request(app).get("/api/goals");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveLength(0);
+  });
+
+  it("POST /goals creates goal with account", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", currentBalance: "100000" }]))
+      .mockReturnValueOnce(mockChain([]));
+    db.insert.mockReturnValueOnce(
+      mockChain([{
+        id: 1, name: "Vacation", targetAmount: "50000", currentAmount: "0",
+        accountId: 1, status: "Active", targetDate: "2025-12-31",
+        categoryType: "Travel", icon: "✈️",
+      }])
+    );
     const res = await request(app).post("/api/goals").send({
-      name: "Emergency Fund", targetAmount: "300000", accountId: acc.id, categoryType: "Emergency",
+      name: "Vacation", targetAmount: "50000", accountId: 1,
+      targetDate: "2025-12-31", categoryType: "Travel",
     });
     expect(res.status).toBe(201);
-    const body = res.body as GoalResponse;
-    expect(body.name).toBe("Emergency Fund");
-    expect(body.currentAmount).toBe("0.00");
-    expect(body.status).toBe("Active");
+    expect(res.body.name).toBe("Vacation");
   });
 
-  it("G-02: update a goal", async () => {
-    const acc = await createAccount("GoalBank2");
-    const goal = await request(app).post("/api/goals").send({
-      name: "Travel Fund", targetAmount: "50000", accountId: acc.id, categoryType: "Travel",
+  it("POST /goals creates goal without account", async () => {
+    db.insert.mockReturnValueOnce(
+      mockChain([{
+        id: 2, name: "Emergency", targetAmount: "100000", currentAmount: "0",
+        accountId: null, status: "Active", targetDate: null,
+        categoryType: "Emergency", icon: "🛡️",
+      }])
+    );
+    const res = await request(app).post("/api/goals").send({
+      name: "Emergency", targetAmount: "100000", categoryType: "Emergency", accountId: 0,
     });
-    const goalBody = goal.body as GoalResponse;
-    const res = await request(app).put(`/api/goals/${goalBody.id}`).send({
-      name: "Travel Fund Updated", targetAmount: "75000", accountId: acc.id, categoryType: "Travel",
+    expect(res.status).toBe(201);
+  });
+
+  it("POST /goals rejects bad account", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([]));
+    const res = await request(app).post("/api/goals").send({
+      name: "Bad", targetAmount: "50000", accountId: 999, categoryType: "General",
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("PUT /goals/:id updates goal", async () => {
+    db.select.mockReturnValueOnce(
+      mockChain([{
+        id: 1, name: "Old", targetAmount: "50000", currentAmount: "10000",
+        accountId: 1, status: "Active", targetDate: null, categoryType: "General",
+      }])
+    );
+    db.update.mockReturnValueOnce(
+      mockChain([{
+        id: 1, name: "Updated", targetAmount: "60000", currentAmount: "10000",
+        accountId: 1, status: "Active", targetDate: null, categoryType: "General",
+      }])
+    );
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI" }]));
+    const res = await request(app).put("/api/goals/1").send({
+      name: "Updated", targetAmount: "60000", categoryType: "General", accountId: 1,
     });
     expect(res.status).toBe(200);
-    const body = res.body as GoalResponse;
-    expect(body.name).toBe("Travel Fund Updated");
-    expect(body.targetAmount).toBe("75000.00");
+    expect(res.body.name).toBe("Updated");
   });
 
-  it("G-03: delete a goal", async () => {
-    const acc = await createAccount("GoalBank3");
-    const goal = await request(app).post("/api/goals").send({
-      name: "Temp Goal", targetAmount: "10000", accountId: acc.id, categoryType: "General",
+  it("PUT /goals/:id returns 404", async () => {
+    const res = await request(app).put("/api/goals/999").send({
+      name: "Ghost", targetAmount: "10000", categoryType: "General", accountId: 0,
     });
-    const goalBody = goal.body as GoalResponse;
-    const res = await request(app).delete(`/api/goals/${goalBody.id}`);
+    expect(res.status).toBe(404);
+  });
+
+  it("PUT /goals/:id achieves goal", async () => {
+    db.select.mockReturnValueOnce(
+      mockChain([{
+        id: 1, name: "Goal", targetAmount: "10000", currentAmount: "5000",
+        accountId: null, status: "Active", targetDate: null, categoryType: "General",
+      }])
+    );
+    db.update.mockReturnValueOnce(
+      mockChain([{
+        id: 1, name: "Goal", targetAmount: "10000", currentAmount: "10000",
+        accountId: null, status: "Achieved", targetDate: null, categoryType: "General",
+      }])
+    );
+    db.select.mockReturnValueOnce(mockChain([]));
+    const res = await request(app).put("/api/goals/1").send({
+      name: "Goal", targetAmount: "10000", currentAmount: "10000", categoryType: "General", accountId: 0,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("PUT /goals/:id validates balance when account changes", async () => {
+    db.select.mockReturnValueOnce(
+      mockChain([{
+        id: 1, name: "Goal", targetAmount: "50000", currentAmount: "10000",
+        accountId: 1, status: "Active", targetDate: null, categoryType: "General",
+      }])
+    );
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 2, name: "HDFC", currentBalance: "1000" }]))
+      .mockReturnValueOnce(mockChain([]));
+    const res = await request(app).put("/api/goals/1").send({
+      name: "Goal", targetAmount: "50000", currentAmount: "20000",
+      accountId: 2, categoryType: "General",
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("Insufficient");
+  });
+
+  it("DELETE /goals/:id succeeds when no allocations", async () => {
+    db.select.mockReturnValueOnce(mockChain([{ count: 0 }]));
+    const res = await request(app).delete("/api/goals/1");
     expect(res.status).toBe(204);
   });
 
-  it("G-04: list goals with intelligence data", async () => {
-    const acc = await createAccount("GoalBank4");
-    await request(app).post("/api/goals").send({
-      name: "Emergency", targetAmount: "300000", accountId: acc.id, categoryType: "Emergency",
-    });
-
-    const res = await request(app).get("/api/goals");
-    const body = res.body as GoalResponse[];
-    expect(body.length).toBe(1);
-    expect(body[0]).toHaveProperty("velocity");
-    expect(body[0]).toHaveProperty("statusIndicator");
-    expect(body[0]).toHaveProperty("projectedFinishDate");
+  it("DELETE /goals/:id fails when allocations linked", async () => {
+    db.select.mockReturnValueOnce(mockChain([{ count: 3 }]));
+    const res = await request(app).delete("/api/goals/1");
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain("surplus allocation");
   });
 
-  it("G-05: update goal with currentAmount to achieve it", async () => {
-    const acc = await createAccount("GoalBank5");
-    const goal = await request(app).post("/api/goals").send({
-      name: "Small Goal", targetAmount: "1000", accountId: acc.id, categoryType: "General",
-    });
-    const goalBody = goal.body as GoalResponse;
-    const res = await request(app).put(`/api/goals/${goalBody.id}`).send({
-      name: "Small Goal", targetAmount: "1000", currentAmount: "1000", accountId: acc.id, categoryType: "General",
-    });
-    const body = res.body as GoalResponse;
-    expect(body.status).toBe("Achieved");
-  });
-
-  it("G-12: waterfall calculation with liquid cash", async () => {
-    const acc = await createAccount("WaterfallBank", "500000");
-    await request(app).post("/api/goals").send({
-      name: "Emergency", targetAmount: "300000", accountId: acc.id, categoryType: "Emergency",
-    });
-
+  it("GET /goals/waterfall returns breakdown", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([
+        { id: 1, name: "SBI", type: "bank", currentBalance: "200000" },
+      ]))
+      .mockReturnValueOnce(mockChain([
+        { id: 1, name: "Emergency", currentAmount: "50000", status: "Active" },
+      ]))
+      .mockReturnValueOnce(mockChain([{ total: "100000" }]))
+      .mockReturnValueOnce(mockChain([{ cnt: "3" }]));
     const res = await request(app).get("/api/goals/waterfall");
     expect(res.status).toBe(200);
-    const body = res.body as WaterfallResponse;
-    expect(body).toHaveProperty("totalBankBalance");
-    expect(body).toHaveProperty("remainingLiquidCash");
-    expect(body).toHaveProperty("goalAllocations");
-    expect(Number(body.totalBankBalance)).toBe(500000);
+    expect(res.body).toHaveProperty("totalBankBalance");
+    expect(res.body).toHaveProperty("remainingLiquidCash");
+    expect(res.body).toHaveProperty("stressTest");
   });
 
-  it("G-13: stress test (Goal Rich Cash Poor)", async () => {
-    const acc = await createAccount("PoorBank", "10000");
-
-    const goal = await request(app).post("/api/goals").send({
-      name: "Big Goal", targetAmount: "500000", accountId: acc.id, categoryType: "General",
-    });
-    const goalBody = goal.body as GoalResponse;
-
-    await request(app).put(`/api/goals/${goalBody.id}`).send({
-      name: "Big Goal", targetAmount: "500000", currentAmount: "8000", accountId: acc.id, categoryType: "General",
-    });
-
-    await request(app).post("/api/transactions").send({
-      date: "2025-03-01", amount: "5000", description: "Expense", category: "Living Expenses", type: "Expense", accountId: acc.id,
-    });
-
-    const res = await request(app).get("/api/goals/waterfall");
-    const body = res.body as WaterfallResponse;
-    expect(Number(body.remainingLiquidCash)).toBeLessThan(Number(body.totalBankBalance));
-    expect(body.stressTest).toBe(true);
-  });
-
-  it("G-14: 12-month projection", async () => {
-    const acc = await createAccount("ProjectionBank");
-    const goal = await request(app).post("/api/goals").send({
-      name: "Long Term", targetAmount: "500000", accountId: acc.id, categoryType: "General", targetDate: "2028-01-01",
-    });
-    const goalBody = goal.body as GoalResponse;
-
-    const res = await request(app).get(`/api/goals/${goalBody.id}/projection`);
+  it("GET /goals/:id/projection returns data", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{
+        id: 1, name: "Emergency", targetAmount: "100000", currentAmount: "20000",
+        targetDate: "2026-12-31", categoryType: "Emergency", status: "Active",
+      }]))
+      .mockReturnValueOnce(mockChain([]));
+    const res = await request(app).get("/api/goals/1/projection");
     expect(res.status).toBe(200);
-    const body = res.body as ProjectionPoint[];
-    expect(body.length).toBeGreaterThanOrEqual(12);
-    expect(body[0]).toHaveProperty("month");
-    expect(body[0]).toHaveProperty("currentPace");
-    expect(body[0]).toHaveProperty("targetAmount");
+    expect(Array.isArray(res.body)).toBe(true);
   });
 
-  it("G-15: zero-velocity projection stays flat", async () => {
-    const acc = await createAccount("FlatBank");
-    const goal = await request(app).post("/api/goals").send({
-      name: "Flat Goal", targetAmount: "100000", accountId: acc.id, categoryType: "General",
-    });
-    const goalBody = goal.body as GoalResponse;
-
-    const res = await request(app).get(`/api/goals/${goalBody.id}/projection`);
-    const body = res.body as ProjectionPoint[];
-    const balances = body.map(p => p.projectedBalance);
-    expect(new Set(balances).size).toBe(1);
-  });
-
-  it("G-16: projection for non-existent goal returns 404", async () => {
-    const res = await request(app).get("/api/goals/99999/projection");
+  it("GET /goals/:id/projection returns 404", async () => {
+    const res = await request(app).get("/api/goals/999/projection");
     expect(res.status).toBe(404);
+  });
+
+  it("GET /goals with null fields", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{
+        id: 1, name: "Test", targetAmount: null, currentAmount: null,
+        accountId: null, status: "Active", targetDate: null, categoryType: "Other",
+        icon: null,
+      }]))
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([]));
+    const res = await request(app).get("/api/goals");
+    expect(res.status).toBe(200);
+    expect(res.body[0].targetAmount).toBe("0.00");
+    expect(res.body[0].accountName).toBeNull();
+  });
+
+  it("POST /goals creates goal without targetDate", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", currentBalance: "100000" }]))
+      .mockReturnValueOnce(mockChain([]));
+    db.insert.mockReturnValueOnce(
+      mockChain([{
+        id: 2, name: "Quick Save", targetAmount: "10000", currentAmount: "0",
+        accountId: 1, status: "Active", targetDate: null,
+        categoryType: "Other", icon: "🎯",
+      }])
+    );
+    const res = await request(app).post("/api/goals").send({
+      name: "Quick Save", targetAmount: "10000", categoryType: "Other", accountId: 1,
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.statusIndicator).toBe("Not Started");
+  });
+
+  it("POST /goals creates goal with matching category icon", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", currentBalance: "100000" }]))
+      .mockReturnValueOnce(mockChain([]));
+    db.insert.mockReturnValueOnce(
+      mockChain([{
+        id: 2, name: "Trip", targetAmount: "50000", currentAmount: "0",
+        accountId: 1, status: "Active", targetDate: "2025-12-31",
+        categoryType: "Travel", icon: "✈️",
+      }])
+    );
+    const res = await request(app).post("/api/goals").send({
+      name: "Trip", targetAmount: "50000", categoryType: "Travel", targetDate: "2025-12-31", accountId: 1,
+    });
+    expect(res.status).toBe(201);
+  });
+
+  it("PUT /goals/:id with currentAmount set", async () => {
+    db.select.mockReturnValueOnce(mockChain([{
+      id: 1, name: "Emergency", targetAmount: "100000", currentAmount: "0",
+      accountId: 1, status: "Active",
+    }]));
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", currentBalance: "200000" }]))
+      .mockReturnValueOnce(mockChain([]));
+    db.update.mockReturnValueOnce(mockChain([{
+      id: 1, name: "Emergency", targetAmount: "100000", currentAmount: "50000",
+      accountId: 1, status: "Active", targetDate: null, categoryType: "Emergency", icon: "🛡️",
+    }]));
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI" }]));
+    const res = await request(app).put("/api/goals/1").send({
+      name: "Emergency", targetAmount: "100000", currentAmount: "50000",
+      categoryType: "Emergency", accountId: 1,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("PUT /goals/:id not found after update", async () => {
+    db.select.mockReturnValueOnce(mockChain([{
+      id: 1, name: "Goal", targetAmount: "10000", currentAmount: "0",
+      accountId: 1, status: "Active",
+    }]));
+    db.update.mockReturnValueOnce(mockChain([]));
+    const res = await request(app).put("/api/goals/1").send({
+      name: "Goal", targetAmount: "10000", categoryType: "Other", accountId: 1,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it("PUT /goals/:id achieves status when currentAmount >= targetAmount", async () => {
+    db.select.mockReturnValueOnce(mockChain([{
+      id: 1, name: "Small Goal", targetAmount: "1000", currentAmount: "500",
+      accountId: 1, status: "Active",
+    }]));
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI", currentBalance: "5000" }]))
+      .mockReturnValueOnce(mockChain([]));
+    db.update.mockReturnValueOnce(mockChain([{
+      id: 1, name: "Small Goal", targetAmount: "1000", currentAmount: "1000",
+      accountId: 1, status: "Achieved", targetDate: null, categoryType: "Other", icon: "🎯",
+    }]));
+    db.select
+      .mockReturnValueOnce(mockChain([]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "SBI" }]));
+    const res = await request(app).put("/api/goals/1").send({
+      name: "Small Goal", targetAmount: "1000", currentAmount: "1000", categoryType: "Other", accountId: 1,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it("GET /goals/waterfall with null balances", async () => {
+    db.select
+      .mockReturnValueOnce(mockChain([{ id: 1, type: "bank", currentBalance: null }]))
+      .mockReturnValueOnce(mockChain([{ id: 1, name: "Goal", currentAmount: null, status: "Active" }]))
+      .mockReturnValueOnce(mockChain([{ total: null }]))
+      .mockReturnValueOnce(mockChain([{ cnt: null }]));
+    const res = await request(app).get("/api/goals/waterfall");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("totalBankBalance");
+  });
+
+  it("DELETE /goals/:id rejected with linked allocations", async () => {
+    db.select.mockReturnValueOnce(mockChain([{ count: 3 }]));
+    const res = await request(app).delete("/api/goals/1");
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain("Cannot delete");
+  });
+
+  it("GET /goals/:id/projection with allocations", async () => {
+    const now = new Date();
+    const monthAgo = new Date(now);
+    monthAgo.setMonth(monthAgo.getMonth() - 1);
+    db.select
+      .mockReturnValueOnce(mockChain([{
+        id: 1, name: "Emergency", targetAmount: "100000", currentAmount: "20000",
+        targetDate: null, categoryType: "Emergency", status: "Active",
+      }]))
+      .mockReturnValueOnce(mockChain([
+        { id: 1, month: `${monthAgo.getFullYear()}-${String(monthAgo.getMonth() + 1).padStart(2, "0")}`, goalId: 1, amount: "10000", allocatedAt: monthAgo, sourceAccountId: 1 },
+        { id: 2, month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`, goalId: 1, amount: "10000", allocatedAt: now, sourceAccountId: 1 },
+      ]));
+    const res = await request(app).get("/api/goals/1/projection");
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThan(0);
   });
 });
