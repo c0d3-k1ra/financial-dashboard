@@ -1,3 +1,5 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
@@ -49,6 +51,18 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 app.use(globalRateLimiter);
 
 app.use("/api", router);
+
+if (isProduction) {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  // Compiled bundle lives at artifacts/api-server/dist/index.mjs — go up 3 levels to repo root
+  const staticDir = path.resolve(__dirname, "../../../artifacts/finance-app/dist/public");
+  app.use(express.static(staticDir));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(staticDir, "index.html"));
+  });
+}
 
 app.use(errorHandler);
 
